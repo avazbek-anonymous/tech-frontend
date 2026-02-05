@@ -273,15 +273,21 @@ thead th{
 .msg{ margin-top:10px; font-size:14px; }
 
 /* ===== Sidebar open/close ===== */
+/* Desktop: when closed — 1-column layout (content full width) */
 html[data-sidebar="closed"] .app{
-  grid-template-columns: 0 1fr;
+  grid-template-columns: 1fr;
 }
 html[data-sidebar="closed"] .sidebar{
   display:none;
 }
+html[data-sidebar="closed"] .content{
+  grid-column: 1;
+}
+/* Mobile: sidebar becomes overlay */
 
 @media (max-width: 900px){
-  .app{ grid-template-columns: 0 1fr; }
+  .app{ grid-template-columns: 1fr; }
+
   .sidebar{
     position: fixed;
     left: 12px;
@@ -296,5 +302,4 @@ html[data-sidebar="closed"] .sidebar{
     border: 1px solid var(--border);
   }
   html[data-sidebar="open"] .sidebar{ display:block; }
-  .content{ padding: 12px; }
 }
