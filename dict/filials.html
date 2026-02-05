@@ -181,7 +181,7 @@
       const lg = getLang();
 
       if (act === "rename") {
-        const nextName = prompt(lg==="uz" ? "Yangi nom:" : "Новое название:", cur.name || "");
+        const nextName = prompt(t("new_name"), cur.name || "");
         if (nextName === null) return;
         const nn = String(nextName).trim();
         if (!nn) return;
@@ -215,15 +215,12 @@
     mountActions();
     await load();
 
-    // Когда меняем язык — shell перерисует тексты кнопок в шапке,
-    // а мы обновим actions/table под новый язык простым перезагрузом.
-    window.addEventListener("storage", (e) => {
-      if (e.key === "tech_lang") {
+    window.addEventListener("tech:lang", () => {
         mountActions();
         renderTable();
         loadWho();
-      }
     });
+    
   </script>
 </body>
 </html>
