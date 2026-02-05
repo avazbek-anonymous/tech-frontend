@@ -1,13 +1,21 @@
-import { initUI, toggleSidebar, setTheme, getTheme, setLang, getLang, t } from "/assets/app.js";
+import {
+  initUI,
+  toggleSidebar,
+  setTheme,
+  getTheme,
+  setLang,
+  getLang,
+  t
+} from "/assets/app.js";
 
 export function renderShell({
-  active = "filials",     // что выделять в меню
-  titleKey = "filials"    // заголовок страницы (i18n key)
+  active = "filials",
+  titleKey = "filials"
 } = {}) {
   initUI();
 
   const root = document.getElementById("app");
-  if (!root) throw new Error('No #app element on page');
+  if (!root) throw new Error("No #app element on page");
 
   root.innerHTML = `
     <div class="app">
@@ -15,7 +23,8 @@ export function renderShell({
         <div class="left">
           <button class="btn icon" data-burger title="Menu" aria-label="Menu">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M4 6h16M4 12h16M4 18h16"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
 
@@ -28,7 +37,8 @@ export function renderShell({
         <div class="right">
           <button id="themeBtn" class="btn" style="min-width:92px;"></button>
           <button id="langBtn" class="btn" style="min-width:72px;"></button>
-          <a class="btn" href="/auth/login.html" id="loginLink" style="min-width:84px; text-align:center;"></a>
+          <a class="btn" href="/auth/login.html" id="loginLink"
+             style="min-width:84px; text-align:center;"></a>
           <button id="logoutBtn" class="btn danger" style="min-width:84px;"></button>
         </div>
       </div>
@@ -39,7 +49,7 @@ export function renderShell({
             <div class="menu-group-title" id="menuTitle"></div>
             <div class="menu-sub">
               <a href="/dict/filials.html" id="menu_filials">...</a>
-              <!-- позже добавим: /dict/warehouses.html, /dict/products.html -->
+              <!-- позже: склады, товары и т.д. -->
             </div>
           </div>
         </nav>
@@ -50,12 +60,14 @@ export function renderShell({
       </aside>
 
       <main class="content">
-        <div class="card pad" style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+        <div class="card pad"
+             style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
           <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
             <h2 style="margin:0;" id="pageTitle"></h2>
             <span class="muted" id="pageSub"></span>
           </div>
-          <div id="pageActions" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;"></div>
+          <div id="pageActions"
+               style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;"></div>
         </div>
 
         <div id="pageMsg" class="msg muted" style="margin:12px 2px 0;"></div>
@@ -80,7 +92,6 @@ export function renderShell({
   const a = root.querySelector("#menu_" + active);
   if (a) a.classList.add("active");
 
-  // i18n apply
   function applyI18n() {
     root.querySelector("#appTitle").textContent = t("app");
     root.querySelector("#menuTitle").textContent = t("dict");
@@ -95,30 +106,40 @@ export function renderShell({
     root.querySelector("#themeBtn").textContent = (th === "dark") ? t("dark") : t("light");
 
     const lg = getLang();
-    root.querySelector("#langBtn").textContent = (lg === "uz") ? "UZ" : "RU";
+    root.querySelector("#langBtn").textContent =
+      (lg === "uz") ? "UZ" : (lg === "en") ? "EN" : "RU";
   }
 
   applyI18n();
 
-  // events
-  root.querySelector("[data-burger]").addEventListener("click", () => toggleSidebar());
+  // burger
+  root.querySelector("[data-burger]").addEventListener("click", () => {
+    toggleSidebar();
+  });
 
+  // theme toggle + event
   root.querySelector("#themeBtn").addEventListener("click", () => {
     setTheme(getTheme() === "dark" ? "light" : "dark");
     applyI18n();
+    window.dispatchEvent(new Event("tech:theme"));
   });
 
+  // lang cycle RU->UZ->EN + event
   root.querySelector("#langBtn").addEventListener("click", () => {
-    setLang(getLang() === "uz" ? "ru" : "uz");
+    const cur = getLang();
+    const next = (cur === "ru") ? "uz" : (cur === "uz") ? "en" : "ru";
+    setLang(next);
     applyI18n();
+    window.dispatchEvent(new Event("tech:lang"));
   });
 
+  // logout
   root.querySelector("#logoutBtn").addEventListener("click", () => {
     localStorage.removeItem("tech_token");
     location.href = "/auth/login.html";
   });
 
-  // public api for pages
+  // public api
   return {
     setWho(text) { whoEl.textContent = text || ""; },
     setMsg(text, ok = true) {
