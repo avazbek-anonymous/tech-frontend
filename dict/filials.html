@@ -8,123 +8,20 @@
 </head>
 
 <body>
-  <div class="app">
-    <!-- HEADER -->
-    <div class="header">
-      <div class="left">
-        <button class="btn icon" data-burger title="Menu" aria-label="Menu">
-          <!-- burger -->
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-        </button>
-        <div style="display:flex; flex-direction:column; line-height:1.1;">
-          <div id="appTitle" style="font-weight:700;"></div>
-          <div id="who" class="muted"></div>
-        </div>
-      </div>
-
-      <div class="right">
-        <button id="themeBtn" class="btn" title="Theme"></button>
-        <button id="langBtn" class="btn" title="Language"></button>
-        <a class="btn" href="/auth/login.html" id="loginLink"></a>
-        <button id="logoutBtn" class="btn danger"></button>
-      </div>
-    </div>
-
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
-      <div class="card pad" style="margin-bottom:10px;">
-        <div class="muted" id="menuTitle"></div>
-      </div>
-
-      <nav class="menu">
-        <a class="active" href="/dict/filials.html" id="menuFilials"></a>
-        <!-- позже добавим: warehouses, products, sales... -->
-      </nav>
-
-      <div class="muted" style="margin-top:12px;">
-        API: <span id="apiBase"></span>
-      </div>
-    </aside>
-
-    <!-- CONTENT -->
-    <main class="content">
-      <div class="card pad" style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-          <h2 style="margin:0;" id="pageTitle"></h2>
-          <span class="muted" id="count"></span>
-        </div>
-
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-          <input id="q" class="inp" placeholder="Поиск..." style="width:220px;" />
-          <button id="refresh" class="btn">Обновить</button>
-          <button id="add" class="btn primary">+ Добавить</button>
-        </div>
-      </div>
-
-      <div id="msg" class="msg muted" style="margin:12px 2px 0;"></div>
-
-      <div class="tablewrap" style="margin-top:12px;">
-        <table>
-          <thead>
-            <tr>
-              <th style="width:90px;">ID</th>
-              <th>Название</th>
-              <th style="width:120px;">Активен</th>
-              <th style="width:200px;">Создан</th>
-              <th style="width:260px;">Действия</th>
-            </tr>
-          </thead>
-          <tbody id="rows"></tbody>
-        </table>
-      </div>
-    </main>
-  </div>
+  <div id="app"></div>
 
   <script type="module">
-    import { initUI, toggleSidebar, setTheme, getTheme, setLang, getLang, t } from "/assets/app.js";
+    import { renderShell } from "/assets/shell.js";
+    import { getLang } from "/assets/app.js";
 
     const API_BASE = "https://api.tech.gekto.uz";
-    document.getElementById("apiBase").textContent = API_BASE;
 
-    const el = (id) => document.getElementById(id);
-
-    const whoEl = el("who");
-    const msgEl = el("msg");
-    const rowsEl = el("rows");
-    const countEl = el("count");
-
-    const qEl = el("q");
-    const refreshEl = el("refresh");
-    const addEl = el("add");
-
-    const themeBtn = el("themeBtn");
-    const langBtn = el("langBtn");
-    const logoutBtn = el("logoutBtn");
-    const loginLink = el("loginLink");
-
-    const appTitle = el("appTitle");
-    const menuTitle = el("menuTitle");
-    const menuFilials = el("menuFilials");
-    const pageTitle = el("pageTitle");
+    const ui = renderShell({ active: "filials", titleKey: "filials" });
 
     let allItems = [];
 
-    function setMsg(text, ok=false) {
-      msgEl.textContent = text || "";
-      msgEl.classList.toggle("muted", ok);
-      msgEl.style.color = ok ? "var(--muted)" : "var(--danger)";
-    }
-
     function token() {
       return localStorage.getItem("tech_token") || "";
-    }
-
-    function fmtTs(ts) {
-      if (!ts) return "";
-      const d = new Date(ts * 1000);
-      return d.toLocaleString();
     }
 
     function escapeHtml(s) {
@@ -136,60 +33,10 @@
         .replaceAll("'", "&#039;");
     }
 
-    function applyI18n() {
-      appTitle.textContent = t("app");
-      menuTitle.textContent = t("dict");
-      menuFilials.textContent = t("filials");
-      pageTitle.textContent = t("filials");
-
-      loginLink.textContent = t("login");
-      logoutBtn.textContent = t("logout");
-
-      // theme button label
-      const th = getTheme();
-      themeBtn.textContent = (th === "dark") ? t("dark") : t("light");
-
-      // lang label
-      const lg = getLang();
-      langBtn.textContent = (lg === "uz") ? "UZ" : "RU";
-
-      qEl.placeholder = (lg === "uz") ? "Qidirish..." : "Поиск...";
-      refreshEl.textContent = (lg === "uz") ? "Yangilash" : "Обновить";
-      addEl.textContent = (lg === "uz") ? "+ Qo‘shish" : "+ Добавить";
-    }
-
-    function render() {
-      const q = (qEl.value || "").trim().toLowerCase();
-      const items = q
-        ? allItems.filter(x => String(x.name || "").toLowerCase().includes(q))
-        : allItems;
-
-      countEl.textContent = items.length ? ("(" + items.length + ")") : "";
-
-      if (!items.length) {
-        rowsEl.innerHTML = `<tr><td colspan="5" style="padding:12px;">—</td></tr>`;
-        return;
-      }
-
-      rowsEl.innerHTML = items.map(x => {
-        const active = x.is_active ? (getLang()==="uz" ? "Ha" : "Да") : (getLang()==="uz" ? "Yo‘q" : "Нет");
-        const toggleText = x.is_active ? (getLang()==="uz" ? "O‘chirish" : "Выключить") : (getLang()==="uz" ? "Yoqish" : "Включить");
-        const renameText = (getLang()==="uz" ? "Nomini o‘zgartirish" : "Переименовать");
-        const rowOpacity = x.is_active ? "1" : "0.55";
-
-        return `
-          <tr style="opacity:${rowOpacity}">
-            <td>${x.id}</td>
-            <td>${escapeHtml(x.name)}</td>
-            <td>${active}</td>
-            <td>${fmtTs(x.created_at)}</td>
-            <td style="display:flex; gap:8px; flex-wrap:wrap;">
-              <button class="btn" data-act="rename" data-id="${x.id}">${renameText}</button>
-              <button class="btn" data-act="toggle" data-id="${x.id}" data-next="${x.is_active ? 0 : 1}">${toggleText}</button>
-            </td>
-          </tr>
-        `;
-      }).join("");
+    function fmtTs(ts) {
+      if (!ts) return "";
+      const d = new Date(ts * 1000);
+      return d.toLocaleString();
     }
 
     async function apiFetch(path, opts = {}) {
@@ -207,92 +54,124 @@
         localStorage.removeItem("tech_token");
         throw new Error("UNAUTHORIZED");
       }
-      if (!r.ok || !data.ok) {
-        throw new Error(data.error || ("ERR_" + r.status));
-      }
+      if (!r.ok || !data.ok) throw new Error(data.error || ("ERR_" + r.status));
       return data;
     }
 
     async function loadWho() {
       try {
         const data = await apiFetch("/me");
-        whoEl.textContent = (getLang()==="uz")
+        ui.setWho(getLang() === "uz"
           ? `Siz: ${data.user.full_name} (${data.user.role})`
-          : `Ты: ${data.user.full_name} (${data.user.role})`;
+          : `Ты: ${data.user.full_name} (${data.user.role})`
+        );
       } catch {
-        whoEl.textContent = "";
+        ui.setWho("");
       }
     }
 
-    async function load() {
-      setMsg((getLang()==="uz") ? "Yuklanmoqda..." : "Загружаю...", true);
-      try {
-        const data = await apiFetch("/filials");
-        allItems = data.items || [];
-        setMsg("", true);
-        render();
-      } catch (e) {
-        if (String(e.message) === "NO_TOKEN" || String(e.message) === "UNAUTHORIZED") {
-          setMsg((getLang()==="uz") ? "Iltimos, avval kiring: /auth/login.html" : "Сначала войди: /auth/login.html");
-          rowsEl.innerHTML = `<tr><td colspan="5" style="padding:12px;">Login required</td></tr>`;
-          return;
-        }
-        setMsg("Ошибка: " + (e.message || e));
+    function renderTable() {
+      const lg = getLang();
+      const yes = lg === "uz" ? "Ha" : "Да";
+      const no  = lg === "uz" ? "Yo‘q" : "Нет";
+      const rename = lg === "uz" ? "Nomini o‘zgartirish" : "Переименовать";
+      const on = lg === "uz" ? "Yoqish" : "Включить";
+      const off = lg === "uz" ? "O‘chirish" : "Выключить";
+
+      const q = (document.getElementById("q")?.value || "").trim().toLowerCase();
+      const items = q ? allItems.filter(x => String(x.name||"").toLowerCase().includes(q)) : allItems;
+
+      ui.setSub(items.length ? `(${items.length})` : "");
+
+      if (!items.length) {
+        ui.bodyEl.innerHTML = `
+          <div class="tablewrap">
+            <table>
+              <tbody><tr><td style="padding:12px;">—</td></tr></tbody>
+            </table>
+          </div>`;
+        return;
       }
+
+      ui.bodyEl.innerHTML = `
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:90px;">ID</th>
+                <th>${lg==="uz" ? "Nomi" : "Название"}</th>
+                <th style="width:120px;">${lg==="uz" ? "Faol" : "Активен"}</th>
+                <th style="width:200px;">${lg==="uz" ? "Yaratilgan" : "Создан"}</th>
+                <th style="width:260px;">${lg==="uz" ? "Amallar" : "Действия"}</th>
+              </tr>
+            </thead>
+            <tbody id="rows">
+              ${items.map(x => `
+                <tr style="opacity:${x.is_active ? "1" : "0.55"}">
+                  <td>${x.id}</td>
+                  <td>${escapeHtml(x.name)}</td>
+                  <td>${x.is_active ? yes : no}</td>
+                  <td>${fmtTs(x.created_at)}</td>
+                  <td style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn" data-act="rename" data-id="${x.id}">${rename}</button>
+                    <button class="btn" data-act="toggle" data-id="${x.id}" data-next="${x.is_active ? 0 : 1}">
+                      ${x.is_active ? off : on}
+                    </button>
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>`;
     }
 
-    // init
-    initUI();
-    applyI18n();
+    function mountActions() {
+      const lg = getLang();
 
-    // burger
-    document.querySelector("[data-burger]").addEventListener("click", () => {
-      toggleSidebar();
-    });
+      ui.actionsEl.innerHTML = `
+        <input id="q" class="inp" placeholder="${lg==="uz" ? "Qidirish..." : "Поиск..."}" style="width:220px;" />
+        <button id="refresh" class="btn">${lg==="uz" ? "Yangilash" : "Обновить"}</button>
+        <button id="add" class="btn primary">${lg==="uz" ? "+ Qo‘shish" : "+ Добавить"}</button>
+      `;
 
-    // theme toggle
-    themeBtn.addEventListener("click", () => {
-      setTheme(getTheme() === "dark" ? "light" : "dark");
-      applyI18n();
-    });
+      document.getElementById("q").addEventListener("input", () => renderTable());
+      document.getElementById("refresh").addEventListener("click", () => load());
+      document.getElementById("add").addEventListener("click", async () => {
+        const name = prompt(lg === "uz" ? "Filial nomi:" : "Название филиала:");
+        if (!name) return;
 
-    // lang toggle
-    langBtn.addEventListener("click", () => {
-      setLang(getLang() === "uz" ? "ru" : "uz");
-      applyI18n();
-      render();
-      loadWho();
-    });
-
-    // logout
-    logoutBtn.addEventListener("click", () => {
-      localStorage.removeItem("tech_token");
-      location.href = "/auth/login.html";
-    });
-
-    // actions
-    refreshEl.addEventListener("click", () => load());
-    qEl.addEventListener("input", () => render());
-
-    addEl.addEventListener("click", async () => {
-      const promptText = (getLang()==="uz") ? "Filial nomi:" : "Название филиала:";
-      const name = prompt(promptText);
-      if (!name) return;
-
-      try {
-        setMsg((getLang()==="uz") ? "Yaratilmoqda..." : "Создаю...", true);
+        ui.setMsg(lg === "uz" ? "Yaratilmoqda..." : "Создаю...", true);
         await apiFetch("/filials", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: name.trim() })
         });
-        await load();
-      } catch (e) {
-        setMsg("Ошибка: " + (e.message || e));
-      }
-    });
 
-    rowsEl.addEventListener("click", async (e) => {
+        await load();
+      });
+    }
+
+    async function load() {
+      const lg = getLang();
+      try {
+        ui.setMsg(lg === "uz" ? "Yuklanmoqda..." : "Загружаю...", true);
+        const data = await apiFetch("/filials");
+        allItems = data.items || [];
+        ui.setMsg("", true);
+        mountActions();
+        renderTable();
+      } catch (e) {
+        const m = String(e.message || e);
+        if (m === "NO_TOKEN" || m === "UNAUTHORIZED") {
+          ui.setMsg(lg === "uz" ? "Iltimos, avval kiring (/auth/login.html)" : "Сначала войди (/auth/login.html)", false);
+        } else {
+          ui.setMsg("Ошибка: " + m, false);
+        }
+      }
+    }
+
+    // table buttons (rename/toggle)
+    ui.bodyEl.addEventListener("click", async (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
 
@@ -303,9 +182,10 @@
       const cur = allItems.find(x => String(x.id) === String(id));
       if (!cur) return;
 
+      const lg = getLang();
+
       if (act === "rename") {
-        const txt = (getLang()==="uz") ? "Yangi nom:" : "Новое название:";
-        const nextName = prompt(txt, cur.name || "");
+        const nextName = prompt(lg==="uz" ? "Yangi nom:" : "Новое название:", cur.name || "");
         if (nextName === null) return;
         const nn = String(nextName).trim();
         if (!nn) return;
@@ -320,7 +200,7 @@
 
       if (act === "toggle") {
         const next = Number(btn.getAttribute("data-next"));
-        const conf = (getLang()==="uz")
+        const conf = (lg === "uz")
           ? `"${cur.name}" filialini ${next===1 ? "yoqish" : "o‘chirish"}?`
           : `Точно ${next===1 ? "включить" : "выключить"} филиал "${cur.name}"?`;
 
@@ -335,9 +215,19 @@
       }
     });
 
-    // start
     await loadWho();
+    mountActions();
     await load();
+
+    // Когда меняем язык — shell перерисует тексты кнопок в шапке,
+    // а мы обновим actions/table под новый язык простым перезагрузом.
+    window.addEventListener("storage", (e) => {
+      if (e.key === "tech_lang") {
+        mountActions();
+        renderTable();
+        loadWho();
+      }
+    });
   </script>
 </body>
 </html>
