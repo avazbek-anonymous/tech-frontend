@@ -1,83 +1,120 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-theme="light" data-sidebar="open" data-lang="ru">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Справочники — Филиалы</title>
+  <title>Tech — Филиалы</title>
+  <link rel="stylesheet" href="/assets/app.css" />
 </head>
-<body style="font-family: Arial, sans-serif; padding: 24px; max-width: 1000px; margin: 0 auto;">
-  <div style="display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:14px;">
-    <div>
-      <h2 style="margin:0;">Филиалы</h2>
-      <div id="who" style="margin-top:4px; font-size:12px; color:#666;"></div>
+
+<body>
+  <div class="app">
+    <!-- HEADER -->
+    <div class="header">
+      <div class="left">
+        <button class="btn icon" data-burger title="Menu" aria-label="Menu">
+          <!-- burger -->
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <div style="display:flex; flex-direction:column; line-height:1.1;">
+          <div id="appTitle" style="font-weight:700;"></div>
+          <div id="who" class="muted"></div>
+        </div>
+      </div>
+
+      <div class="right">
+        <button id="themeBtn" class="btn" title="Theme"></button>
+        <button id="langBtn" class="btn" title="Language"></button>
+        <a class="btn" href="/auth/login.html" id="loginLink"></a>
+        <button id="logoutBtn" class="btn danger"></button>
+      </div>
     </div>
 
-    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-      <input id="q" placeholder="Поиск..."
-        style="padding:8px 10px; border:1px solid #ddd; border-radius:10px; width:220px; box-sizing:border-box;" />
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="card pad" style="margin-bottom:10px;">
+        <div class="muted" id="menuTitle"></div>
+      </div>
 
-      <button id="refresh"
-        style="padding:8px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer;">
-        Обновить
-      </button>
+      <nav class="menu">
+        <a class="active" href="/dict/filials.html" id="menuFilials"></a>
+        <!-- позже добавим: warehouses, products, sales... -->
+      </nav>
 
-      <button id="add"
-        style="padding:8px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer;">
-        + Добавить
-      </button>
+      <div class="muted" style="margin-top:12px;">
+        API: <span id="apiBase"></span>
+      </div>
+    </aside>
 
-      <a href="/auth/login.html"
-        style="text-decoration:none; padding:8px 12px; border:1px solid #ddd; border-radius:10px;">
-        Login
-      </a>
+    <!-- CONTENT -->
+    <main class="content">
+      <div class="card pad" style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <h2 style="margin:0;" id="pageTitle"></h2>
+          <span class="muted" id="count"></span>
+        </div>
 
-      <button id="logout"
-        style="padding:8px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer;">
-        Выйти
-      </button>
-    </div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <input id="q" class="inp" placeholder="Поиск..." style="width:220px;" />
+          <button id="refresh" class="btn">Обновить</button>
+          <button id="add" class="btn primary">+ Добавить</button>
+        </div>
+      </div>
+
+      <div id="msg" class="msg muted" style="margin:12px 2px 0;"></div>
+
+      <div class="tablewrap" style="margin-top:12px;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:90px;">ID</th>
+              <th>Название</th>
+              <th style="width:120px;">Активен</th>
+              <th style="width:200px;">Создан</th>
+              <th style="width:260px;">Действия</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </main>
   </div>
 
-  <div style="padding:12px; border:1px solid #e6e6e6; border-radius:12px; margin-bottom:12px;">
-    <div style="font-size:12px; color:#666;">API: <span id="apiBase"></span></div>
-    <div id="msg" style="margin-top:10px; font-size:14px;"></div>
-  </div>
+  <script type="module">
+    import { initUI, toggleSidebar, setTheme, getTheme, setLang, getLang, t } from "/assets/app.js";
 
-  <div style="overflow:auto; border:1px solid #eee; border-radius:12px;">
-    <table style="width:100%; border-collapse:collapse; min-width:780px;">
-      <thead>
-        <tr style="background:#fafafa;">
-          <th style="text-align:left; padding:10px; border-bottom:1px solid #eee; width:80px;">ID</th>
-          <th style="text-align:left; padding:10px; border-bottom:1px solid #eee;">Название</th>
-          <th style="text-align:left; padding:10px; border-bottom:1px solid #eee; width:110px;">Активен</th>
-          <th style="text-align:left; padding:10px; border-bottom:1px solid #eee; width:190px;">Создан</th>
-          <th style="text-align:left; padding:10px; border-bottom:1px solid #eee; width:240px;">Действия</th>
-        </tr>
-      </thead>
-      <tbody id="rows"></tbody>
-    </table>
-  </div>
-
-  <script>
     const API_BASE = "https://api.tech.gekto.uz";
+    document.getElementById("apiBase").textContent = API_BASE;
 
-    const apiBaseEl = document.getElementById("apiBase");
-    const msgEl = document.getElementById("msg");
-    const rowsEl = document.getElementById("rows");
-    const whoEl = document.getElementById("who");
+    const el = (id) => document.getElementById(id);
 
-    const qEl = document.getElementById("q");
-    const refreshEl = document.getElementById("refresh");
-    const addEl = document.getElementById("add");
-    const logoutEl = document.getElementById("logout");
+    const whoEl = el("who");
+    const msgEl = el("msg");
+    const rowsEl = el("rows");
+    const countEl = el("count");
 
-    apiBaseEl.textContent = API_BASE;
+    const qEl = el("q");
+    const refreshEl = el("refresh");
+    const addEl = el("add");
+
+    const themeBtn = el("themeBtn");
+    const langBtn = el("langBtn");
+    const logoutBtn = el("logoutBtn");
+    const loginLink = el("loginLink");
+
+    const appTitle = el("appTitle");
+    const menuTitle = el("menuTitle");
+    const menuFilials = el("menuFilials");
+    const pageTitle = el("pageTitle");
 
     let allItems = [];
 
     function setMsg(text, ok=false) {
-      msgEl.textContent = text;
-      msgEl.style.color = ok ? "green" : "crimson";
+      msgEl.textContent = text || "";
+      msgEl.classList.toggle("muted", ok);
+      msgEl.style.color = ok ? "var(--muted)" : "var(--danger)";
     }
 
     function token() {
@@ -99,37 +136,56 @@
         .replaceAll("'", "&#039;");
     }
 
+    function applyI18n() {
+      appTitle.textContent = t("app");
+      menuTitle.textContent = t("dict");
+      menuFilials.textContent = t("filials");
+      pageTitle.textContent = t("filials");
+
+      loginLink.textContent = t("login");
+      logoutBtn.textContent = t("logout");
+
+      // theme button label
+      const th = getTheme();
+      themeBtn.textContent = (th === "dark") ? t("dark") : t("light");
+
+      // lang label
+      const lg = getLang();
+      langBtn.textContent = (lg === "uz") ? "UZ" : "RU";
+
+      qEl.placeholder = (lg === "uz") ? "Qidirish..." : "Поиск...";
+      refreshEl.textContent = (lg === "uz") ? "Yangilash" : "Обновить";
+      addEl.textContent = (lg === "uz") ? "+ Qo‘shish" : "+ Добавить";
+    }
+
     function render() {
       const q = (qEl.value || "").trim().toLowerCase();
       const items = q
         ? allItems.filter(x => String(x.name || "").toLowerCase().includes(q))
         : allItems;
 
+      countEl.textContent = items.length ? ("(" + items.length + ")") : "";
+
       if (!items.length) {
-        rowsEl.innerHTML = `<tr><td colspan="5" style="padding:12px;">Пусто</td></tr>`;
+        rowsEl.innerHTML = `<tr><td colspan="5" style="padding:12px;">—</td></tr>`;
         return;
       }
 
       rowsEl.innerHTML = items.map(x => {
-        const active = x.is_active ? "Да" : "Нет";
-        const toggleText = x.is_active ? "Выключить" : "Включить";
+        const active = x.is_active ? (getLang()==="uz" ? "Ha" : "Да") : (getLang()==="uz" ? "Yo‘q" : "Нет");
+        const toggleText = x.is_active ? (getLang()==="uz" ? "O‘chirish" : "Выключить") : (getLang()==="uz" ? "Yoqish" : "Включить");
+        const renameText = (getLang()==="uz" ? "Nomini o‘zgartirish" : "Переименовать");
         const rowOpacity = x.is_active ? "1" : "0.55";
 
         return `
           <tr style="opacity:${rowOpacity}">
-            <td style="padding:10px; border-bottom:1px solid #f2f2f2;">${x.id}</td>
-            <td style="padding:10px; border-bottom:1px solid #f2f2f2;">${escapeHtml(x.name)}</td>
-            <td style="padding:10px; border-bottom:1px solid #f2f2f2;">${active}</td>
-            <td style="padding:10px; border-bottom:1px solid #f2f2f2;">${fmtTs(x.created_at)}</td>
-            <td style="padding:10px; border-bottom:1px solid #f2f2f2; display:flex; gap:8px; flex-wrap:wrap;">
-              <button data-act="rename" data-id="${x.id}"
-                style="padding:7px 10px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer;">
-                Переименовать
-              </button>
-              <button data-act="toggle" data-id="${x.id}" data-next="${x.is_active ? 0 : 1}"
-                style="padding:7px 10px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer;">
-                ${toggleText}
-              </button>
+            <td>${x.id}</td>
+            <td>${escapeHtml(x.name)}</td>
+            <td>${active}</td>
+            <td>${fmtTs(x.created_at)}</td>
+            <td style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn" data-act="rename" data-id="${x.id}">${renameText}</button>
+              <button class="btn" data-act="toggle" data-id="${x.id}" data-next="${x.is_active ? 0 : 1}">${toggleText}</button>
             </td>
           </tr>
         `;
@@ -137,14 +193,11 @@
     }
 
     async function apiFetch(path, opts = {}) {
-      const t = token();
-      if (!t) {
-        setMsg("Нет токена. Открой /auth/login.html и войди.");
-        throw new Error("NO_TOKEN");
-      }
+      const tkn = token();
+      if (!tkn) throw new Error("NO_TOKEN");
 
       const headers = Object.assign({}, opts.headers || {}, {
-        "Authorization": "Bearer " + t
+        "Authorization": "Bearer " + tkn
       });
 
       const r = await fetch(API_BASE + path, Object.assign({}, opts, { headers }));
@@ -152,64 +205,91 @@
 
       if (r.status === 401) {
         localStorage.removeItem("tech_token");
-        setMsg("Сессия истекла. Войди заново.");
         throw new Error("UNAUTHORIZED");
       }
-
       if (!r.ok || !data.ok) {
-        const msg = data.error || ("Ошибка (" + r.status + ")");
-        setMsg(msg);
-        throw new Error(msg);
+        throw new Error(data.error || ("ERR_" + r.status));
       }
-
       return data;
     }
 
     async function loadWho() {
       try {
         const data = await apiFetch("/me");
-        whoEl.textContent = `Ты: ${data.user.full_name} (${data.user.role})`;
+        whoEl.textContent = (getLang()==="uz")
+          ? `Siz: ${data.user.full_name} (${data.user.role})`
+          : `Ты: ${data.user.full_name} (${data.user.role})`;
       } catch {
         whoEl.textContent = "";
       }
     }
 
     async function load() {
-      setMsg("Загружаю...", true);
+      setMsg((getLang()==="uz") ? "Yuklanmoqda..." : "Загружаю...", true);
       try {
         const data = await apiFetch("/filials");
         allItems = data.items || [];
-        setMsg("Ок: " + allItems.length, true);
+        setMsg("", true);
         render();
       } catch (e) {
-        if (String(e.message || e) === "NO_TOKEN") {
-          rowsEl.innerHTML = `<tr><td colspan="5" style="padding:12px;">Нужно войти</td></tr>`;
+        if (String(e.message) === "NO_TOKEN" || String(e.message) === "UNAUTHORIZED") {
+          setMsg((getLang()==="uz") ? "Iltimos, avval kiring: /auth/login.html" : "Сначала войди: /auth/login.html");
+          rowsEl.innerHTML = `<tr><td colspan="5" style="padding:12px;">Login required</td></tr>`;
+          return;
         }
+        setMsg("Ошибка: " + (e.message || e));
       }
     }
 
-    logoutEl.addEventListener("click", () => {
-      localStorage.removeItem("tech_token");
-      setMsg("Вышел. Токен удалён", true);
-      setTimeout(() => location.href = "/auth/login.html", 300);
+    // init
+    initUI();
+    applyI18n();
+
+    // burger
+    document.querySelector("[data-burger]").addEventListener("click", () => {
+      toggleSidebar();
     });
 
-    refreshEl.addEventListener("click", () => load());
+    // theme toggle
+    themeBtn.addEventListener("click", () => {
+      setTheme(getTheme() === "dark" ? "light" : "dark");
+      applyI18n();
+    });
 
+    // lang toggle
+    langBtn.addEventListener("click", () => {
+      setLang(getLang() === "uz" ? "ru" : "uz");
+      applyI18n();
+      render();
+      loadWho();
+    });
+
+    // logout
+    logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem("tech_token");
+      location.href = "/auth/login.html";
+    });
+
+    // actions
+    refreshEl.addEventListener("click", () => load());
     qEl.addEventListener("input", () => render());
 
     addEl.addEventListener("click", async () => {
-      const name = prompt("Название филиала:");
+      const promptText = (getLang()==="uz") ? "Filial nomi:" : "Название филиала:";
+      const name = prompt(promptText);
       if (!name) return;
 
-      setMsg("Создаю...", true);
-      await apiFetch("/filials", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() })
-      });
-
-      await load();
+      try {
+        setMsg((getLang()==="uz") ? "Yaratilmoqda..." : "Создаю...", true);
+        await apiFetch("/filials", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: name.trim() })
+        });
+        await load();
+      } catch (e) {
+        setMsg("Ошибка: " + (e.message || e));
+      }
     });
 
     rowsEl.addEventListener("click", async (e) => {
@@ -218,48 +298,46 @@
 
       const act = btn.getAttribute("data-act");
       const id = btn.getAttribute("data-id");
-
       if (!act || !id) return;
 
       const cur = allItems.find(x => String(x.id) === String(id));
       if (!cur) return;
 
       if (act === "rename") {
-        const nextName = prompt("Новое название:", cur.name || "");
+        const txt = (getLang()==="uz") ? "Yangi nom:" : "Новое название:";
+        const nextName = prompt(txt, cur.name || "");
         if (nextName === null) return;
         const nn = String(nextName).trim();
         if (!nn) return;
 
-        setMsg("Сохраняю...", true);
         await apiFetch("/filials/" + id, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: nn })
         });
-
         await load();
       }
 
       if (act === "toggle") {
         const next = Number(btn.getAttribute("data-next"));
-        const txt = next === 1 ? "включить" : "выключить";
-        if (!confirm(`Точно ${txt} филиал "${cur.name}"?`)) return;
+        const conf = (getLang()==="uz")
+          ? `"${cur.name}" filialini ${next===1 ? "yoqish" : "o‘chirish"}?`
+          : `Точно ${next===1 ? "включить" : "выключить"} филиал "${cur.name}"?`;
 
-        setMsg("Сохраняю...", true);
+        if (!confirm(conf)) return;
+
         await apiFetch("/filials/" + id, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ is_active: next })
         });
-
         await load();
       }
     });
 
-    (async () => {
-      await loadWho();
-      await load();
-    })();
+    // start
+    await loadWho();
+    await load();
   </script>
 </body>
 </html>
