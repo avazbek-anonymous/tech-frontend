@@ -1,8 +1,8 @@
 // ===== Tech UI core (theme + sidebar + i18n) =====
 const STORAGE = {
-  theme: "tech_theme",   // light|dark
-  lang: "tech_lang",     // ru|uz
-  sidebar: "tech_sidebar" // open|closed
+  theme: "tech_theme",     // light|dark
+  lang: "tech_lang",       // ru|uz|en
+  sidebar: "tech_sidebar"  // open|closed
 };
 
 export function getTheme() {
@@ -15,16 +15,18 @@ export function setTheme(v) {
 }
 
 export function getLang() {
-  return localStorage.getItem(STORAGE.lang) || "ru";
+  const v = (localStorage.getItem(STORAGE.lang) || "ru").toLowerCase();
+  return (v === "uz" || v === "en") ? v : "ru";
 }
 export function setLang(v) {
-  const lang = (v === "uz") ? "uz" : "ru";
+  const lang = (String(v || "").toLowerCase() === "uz") ? "uz"
+            : (String(v || "").toLowerCase() === "en") ? "en"
+            : "ru";
   document.documentElement.dataset.lang = lang;
   localStorage.setItem(STORAGE.lang, lang);
 }
 
 export function getSidebar() {
-  // desktop default open, mobile default closed
   return localStorage.getItem(STORAGE.sidebar) || "open";
 }
 export function setSidebar(v) {
@@ -32,7 +34,6 @@ export function setSidebar(v) {
   document.documentElement.dataset.sidebar = s;
   localStorage.setItem(STORAGE.sidebar, s);
 }
-
 export function toggleSidebar() {
   setSidebar(getSidebar() === "open" ? "closed" : "open");
 }
@@ -77,10 +78,22 @@ export const T = {
     filials: "Филиалы",
     login: "Вход",
     logout: "Выйти",
-    theme: "Тема",
-    lang: "Язык",
     light: "Светлая",
     dark: "Тёмная",
+    search: "Поиск...",
+    refresh: "Обновить",
+    add: "+ Добавить",
+    name: "Название",
+    active: "Активен",
+    created: "Создан",
+    actions: "Действия",
+    yes: "Да",
+    no: "Нет",
+    rename: "Переименовать",
+    enable: "Включить",
+    disable: "Выключить",
+    branch_name: "Название филиала:",
+    new_name: "Новое название:",
   },
   uz: {
     app: "Tech Tizim",
@@ -88,10 +101,45 @@ export const T = {
     filials: "Filiallar",
     login: "Kirish",
     logout: "Chiqish",
-    theme: "Mavzu",
-    lang: "Til",
     light: "Yorug’",
     dark: "Qorong’i",
+    search: "Qidirish...",
+    refresh: "Yangilash",
+    add: "+ Qo‘shish",
+    name: "Nomi",
+    active: "Faol",
+    created: "Yaratilgan",
+    actions: "Amallar",
+    yes: "Ha",
+    no: "Yo‘q",
+    rename: "Nomini o‘zgartirish",
+    enable: "Yoqish",
+    disable: "O‘chirish",
+    branch_name: "Filial nomi:",
+    new_name: "Yangi nom:",
+  },
+  en: {
+    app: "Tech System",
+    dict: "Directories",
+    filials: "Branches",
+    login: "Login",
+    logout: "Logout",
+    light: "Light",
+    dark: "Dark",
+    search: "Search...",
+    refresh: "Refresh",
+    add: "+ Add",
+    name: "Name",
+    active: "Active",
+    created: "Created",
+    actions: "Actions",
+    yes: "Yes",
+    no: "No",
+    rename: "Rename",
+    enable: "Enable",
+    disable: "Disable",
+    branch_name: "Branch name:",
+    new_name: "New name:",
   }
 };
 
