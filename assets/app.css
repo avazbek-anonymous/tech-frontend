@@ -1,0 +1,207 @@
+/* ===== Tech UI (Telegram-like) ===== */
+:root{
+  --bg: #ffffff;
+  --panel: #f6f7f8;
+  --panel2: #ffffff;
+  --text: #111111;
+  --muted: #6b7280;
+  --border: rgba(0,0,0,.08);
+  --accent: #2a8cff;
+  --danger: #ff3b30;
+  --shadow: 0 8px 24px rgba(0,0,0,.08);
+  --radius: 14px;
+  --h: 56px;
+  --sidebar: 280px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+html[data-theme="dark"]{
+  --bg: #0e1621;
+  --panel: #17212b;
+  --panel2: #1f2c3a;
+  --text: #e6eef8;
+  --muted: #93a4b8;
+  --border: rgba(255,255,255,.08);
+  --accent: #2a8cff;
+  --danger: #ff453a;
+  --shadow: 0 8px 26px rgba(0,0,0,.35);
+}
+
+*{ box-sizing:border-box; }
+html, body{ height:100%; }
+body{
+  margin:0;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Layout */
+.app{
+  display:grid;
+  grid-template-columns: var(--sidebar) 1fr;
+  grid-template-rows: var(--h) 1fr;
+  min-height:100vh;
+}
+
+.header{
+  grid-column: 1 / -1;
+  height: var(--h);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 0 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.header .left, .header .right{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.sidebar{
+  grid-row: 2 / -1;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 10px;
+  position: sticky;
+  top: var(--h);
+  height: calc(100vh - var(--h));
+  overflow:auto;
+}
+
+.content{
+  grid-row: 2 / -1;
+  padding: 14px;
+}
+
+/* Cards / panels */
+.card{
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.card.pad{ padding: 12px; }
+
+/* Buttons */
+.btn{
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 12px;
+  cursor:pointer;
+  transition: transform .05s ease, background .15s ease;
+  user-select:none;
+}
+.btn:active{ transform: scale(.98); }
+.btn:hover{ background: rgba(127,127,127,.10); }
+.btn.primary{
+  border-color: transparent;
+  background: var(--accent);
+  color: #fff;
+}
+.btn.danger{
+  border-color: transparent;
+  background: var(--danger);
+  color:#fff;
+}
+.btn.icon{
+  width: 40px;
+  height: 40px;
+  padding:0;
+  display:grid;
+  place-items:center;
+  border-radius: 12px;
+}
+
+/* Inputs */
+.inp{
+  width:100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--panel2);
+  color: var(--text);
+  outline: none;
+}
+.inp:focus{
+  border-color: rgba(42,140,255,.5);
+  box-shadow: 0 0 0 3px rgba(42,140,255,.18);
+}
+
+/* Menu */
+.menu{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.menu a{
+  text-decoration:none;
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+}
+.menu a:hover{
+  background: rgba(127,127,127,.10);
+}
+.menu a.active{
+  background: rgba(42,140,255,.15);
+  border-color: rgba(42,140,255,.25);
+}
+
+/* Table */
+.tablewrap{
+  overflow:auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel2);
+}
+table{
+  width:100%;
+  border-collapse: collapse;
+  min-width: 700px;
+}
+th, td{
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  text-align:left;
+}
+thead th{
+  background: rgba(127,127,127,.08);
+}
+
+/* Responsive sidebar (burger) */
+html[data-sidebar="closed"] .app{
+  grid-template-columns: 0 1fr;
+}
+html[data-sidebar="closed"] .sidebar{
+  display:none;
+}
+
+@media (max-width: 900px){
+  .app{ grid-template-columns: 0 1fr; }
+  .sidebar{
+    position: fixed;
+    left:0;
+    top: var(--h);
+    width: min(var(--sidebar), 92vw);
+    height: calc(100vh - var(--h));
+    z-index: 60;
+    display:none;
+  }
+  html[data-sidebar="open"] .sidebar{ display:block; }
+  .content{ padding: 12px; }
+}
+
+/* Small text */
+.muted{ color: var(--muted); font-size: 12px; }
+.msg{ margin-top:10px; font-size:14px; }
