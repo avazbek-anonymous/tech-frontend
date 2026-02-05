@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Справочники — Филиалы</title>
+</head>
+<body style="font-family: Arial, sans-serif; padding: 24px; max-width: 900px; margin: 0 auto;">
+  <div style="display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:14px;">
+    <h2 style="margin:0;">Филиалы</h2>
+    <div style="display:flex; gap:10px;">
+      <a href="/auth/login.html" style="text-decoration:none; padding:8px 12px; border:1px solid #ddd; border-radius:10px;">Login</a>
+      <button id="logout" style="padding:8px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer;">Выйти</button>
+    </div>
+  </div>
+
+  <div style="padding:12px; border:1px solid #e6e6e6; border-radius:12px; margin-bottom:12px;">
+    <div style="font-size:12px; color:#666;">API: <span id="apiBase"></span></div>
+    <div id="msg" style="margin-top:10px; font-size:14px;"></div>
+  </div>
+
+  <div style="overflow:auto; border:1px solid #eee; border-radius:12px;">
+    <table style="width:100%; border-collapse:collapse; min-width:600px;">
+      <thead>
+        <tr style="background:#fafafa;">
+          <th style="text-align:left; padding:10px; border-bottom:1px solid #eee;">ID</th>
+          <th style="text-align:left; padding:10px; border-bottom:1px solid #eee;">Название</th>
+          <th style="text-align:left; padding:10px; border-bottom:1px solid #eee;">Активен</th>
+          <th style="text-align:left; padding:10px; border-bottom:1px solid #eee;">Создан</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const API_BASE = "https://api.tech.gekto.uz";
+    document.getElementById("apiBase").textContent = API_BASE;
+
+    const msgEl = document.getElementById("msg");
+    const rowsEl = document.getElementById("rows");
+    const logoutEl = document.getElementById("logout");
+
+    function setMsg(text, ok=false) {
+      msgEl.textContent = text;
+      msgEl.style.color = ok ? "green" : "crimson";
+    }
+
+    logoutEl.addEventListener("click", () => {
+      localStorage.removeItem("tech_token");
+      setMsg("Вышел. Токен удалён.", true);
+      setTimeout(() => location.href = "/auth/login.html", 400);
+    });
+
+    function fmtTs(ts) {
+      if (!ts) return "";
+      // ts в секундах
+      const d = new Date(ts * 1000);
+      return d.toLocaleString();
+    }
+
+    async function load() {
+      const token = localStorage.getItem("tech_token");
+      if (!token) {
+        setMsg("Нет токена. Открой /auth/login.html и войди.");
+        return;
+      }
+
+      setMsg("Загружаю...", true);
+      rowsEl.innerHTML = "";
+
+      try {
+        const r = await fetch(API_BASE + "/filials", {
+          headers: { "Authorization": "Bearer " + token }
+        });
+
+        const data = await r.json().catch(() => ({}));
+
+        if (!r.ok || !data.ok) {
+          setMsg(data.error || ("Ошибка (" + r.status + ")"));
+          if (r.status === 401) {
+            localStorage.removeItem("tech_token");
+          }
+          return;
+        }
+
+        const items = data.items || [];
+        if (!items.length) {
+          setMsg("Пусто", true);
+          return;
+        }
+
+        setMsg("Ок: " + items.length, true);
+
+        rowsEl.innerHTML = items.map(x => `
+          <tr>
+            <td style="padding:10px; border-bottom:1px solid #f2f2f2;">${x.id}</td>
+            <td style="padding:10px; border-bottom:1px solid #f2f2f2;">${x.name}</td>
+            <td style="padding:10px; border-bottom:1px solid #f2f2f2;">${x.is_active ? "Да" : "Нет"}</td>
+            <td style="padding:10px; border-bottom:1px solid #f2f2f2;">${fmtTs(x.created_at)}</td>
+          </tr>
+        `).join("");
+      } catch (e) {
+        setMsg("Ошибка сети: " + (e?.message || e));
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>
