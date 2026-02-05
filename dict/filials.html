@@ -5,16 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Справочники — Филиалы</title>
 </head>
-<body style="font-family: Arial, sans-serif; padding: 24px; max-width: 900px; margin: 0 auto;">
+<body style="font-family: Arial, sans-serif; padding: 24px; max-width: 1000px; margin: 0 auto;">
   <div style="display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:14px;">
-    <h2 style="margin:0;">Филиалы</h2>
-    <div style="display:flex; gap:10px;">
-        <button id="add" style="padding:8px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer;">
-            + Добавить
-        </button>
+    <div>
+      <h2 style="margin:0;">Филиалы</h2>
+      <div id="who" style="margin-top:4px; font-size:12px; color:#666;"></div>
+    </div>
 
-        <a href="/auth/login.html" style="text-decoration:none; padding:8px 12px; border:1px solid #ddd; border-radius:10px;">Login</a>
-        <button id="logout" style="padding:8px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer;">Выйти</button>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <input id="q" placeholder="Поиск..."
+        style="padding:8px 10px; border:1px solid #ddd; border-radius:10px; width:220px; box-sizing:border-box;" />
+
+      <button id="refresh"
+        style="padding:8px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer;">
+        Обновить
+      </button>
+
+      <button id="add"
+        style="padding:8px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer;">
+        + Добавить
+      </button>
+
+      <a href="/auth/login.html"
+        style="text-decoration:none; padding:8px 12px; border:1px solid #ddd; border-radius:10px;">
+        Login
+      </a>
+
+      <button id="logout"
+        style="padding:8px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer;">
+        Выйти
+      </button>
     </div>
   </div>
 
@@ -24,13 +44,14 @@
   </div>
 
   <div style="overflow:auto; border:1px solid #eee; border-radius:12px;">
-    <table style="width:100%; border-collapse:collapse; min-width:600px;">
+    <table style="width:100%; border-collapse:collapse; min-width:780px;">
       <thead>
         <tr style="background:#fafafa;">
-          <th style="text-align:left; padding:10px; border-bottom:1px solid #eee;">ID</th>
+          <th style="text-align:left; padding:10px; border-bottom:1px solid #eee; width:80px;">ID</th>
           <th style="text-align:left; padding:10px; border-bottom:1px solid #eee;">Название</th>
-          <th style="text-align:left; padding:10px; border-bottom:1px solid #eee;">Активен</th>
-          <th style="text-align:left; padding:10px; border-bottom:1px solid #eee;">Создан</th>
+          <th style="text-align:left; padding:10px; border-bottom:1px solid #eee; width:110px;">Активен</th>
+          <th style="text-align:left; padding:10px; border-bottom:1px solid #eee; width:190px;">Создан</th>
+          <th style="text-align:left; padding:10px; border-bottom:1px solid #eee; width:240px;">Действия</th>
         </tr>
       </thead>
       <tbody id="rows"></tbody>
@@ -39,119 +60,206 @@
 
   <script>
     const API_BASE = "https://api.tech.gekto.uz";
-    document.getElementById("apiBase").textContent = API_BASE;
 
+    const apiBaseEl = document.getElementById("apiBase");
     const msgEl = document.getElementById("msg");
     const rowsEl = document.getElementById("rows");
-    const logoutEl = document.getElementById("logout");
-    const addEl = document.getElementById("add");
+    const whoEl = document.getElementById("who");
 
+    const qEl = document.getElementById("q");
+    const refreshEl = document.getElementById("refresh");
+    const addEl = document.getElementById("add");
+    const logoutEl = document.getElementById("logout");
+
+    apiBaseEl.textContent = API_BASE;
+
+    let allItems = [];
 
     function setMsg(text, ok=false) {
       msgEl.textContent = text;
       msgEl.style.color = ok ? "green" : "crimson";
     }
 
-    logoutEl.addEventListener("click", () => {
-      localStorage.removeItem("tech_token");
-      setMsg("Вышел. Токен удалён.", true);
-      setTimeout(() => location.href = "/auth/login.html", 400);
-    });
+    function token() {
+      return localStorage.getItem("tech_token") || "";
+    }
 
     function fmtTs(ts) {
       if (!ts) return "";
-      // ts в секундах
       const d = new Date(ts * 1000);
       return d.toLocaleString();
     }
 
-    /* Добавление */
-    
-    addEl.addEventListener("click", async () => {
-        const token = localStorage.getItem("tech_token");
-        if (!token) {
-            setMsg("Нет токена. Сначала войди.");
-        return;
-        }
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
 
-        const name = prompt("Название филиала:");
-        if (!name) return;
+    function render() {
+      const q = (qEl.value || "").trim().toLowerCase();
+      const items = q
+        ? allItems.filter(x => String(x.name || "").toLowerCase().includes(q))
+        : allItems;
 
-        setMsg("Создаю...", true);
-
-        try {
-            const r = await fetch(API_BASE + "/filials", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token
-                },
-                body: JSON.stringify({ name: name.trim() })
-            });
-
-            const data = await r.json().catch(() => ({}));
-
-            if (!r.ok || !data.ok) {
-                setMsg(data.error || ("Ошибка (" + r.status + ")"));
-                if (r.status === 401) localStorage.removeItem("tech_token");
-                return;
-            }
-
-            setMsg("Создано: " + data.item.name, true);
-            await load();
-        } catch (e) {
-            setMsg("Ошибка сети: " + (e?.message || e));
-        }
-    });
-
-
-    async function load() {
-      const token = localStorage.getItem("tech_token");
-      if (!token) {
-        setMsg("Нет токена. Открой /auth/login.html и войди.");
+      if (!items.length) {
+        rowsEl.innerHTML = `<tr><td colspan="5" style="padding:12px;">Пусто</td></tr>`;
         return;
       }
 
-      setMsg("Загружаю...", true);
-      rowsEl.innerHTML = "";
+      rowsEl.innerHTML = items.map(x => {
+        const active = x.is_active ? "Да" : "Нет";
+        const toggleText = x.is_active ? "Выключить" : "Включить";
+        const rowOpacity = x.is_active ? "1" : "0.55";
 
-      try {
-        const r = await fetch(API_BASE + "/filials", {
-          headers: { "Authorization": "Bearer " + token }
-        });
-
-        const data = await r.json().catch(() => ({}));
-
-        if (!r.ok || !data.ok) {
-          setMsg(data.error || ("Ошибка (" + r.status + ")"));
-          if (r.status === 401) {
-            localStorage.removeItem("tech_token");
-          }
-          return;
-        }
-
-        const items = data.items || [];
-        if (!items.length) {
-          setMsg("Пусто", true);
-          return;
-        }
-
-        setMsg("Ок: " + items.length, true);
-
-        rowsEl.innerHTML = items.map(x => `
-          <tr>
+        return `
+          <tr style="opacity:${rowOpacity}">
             <td style="padding:10px; border-bottom:1px solid #f2f2f2;">${x.id}</td>
-            <td style="padding:10px; border-bottom:1px solid #f2f2f2;">${x.name}</td>
-            <td style="padding:10px; border-bottom:1px solid #f2f2f2;">${x.is_active ? "Да" : "Нет"}</td>
+            <td style="padding:10px; border-bottom:1px solid #f2f2f2;">${escapeHtml(x.name)}</td>
+            <td style="padding:10px; border-bottom:1px solid #f2f2f2;">${active}</td>
             <td style="padding:10px; border-bottom:1px solid #f2f2f2;">${fmtTs(x.created_at)}</td>
+            <td style="padding:10px; border-bottom:1px solid #f2f2f2; display:flex; gap:8px; flex-wrap:wrap;">
+              <button data-act="rename" data-id="${x.id}"
+                style="padding:7px 10px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer;">
+                Переименовать
+              </button>
+              <button data-act="toggle" data-id="${x.id}" data-next="${x.is_active ? 0 : 1}"
+                style="padding:7px 10px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer;">
+                ${toggleText}
+              </button>
+            </td>
           </tr>
-        `).join("");
-      } catch (e) {
-        setMsg("Ошибка сети: " + (e?.message || e));
+        `;
+      }).join("");
+    }
+
+    async function apiFetch(path, opts = {}) {
+      const t = token();
+      if (!t) {
+        setMsg("Нет токена. Открой /auth/login.html и войди.");
+        throw new Error("NO_TOKEN");
+      }
+
+      const headers = Object.assign({}, opts.headers || {}, {
+        "Authorization": "Bearer " + t
+      });
+
+      const r = await fetch(API_BASE + path, Object.assign({}, opts, { headers }));
+      const data = await r.json().catch(() => ({}));
+
+      if (r.status === 401) {
+        localStorage.removeItem("tech_token");
+        setMsg("Сессия истекла. Войди заново.");
+        throw new Error("UNAUTHORIZED");
+      }
+
+      if (!r.ok || !data.ok) {
+        const msg = data.error || ("Ошибка (" + r.status + ")");
+        setMsg(msg);
+        throw new Error(msg);
+      }
+
+      return data;
+    }
+
+    async function loadWho() {
+      try {
+        const data = await apiFetch("/me");
+        whoEl.textContent = `Ты: ${data.user.full_name} (${data.user.role})`;
+      } catch {
+        whoEl.textContent = "";
       }
     }
 
-    load();
+    async function load() {
+      setMsg("Загружаю...", true);
+      try {
+        const data = await apiFetch("/filials");
+        allItems = data.items || [];
+        setMsg("Ок: " + allItems.length, true);
+        render();
+      } catch (e) {
+        if (String(e.message || e) === "NO_TOKEN") {
+          rowsEl.innerHTML = `<tr><td colspan="5" style="padding:12px;">Нужно войти</td></tr>`;
+        }
+      }
+    }
+
+    logoutEl.addEventListener("click", () => {
+      localStorage.removeItem("tech_token");
+      setMsg("Вышел. Токен удалён", true);
+      setTimeout(() => location.href = "/auth/login.html", 300);
+    });
+
+    refreshEl.addEventListener("click", () => load());
+
+    qEl.addEventListener("input", () => render());
+
+    addEl.addEventListener("click", async () => {
+      const name = prompt("Название филиала:");
+      if (!name) return;
+
+      setMsg("Создаю...", true);
+      await apiFetch("/filials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim() })
+      });
+
+      await load();
+    });
+
+    rowsEl.addEventListener("click", async (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+
+      const act = btn.getAttribute("data-act");
+      const id = btn.getAttribute("data-id");
+
+      if (!act || !id) return;
+
+      const cur = allItems.find(x => String(x.id) === String(id));
+      if (!cur) return;
+
+      if (act === "rename") {
+        const nextName = prompt("Новое название:", cur.name || "");
+        if (nextName === null) return;
+        const nn = String(nextName).trim();
+        if (!nn) return;
+
+        setMsg("Сохраняю...", true);
+        await apiFetch("/filials/" + id, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: nn })
+        });
+
+        await load();
+      }
+
+      if (act === "toggle") {
+        const next = Number(btn.getAttribute("data-next"));
+        const txt = next === 1 ? "включить" : "выключить";
+        if (!confirm(`Точно ${txt} филиал "${cur.name}"?`)) return;
+
+        setMsg("Сохраняю...", true);
+        await apiFetch("/filials/" + id, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ is_active: next })
+        });
+
+        await load();
+      }
+    });
+
+    (async () => {
+      await loadWho();
+      await load();
+    })();
   </script>
 </body>
 </html>
