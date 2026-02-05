@@ -9,8 +9,12 @@
   <div style="display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:14px;">
     <h2 style="margin:0;">Филиалы</h2>
     <div style="display:flex; gap:10px;">
-      <a href="/auth/login.html" style="text-decoration:none; padding:8px 12px; border:1px solid #ddd; border-radius:10px;">Login</a>
-      <button id="logout" style="padding:8px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer;">Выйти</button>
+        <button id="add" style="padding:8px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer;">
+            + Добавить
+        </button>
+
+        <a href="/auth/login.html" style="text-decoration:none; padding:8px 12px; border:1px solid #ddd; border-radius:10px;">Login</a>
+        <button id="logout" style="padding:8px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer;">Выйти</button>
     </div>
   </div>
 
@@ -40,6 +44,8 @@
     const msgEl = document.getElementById("msg");
     const rowsEl = document.getElementById("rows");
     const logoutEl = document.getElementById("logout");
+    const addEl = document.getElementById("add");
+
 
     function setMsg(text, ok=false) {
       msgEl.textContent = text;
@@ -58,6 +64,46 @@
       const d = new Date(ts * 1000);
       return d.toLocaleString();
     }
+
+    /* Добавление */
+    
+    addEl.addEventListener("click", async () => {
+        const token = localStorage.getItem("tech_token");
+        if (!token) {
+            setMsg("Нет токена. Сначала войди.");
+        return;
+        }
+
+        const name = prompt("Название филиала:");
+        if (!name) return;
+
+        setMsg("Создаю...", true);
+
+        try {
+            const r = await fetch(API_BASE + "/filials", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({ name: name.trim() })
+            });
+
+            const data = await r.json().catch(() => ({}));
+
+            if (!r.ok || !data.ok) {
+                setMsg(data.error || ("Ошибка (" + r.status + ")"));
+                if (r.status === 401) localStorage.removeItem("tech_token");
+                return;
+            }
+
+            setMsg("Создано: " + data.item.name, true);
+            await load();
+        } catch (e) {
+            setMsg("Ошибка сети: " + (e?.message || e));
+        }
+    });
+
 
     async function load() {
       const token = localStorage.getItem("tech_token");
