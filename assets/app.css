@@ -381,3 +381,67 @@ html[data-theme="dark"] .switch{
 .switch input:checked::after{
   transform: translateX(18px);
 }
+
+/* ===== TechSelect (custom dropdown) ===== */
+.tselect { position: relative; }
+
+.tselect-btn{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  width: 100%;
+  cursor:pointer;
+}
+
+.tselect-label{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.tselect-icon{ opacity:.85; }
+
+.tselect-pop{
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+}
+
+.tselect-backdrop{
+  position:absolute;
+  inset:0;
+  background: transparent;
+}
+
+.tselect-panel{
+  position: fixed;
+  padding: 6px;
+  overflow: auto;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.tselect-opt{
+  width:100%;
+  text-align:left;
+  border:0;
+  background: transparent;
+  color: var(--text);
+  padding: 10px 10px;
+  border-radius: 12px;
+  cursor:pointer;
+  font-size: 14px;
+}
+
+.tselect-opt:hover{
+  background: rgba(255,255,255,.14);
+}
+html[data-theme="dark"] .tselect-opt:hover{
+  background: rgba(255,255,255,.08);
+}
+
+.tselect-opt.active{
+  background: rgba(42,140,255,.22);
+}
