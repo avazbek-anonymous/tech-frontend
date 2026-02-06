@@ -14,6 +14,7 @@
     import { renderShell } from "/assets/shell.js";
     import { getLang, t } from "/assets/app.js";
     import { openModal } from "/assets/modal.js";
+    import { enhanceSelect } from "/assets/select.js";
 
     const API_BASE = "https://api.tech.gekto.uz";
     const ui = renderShell({ active: "warehouses", titleKey: "warehouses" });
@@ -149,6 +150,11 @@
           await load();
         }
       });
+      setTimeout(() => {
+        const sel = document.getElementById("w_filial");
+        if (sel) enhanceSelect(sel);
+      }, 0);
+
     }
 
     function mountActions() {
@@ -162,6 +168,8 @@
         <button id="refresh" class="btn">${t("refresh")}</button>
         <button id="add" class="btn primary">${t("add")}</button>
       `;
+      enhanceSelect(document.getElementById("filialSel"));
+
 
       document.getElementById("filialSel").addEventListener("change", (e) => {
         filialFilter = e.target.value || "";
