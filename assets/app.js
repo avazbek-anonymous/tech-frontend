@@ -117,6 +117,7 @@ export const T = {
 
     switch_default: "Филиал по умолчанию",
     switch_active: "Активен",
+    warehouses: "Склады",
 
   },
   uz: {
@@ -150,10 +151,8 @@ export const T = {
     timezone: "Vaqt mintaqasi",
     currency: "Valyuta",
     default: "Standart",
-
     create_filial: "Filial yaratish",
     edit_filial: "Filialni tahrirlash",
-
     field_name: "Nomi",
     field_code: "Kod (yagona)",
     field_phone: "Telefon",
@@ -161,10 +160,9 @@ export const T = {
     field_comment: "Izoh",
     field_timezone: "Timezone",
     field_currency: "Valyuta",
-
     switch_default: "Standart filial",
     switch_active: "Faol",
-
+    warehouses: "Omborlar",
 
   },
   en: {
@@ -198,10 +196,8 @@ export const T = {
     timezone: "Timezone",
     currency: "Currency",
     default: "Default",
-
     create_filial: "Create branch",
     edit_filial: "Edit branch",
-
     field_name: "Name",
     field_code: "Code (unique)",
     field_phone: "Phone",
@@ -209,11 +205,9 @@ export const T = {
     field_comment: "Comment",
     field_timezone: "Timezone",
     field_currency: "Currency",
-
     switch_default: "Default branch",
     switch_active: "Active",
-
-
+    warehouses: "Warehouses",
   }
 };
 

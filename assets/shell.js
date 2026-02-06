@@ -49,6 +49,7 @@ export function renderShell({
             <div class="menu-group-title" id="menuTitle"></div>
             <div class="menu-sub">
               <a href="/dict/filials.html" id="menu_filials">...</a>
+              <a href="/dict/warehouses.html" id="menu_warehouses">...</a>
               <!-- позже: склады, товары и т.д. -->
             </div>
           </div>
@@ -96,6 +97,8 @@ export function renderShell({
     root.querySelector("#appTitle").textContent = t("app");
     root.querySelector("#menuTitle").textContent = t("dict");
     root.querySelector("#menu_filials").textContent = t("filials");
+    root.querySelector("#menu_warehouses").textContent = t("warehouses");
+
 
     pageTitleEl.textContent = t(titleKey);
 
