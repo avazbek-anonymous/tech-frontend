@@ -96,6 +96,27 @@ export const T = {
     new_name: "Новое название:",
     cancel: "Отмена",
     save: "Сохранить",
+    code: "Код",
+    phone: "Телефон",
+    address: "Адрес",
+    comment: "Комментарий",
+    timezone: "Часовой пояс",
+    currency: "Валюта",
+    default: "По умолчанию",
+
+    create_filial: "Создать филиал",
+    edit_filial: "Редактировать филиал",
+
+    field_name: "Название",
+    field_code: "Код (уникально)",
+    field_phone: "Телефон",
+    field_address: "Адрес",
+    field_comment: "Комментарий",
+    field_timezone: "Timezone",
+    field_currency: "Валюта",
+
+    switch_default: "Филиал по умолчанию",
+    switch_active: "Активен",
 
   },
   uz: {
@@ -122,6 +143,28 @@ export const T = {
     new_name: "Yangi nom:",
     cancel: "Bekor qilish",
     save: "Saqlash",
+    code: "Kod",
+    phone: "Telefon",
+    address: "Manzil",
+    comment: "Izoh",
+    timezone: "Vaqt mintaqasi",
+    currency: "Valyuta",
+    default: "Standart",
+
+    create_filial: "Filial yaratish",
+    edit_filial: "Filialni tahrirlash",
+
+    field_name: "Nomi",
+    field_code: "Kod (yagona)",
+    field_phone: "Telefon",
+    field_address: "Manzil",
+    field_comment: "Izoh",
+    field_timezone: "Timezone",
+    field_currency: "Valyuta",
+
+    switch_default: "Standart filial",
+    switch_active: "Faol",
+
 
   },
   en: {
@@ -148,6 +191,28 @@ export const T = {
     new_name: "New name:",
     cancel: "Cancel",
     save: "Save",
+    code: "Code",
+    phone: "Phone",
+    address: "Address",
+    comment: "Comment",
+    timezone: "Timezone",
+    currency: "Currency",
+    default: "Default",
+
+    create_filial: "Create branch",
+    edit_filial: "Edit branch",
+
+    field_name: "Name",
+    field_code: "Code (unique)",
+    field_phone: "Phone",
+    field_address: "Address",
+    field_comment: "Comment",
+    field_timezone: "Timezone",
+    field_currency: "Currency",
+
+    switch_default: "Default branch",
+    switch_active: "Active",
+
 
   }
 };
