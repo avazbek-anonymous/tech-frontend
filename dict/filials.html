@@ -13,7 +13,7 @@
   <script type="module">
     import { renderShell } from "/assets/shell.js";
     import { getLang, t } from "/assets/app.js";
-    import { promptModal } from "/assets/modal.js";
+    import { openModal } from "/assets/modal.js";
 
 
 
@@ -61,6 +61,108 @@
       return data;
     }
 
+    function openFilialForm({ mode, item }) {
+      // mode: "create" | "edit"
+      const isEdit = mode === "edit";
+      const x = item || {};
+
+      const id = isEdit ? x.id : "";
+      const v_name = x.name || "";
+      const v_code = x.code || "";
+      const v_phone = x.phone || "";
+      const v_address = x.address || "";
+      const v_comment = x.comment || "";
+      const v_timezone = x.timezone || "Asia/Tashkent";
+      const v_currency = x.currency || "UZS";
+      const v_default = x.is_default ? 1 : 0;
+      const v_active = (x.is_active === 0) ? 0 : 1;
+
+      openModal({
+        title: isEdit ? t("edit_filial") : t("create_filial"),
+        sub: isEdit ? ("ID: " + id) : "",
+        okText: t("save"),
+        cancelText: t("cancel"),
+        bodyHtml: `
+          <div class="form-grid">
+            <div class="field">
+              <label>${t("field_name")}</label>
+              <input id="f_name" class="inp" value="${escapeHtml(v_name)}" />
+            </div>
+            <div class="field">
+              <label>${t("field_code")}</label>
+              <input id="f_code" class="inp" value="${escapeHtml(v_code)}" placeholder="BR001" />
+            </div>
+
+            <div class="field">
+              <label>${t("field_phone")}</label>
+              <input id="f_phone" class="inp" value="${escapeHtml(v_phone)}" placeholder="+998..." />
+            </div>
+            <div class="field">
+              <label>${t("field_currency")}</label>
+              <input id="f_currency" class="inp" value="${escapeHtml(v_currency)}" placeholder="UZS" />
+            </div>
+
+            <div class="field" style="grid-column:1 / -1;">
+              <label>${t("field_address")}</label>
+              <input id="f_address" class="inp" value="${escapeHtml(v_address)}" />
+            </div>
+
+            <div class="field" style="grid-column:1 / -1;">
+              <label>${t("field_comment")}</label>
+              <textarea id="f_comment" class="inp">${escapeHtml(v_comment)}</textarea>
+            </div>
+
+            <div class="field" style="grid-column:1 / -1;">
+              <label>${t("field_timezone")}</label>
+              <input id="f_timezone" class="inp" value="${escapeHtml(v_timezone)}" placeholder="Asia/Tashkent" />
+            </div>
+
+            <div class="switch" style="grid-column:1 / -1;">
+              <div class="label">${t("switch_default")}</div>
+              <input id="f_default" type="checkbox" ${v_default ? "checked" : ""} />
+            </div>
+
+            <div class="switch" style="grid-column:1 / -1;">
+              <div class="label">${t("switch_active")}</div>
+              <input id="f_active" type="checkbox" ${v_active ? "checked" : ""} />
+            </div>
+          </div>
+        `,
+        onOk: async () => {
+          const payload = {
+            name: (document.getElementById("f_name").value || "").trim(),
+            code: (document.getElementById("f_code").value || "").trim() || null,
+            phone: (document.getElementById("f_phone").value || "").trim() || null,
+            address: (document.getElementById("f_address").value || "").trim() || null,
+            comment: (document.getElementById("f_comment").value || "").trim() || null,
+            timezone: (document.getElementById("f_timezone").value || "").trim() || "Asia/Tashkent",
+            currency: (document.getElementById("f_currency").value || "").trim() || "UZS",
+            is_default: document.getElementById("f_default").checked ? 1 : 0,
+            is_active: document.getElementById("f_active").checked ? 1 : 0
+          };
+
+          if (!payload.name) throw new Error("name required");
+
+          if (isEdit) {
+            await apiFetch("/filials/" + id, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+          } else {
+            await apiFetch("/filials", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+          }
+
+          await load();
+        }
+      });
+    }
+
+
     async function loadWho() {
       try {
         const data = await apiFetch("/me");
@@ -74,86 +176,74 @@
     }
 
     function renderTable() {
-        const yes = t("yes");
-        const no  = t("no");
+      const yes = t("yes");
+      const no  = t("no");
 
-        const q = (document.getElementById("q")?.value || "").trim().toLowerCase();
-        const items = q ? allItems.filter(x => String(x.name||"").toLowerCase().includes(q)) : allItems;
+      const q = (document.getElementById("q")?.value || "").trim().toLowerCase();
+      const items = q ? allItems.filter(x => {
+        const s = (x.name||"") + " " + (x.code||"") + " " + (x.phone||"");
+        return s.toLowerCase().includes(q);
+      }) : allItems;
 
-        ui.setSub(items.length ? `(${items.length})` : "");
+      ui.setSub(items.length ? `(${items.length})` : "");
 
-        if (!items.length) {
-            ui.bodyEl.innerHTML = `
-            <div class="tablewrap">
-                <table>
-                <tbody><tr><td style="padding:12px;">—</td></tr></tbody>
-                </table>
-            </div>`;
-            return;
-        }
-
+      if (!items.length) {
         ui.bodyEl.innerHTML = `
-            <div class="tablewrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width:90px;">ID</th>
-                            <th>${t("name")}</th>
-                            <th style="width:120px;">${t("active")}</th>
-                            <th style="width:200px;">${t("created")}</th>
-                            <th style="width:260px;">${t("actions")}</th>
-                        </tr>
-                        </thead>
-                        <tbody id="rows">
-                        ${items.map(x => `
-                            <tr style="opacity:${x.is_active ? "1" : "0.55"}">
-                            <td>${x.id}</td>
-                            <td>${escapeHtml(x.name)}</td>
-                            <td>${x.is_active ? yes : no}</td>
-                            <td>${fmtTs(x.created_at)}</td>
-                            <td style="display:flex; gap:8px; flex-wrap:wrap;">
-                                <button class="btn" data-act="rename" data-id="${x.id}">${t("rename")}</button>
-                                <button class="btn" data-act="toggle" data-id="${x.id}" data-next="${x.is_active ? 0 : 1}">
-                                ${x.is_active ? t("disable") : t("enable")}
-                                </button>
-                            </td>
-                            </tr>
-                        `).join("")}
-                    </tbody>
-                </table>
-            </div>`;
+          <div class="tablewrap">
+            <table>
+              <tbody><tr><td style="padding:12px;">—</td></tr></tbody>
+            </table>
+          </div>`;
+        return;
+      }
+
+      ui.bodyEl.innerHTML = `
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:80px;">ID</th>
+                <th>${t("name")}</th>
+                <th style="width:120px;">${t("code")}</th>
+                <th style="width:150px;">${t("phone")}</th>
+                <th style="width:110px;">${t("default")}</th>
+                <th style="width:110px;">${t("active")}</th>
+                <th style="width:220px;">${t("actions")}</th>
+              </tr>
+            </thead>
+            <tbody id="rows">
+              ${items.map(x => `
+                <tr style="opacity:${x.is_active ? "1" : "0.55"}">
+                  <td>${x.id}</td>
+                  <td>${escapeHtml(x.name)}</td>
+                  <td>${escapeHtml(x.code || "")}</td>
+                  <td>${escapeHtml(x.phone || "")}</td>
+                  <td>${x.is_default ? yes : no}</td>
+                  <td>${x.is_active ? yes : no}</td>
+                  <td style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn" data-act="edit" data-id="${x.id}">${t("edit_filial")}</button>
+                    <button class="btn" data-act="toggle" data-id="${x.id}" data-next="${x.is_active ? 0 : 1}">
+                      ${x.is_active ? t("disable") : t("enable")}
+                    </button>
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>`;
     }
 
+
     function mountActions() {
-    ui.actionsEl.innerHTML = `
-        <input id="q" class="inp" placeholder="${t("search")}" style="width:220px;" />
-        <button id="refresh" class="btn">${t("refresh")}</button>
-        <button id="add" class="btn primary">${t("add")}</button>
-    `;
+      ui.actionsEl.innerHTML = `
+          <input id="q" class="inp" placeholder="${t("search")}" style="width:220px;" />
+          <button id="refresh" class="btn">${t("refresh")}</button>
+          <button id="add" class="btn primary">${t("add")}</button>
+      `;
 
-    document.getElementById("q").addEventListener("input", () => renderTable());
-    document.getElementById("refresh").addEventListener("click", () => load());
-    document.getElementById("add").addEventListener("click", async () => {
-        const name = await promptModal({
-          title: t("add"),
-          label: t("branch_name"),
-          value: "",
-          placeholder: t("branch_name"),
-          okText: t("save"),
-          cancelText: t("cancel")
-        });
-        if (!name) return;
-
-
-        ui.setMsg(getLang()==="uz" ? "Yaratilmoqda..." : (getLang()==="en" ? "Creating..." : "Создаю..."), true);
-        await apiFetch("/filials", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() })
-        });
-
-        await load();
-    });
+      document.getElementById("q").addEventListener("input", () => renderTable());
+      document.getElementById("refresh").addEventListener("click", () => load());
+      document.getElementById("add").addEventListener("click", async () => {openFilialForm({ mode: "create" });});
     }
 
 
@@ -190,25 +280,11 @@
 
       const lg = getLang();
 
-      if (act === "rename") {
-        const nn = await promptModal({
-          title: t("rename"),
-          label: t("new_name"),
-          value: cur.name || "",
-          placeholder: t("new_name"),
-          okText: t("save"),
-          cancelText: t("cancel")
-        });
-        if (!nn) return;
-
-
-        await apiFetch("/filials/" + id, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: nn })
-        });
-        await load();
+      if (act === "edit") {
+        openFilialForm({ mode: "edit", item: cur });
+        return;
       }
+
 
       if (act === "toggle") {
         const next = Number(btn.getAttribute("data-next"));
@@ -226,6 +302,8 @@
         await load();
       }
     });
+
+
 
     await loadWho();
     mountActions();
