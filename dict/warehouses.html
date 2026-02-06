@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="ru" data-theme="light" data-sidebar="open" data-lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tech — Warehouses</title>
+  <link rel="stylesheet" href="/assets/app.css" />
+</head>
+
+<body>
+  <div id="app"></div>
+
+  <script type="module">
+    import { renderShell } from "/assets/shell.js";
+    import { getLang, t } from "/assets/app.js";
+    import { openModal } from "/assets/modal.js";
+
+    const API_BASE = "https://api.tech.gekto.uz";
+    const ui = renderShell({ active: "filials", titleKey: "dict" }); // пока menu active остаётся filials group
+
+    let filials = [];
+    let items = [];
+    let filialFilter = "";
+
+    function token() {
+      return localStorage.getItem("tech_token") || "";
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    async function apiFetch(path, opts = {}) {
+      const tkn = token();
+      if (!tkn) throw new Error("NO_TOKEN");
+
+      const headers = Object.assign({}, opts.headers || {}, {
+        "Authorization": "Bearer " + tkn
+      });
+
+      const r = await fetch(API_BASE + path, Object.assign({}, opts, { headers }));
+      const data = await r.json().catch(() => ({}));
+
+      if (r.status === 401) {
+        localStorage.removeItem("tech_token");
+        throw new Error("UNAUTHORIZED");
+      }
+      if (!r.ok || !data.ok) throw new Error(data.error || ("ERR_" + r.status));
+      return data;
+    }
+
+    async function loadWho() {
+      try {
+        const data = await apiFetch("/me");
+        ui.setWho(getLang() === "uz"
+          ? `Siz: ${data.user.full_name} (${data.user.role})`
+          : (getLang()==="en"
+            ? `You: ${data.user.full_name} (${data.user.role})`
+            : `Ты: ${data.user.full_name} (${data.user.role})`
+          )
+        );
+      } catch { ui.setWho(""); }
+    }
+
+    function openWarehouseForm({ mode, item }) {
+      const isEdit = mode === "edit";
+      const x = item || {};
+
+      openModal({
+        title: isEdit ? (getLang()==="en" ? "Edit warehouse" : getLang()==="uz" ? "Omborni tahrirlash" : "Редактировать склад")
+                     : (getLang()==="en" ? "Create warehouse" : getLang()==="uz" ? "Ombor yaratish" : "Создать склад"),
+        okText: t("save"),
+        cancelText: t("cancel"),
+        bodyHtml: `
+          <div class="form-grid">
+            <div class="field" style="grid-column:1 / -1;">
+              <label>${getLang()==="en" ? "Filial" : getLang()==="uz" ? "Filial" : "Филиал"}</label>
+              <select id="w_filial" class="inp">
+                ${filials.map(f => `<option value="${f.id}" ${String(f.id)===String(x.filial_id||filialFilter) ? "selected" : ""}>${escapeHtml(f.name)}</option>`).join("")}
+              </select>
+            </div>
+
+            <div class="field">
+              <label>${getLang()==="en" ? "Name" : getLang()==="uz" ? "Nomi" : "Название"}</label>
+              <input id="w_name" class="inp" value="${escapeHtml(x.name || "")}" />
+            </div>
+            <div class="field">
+              <label>${getLang()==="en" ? "Code" : getLang()==="uz" ? "Kod" : "Код"}</label>
+              <input id="w_code" class="inp" value="${escapeHtml(x.code || "")}" placeholder="WH001" />
+            </div>
+
+            <div class="field" style="grid-column:1 / -1;">
+              <label>${getLang()==="en" ? "Address" : getLang()==="uz" ? "Manzil" : "Адрес"}</label>
+              <input id="w_address" class="inp" value="${escapeHtml(x.address || "")}" />
+            </div>
+
+            <div class="field" style="grid-column:1 / -1;">
+              <label>${getLang()==="en" ? "Comment" : getLang()==="uz" ? "Izoh" : "Комментарий"}</label>
+              <textarea id="w_comment" class="inp">${escapeHtml(x.comment || "")}</textarea>
+            </div>
+
+            <div class="switch" style="grid-column:1 / -1;">
+              <div class="label">${getLang()==="en" ? "Default warehouse (per filial)" : getLang()==="uz" ? "Standart ombor (filial bo‘yicha)" : "Склад по умолчанию (на филиал)"}</div>
+              <input id="w_default" type="checkbox" ${(x.is_default ? "checked" : "")} />
+            </div>
+
+            <div class="switch" style="grid-column:1 / -1;">
+              <div class="label">${t("switch_active")}</div>
+              <input id="w_active" type="checkbox" ${((x.is_active === 0) ? "" : "checked")} />
+            </div>
+          </div>
+        `,
+        onOk: async () => {
+          const payload = {
+            filial_id: Number(document.getElementById("w_filial").value),
+            name: (document.getElementById("w_name").value || "").trim(),
+            code: (document.getElementById("w_code").value || "").trim() || null,
+            address: (document.getElementById("w_address").value || "").trim() || null,
+            comment: (document.getElementById("w_comment").value || "").trim() || null,
+            is_default: document.getElementById("w_default").checked ? 1 : 0,
+            is_active: document.getElementById("w_active").checked ? 1 : 0
+          };
+          if (!payload.name) throw new Error("name required");
+
+          if (isEdit) {
+            await apiFetch("/warehouses/" + x.id, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+          } else {
+            await apiFetch("/warehouses", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+          }
+
+          await load();
+        }
+      });
+    }
+
+    function mountActions() {
+      ui.actionsEl.innerHTML = `
+        <select id="filialSel" class="inp" style="width:220px;">
+          <option value="">${getLang()==="en" ? "All filials" : getLang()==="uz" ? "Barcha filiallar" : "Все филиалы"}</option>
+          ${filials.map(f => `<option value="${f.id}" ${String(f.id)===String(filialFilter) ? "selected" : ""}>${escapeHtml(f.name)}</option>`).join("")}
+        </select>
+
+        <input id="q" class="inp" placeholder="${t("search")}" style="width:220px;" />
+        <button id="refresh" class="btn">${t("refresh")}</button>
+        <button id="add" class="btn primary">${t("add")}</button>
+      `;
+
+      document.getElementById("filialSel").addEventListener("change", (e) => {
+        filialFilter = e.target.value || "";
+        renderTable();
+      });
+
+      document.getElementById("q").addEventListener("input", () => renderTable());
+      document.getElementById("refresh").addEventListener("click", () => load());
+      document.getElementById("add").addEventListener("click", () => openWarehouseForm({ mode: "create", item: { filial_id: filialFilter ? Number(filialFilter) : (filials[0]?.id || null) } }));
+    }
+
+    function renderTable() {
+      const yes = t("yes");
+      const no  = t("no");
+
+      const q = (document.getElementById("q")?.value || "").trim().toLowerCase();
+
+      let view = items;
+      if (filialFilter) view = view.filter(x => String(x.filial_id) === String(filialFilter));
+      if (q) {
+        view = view.filter(x => {
+          const s = (x.name||"") + " " + (x.code||"") + " " + (x.address||"");
+          return s.toLowerCase().includes(q);
+        });
+      }
+
+      ui.setSub(view.length ? `(${view.length})` : "");
+
+      if (!view.length) {
+        ui.bodyEl.innerHTML = `
+          <div class="tablewrap">
+            <table><tbody><tr><td style="padding:12px;">—</td></tr></tbody></table>
+          </div>`;
+        return;
+      }
+
+      const filialNameById = new Map(filials.map(f => [String(f.id), f.name]));
+
+      ui.bodyEl.innerHTML = `
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:80px;">ID</th>
+                <th style="width:200px;">${getLang()==="en" ? "Filial" : getLang()==="uz" ? "Filial" : "Филиал"}</th>
+                <th>${getLang()==="en" ? "Name" : getLang()==="uz" ? "Nomi" : "Название"}</th>
+                <th style="width:120px;">${getLang()==="en" ? "Code" : getLang()==="uz" ? "Kod" : "Код"}</th>
+                <th style="width:110px;">${t("default")}</th>
+                <th style="width:110px;">${t("active")}</th>
+                <th style="width:220px;">${t("actions")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${view.map(x => `
+                <tr style="opacity:${x.is_active ? "1" : "0.55"}">
+                  <td>${x.id}</td>
+                  <td>${escapeHtml(filialNameById.get(String(x.filial_id)) || ("#" + x.filial_id))}</td>
+                  <td>${escapeHtml(x.name)}</td>
+                  <td>${escapeHtml(x.code || "")}</td>
+                  <td>${x.is_default ? yes : no}</td>
+                  <td>${x.is_active ? yes : no}</td>
+                  <td style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn" data-act="edit" data-id="${x.id}">${getLang()==="en" ? "Edit" : getLang()==="uz" ? "Tahrirlash" : "Редактировать"}</button>
+                    <button class="btn" data-act="toggle" data-id="${x.id}" data-next="${x.is_active ? 0 : 1}">
+                      ${x.is_active ? t("disable") : t("enable")}
+                    </button>
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    async function load() {
+      try {
+        ui.setMsg(getLang()==="en" ? "Loading..." : getLang()==="uz" ? "Yuklanmoqda..." : "Загружаю...", true);
+
+        const f = await apiFetch("/filials");
+        filials = f.items || [];
+
+        const w = await apiFetch("/warehouses");
+        items = w.items || [];
+
+        ui.setMsg("", true);
+        mountActions();
+        renderTable();
+      } catch (e) {
+        const m = String(e.message || e);
+        if (m === "NO_TOKEN" || m === "UNAUTHORIZED") {
+          ui.setMsg(getLang()==="en" ? "Please login (/auth/login.html)" : getLang()==="uz" ? "Iltimos, avval kiring (/auth/login.html)" : "Сначала войди (/auth/login.html)", false);
+        } else {
+          ui.setMsg("Error: " + m, false);
+        }
+      }
+    }
+
+    // clicks in table
+    ui.bodyEl.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+
+      const act = btn.getAttribute("data-act");
+      const id = btn.getAttribute("data-id");
+      if (!act || !id) return;
+
+      const cur = items.find(x => String(x.id) === String(id));
+      if (!cur) return;
+
+      if (act === "edit") {
+        openWarehouseForm({ mode: "edit", item: cur });
+        return;
+      }
+
+      if (act === "toggle") {
+        const next = Number(btn.getAttribute("data-next"));
+        const conf = (getLang()==="en")
+          ? `Set active=${next} for "${cur.name}"?`
+          : (getLang()==="uz")
+            ? `"${cur.name}" uchun active=${next} qilamizmi?`
+            : `Точно active=${next} для "${cur.name}"?`;
+
+        if (!confirm(conf)) return;
+
+        apiFetch("/warehouses/" + id, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ is_active: next })
+        }).then(load).catch(err => ui.setMsg("Error: " + (err?.message || err), false));
+      }
+    });
+
+    // on language change
+    window.addEventListener("tech:lang", () => {
+      ui.applyI18n();
+      mountActions();
+      renderTable();
+      loadWho();
+    });
+
+    await loadWho();
+    await load();
+  </script>
+</body>
+</html>
