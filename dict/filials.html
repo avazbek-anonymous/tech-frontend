@@ -13,6 +13,8 @@
   <script type="module">
     import { renderShell } from "/assets/shell.js";
     import { getLang, t } from "/assets/app.js";
+    import { promptModal } from "/assets/modal.js";
+
 
 
     const API_BASE = "https://api.tech.gekto.uz";
@@ -132,8 +134,16 @@
     document.getElementById("q").addEventListener("input", () => renderTable());
     document.getElementById("refresh").addEventListener("click", () => load());
     document.getElementById("add").addEventListener("click", async () => {
-        const name = prompt(t("branch_name"));
+        const name = await promptModal({
+          title: t("add"),
+          label: t("branch_name"),
+          value: "",
+          placeholder: t("branch_name"),
+          okText: t("save"),
+          cancelText: t("cancel")
+        });
         if (!name) return;
+
 
         ui.setMsg(getLang()==="uz" ? "Yaratilmoqda..." : (getLang()==="en" ? "Creating..." : "Создаю..."), true);
         await apiFetch("/filials", {
@@ -181,10 +191,16 @@
       const lg = getLang();
 
       if (act === "rename") {
-        const nextName = prompt(t("new_name"), cur.name || "");
-        if (nextName === null) return;
-        const nn = String(nextName).trim();
+        const nn = await promptModal({
+          title: t("rename"),
+          label: t("new_name"),
+          value: cur.name || "",
+          placeholder: t("new_name"),
+          okText: t("save"),
+          cancelText: t("cancel")
+        });
         if (!nn) return;
+
 
         await apiFetch("/filials/" + id, {
           method: "PATCH",
