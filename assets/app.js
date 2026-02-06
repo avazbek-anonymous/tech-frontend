@@ -94,6 +94,9 @@ export const T = {
     disable: "Выключить",
     branch_name: "Название филиала:",
     new_name: "Новое название:",
+    cancel: "Отмена",
+    save: "Сохранить",
+
   },
   uz: {
     app: "Tech Tizim",
@@ -117,6 +120,9 @@ export const T = {
     disable: "O‘chirish",
     branch_name: "Filial nomi:",
     new_name: "Yangi nom:",
+    cancel: "Bekor qilish",
+    save: "Saqlash",
+
   },
   en: {
     app: "Tech System",
@@ -140,6 +146,9 @@ export const T = {
     disable: "Disable",
     branch_name: "Branch name:",
     new_name: "New name:",
+    cancel: "Cancel",
+    save: "Save",
+
   }
 };
 
