@@ -30,8 +30,9 @@ export function renderShell({
 
           <div style="display:flex; flex-direction:column; line-height:1.1;">
             <div id="appTitle" style="font-weight:700;"></div>
-            <div id="who" class="muted"></div>
+            <div id="who" class="who-pill" style="margin-top:6px;"></div>
           </div>
+
         </div>
 
         <div class="right">
@@ -55,6 +56,12 @@ export function renderShell({
             </div>
           </div>
         </nav>
+        <div class="mobile-actions" id="mobileActions">
+          <button id="m_themeBtn" class="btn"></button>
+          <button id="m_langBtn" class="btn"></button>
+          <a class="btn" href="/auth/login.html" id="m_loginLink" style="text-align:center;"></a>
+          <button id="m_logoutBtn" class="btn danger"></button>
+        </div>
 
         <div class="muted" style="margin-top:12px;">
           API: <span id="apiBase"></span>
@@ -114,6 +121,15 @@ export function renderShell({
     const lg = getLang();
     root.querySelector("#langBtn").textContent =
       (lg === "uz") ? "UZ" : (lg === "en") ? "EN" : "RU";
+
+    // mobile actions
+    root.querySelector("#m_loginLink").textContent = t("login");
+    root.querySelector("#m_logoutBtn").textContent = t("logout");
+    const th2 = getTheme();
+    root.querySelector("#m_themeBtn").textContent = (th2 === "dark") ? t("dark") : t("light");
+
+    const lg2 = getLang();
+    root.querySelector("#m_langBtn").textContent = (lg2 === "uz") ? "UZ" : (lg2 === "en") ? "EN" : "RU";
   }
 
   applyI18n();
@@ -144,6 +160,29 @@ export function renderShell({
     localStorage.removeItem("tech_token");
     location.href = "/auth/login.html";
   });
+
+  // mobile theme
+  root.querySelector("#m_themeBtn").addEventListener("click", () => {
+    setTheme(getTheme() === "dark" ? "light" : "dark");
+    applyI18n();
+  });
+
+  // mobile lang
+  root.querySelector("#m_langBtn").addEventListener("click", () => {
+    const cur = getLang();
+    const next = (cur === "ru") ? "uz" : (cur === "uz") ? "en" : "ru";
+    setLang(next);
+    applyI18n();
+    window.dispatchEvent(new Event("tech:lang"));
+  });
+
+  // mobile logout
+  root.querySelector("#m_logoutBtn").addEventListener("click", () => {
+    localStorage.removeItem("tech_token");
+    location.href = "/auth/login.html";
+  });
+
+  
 
   // public api
   return {
