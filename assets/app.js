@@ -34,41 +34,57 @@ export function setSidebar(v) {
   document.documentElement.dataset.sidebar = s;
   localStorage.setItem(STORAGE.sidebar, s);
 }
-export function toggleSidebar() {
-  setSidebar(getSidebar() === "open" ? "closed" : "open");
-}
+
+const SIDEBAR_KEY = "tech_sidebar"; // сохраняем только desktop-состояние
 
 export function initUI() {
-  setTheme(getTheme());
-  setLang(getLang());
+  const html = document.documentElement;
 
-  // mobile default closed if not set
-  if (!localStorage.getItem(STORAGE.sidebar)) {
-    const isMobile = window.matchMedia("(max-width: 900px)").matches;
-    setSidebar(isMobile ? "closed" : "open");
-  } else {
-    setSidebar(getSidebar());
-  }
+  // theme/lang у тебя уже были — оставь как есть, если они выше/ниже.
+  // Здесь добавляем только sidebar-state:
+  const isMobile = window.matchMedia("(max-width: 820px)").matches;
+  const saved = localStorage.getItem(SIDEBAR_KEY) || "open";
 
-  // close sidebar on mobile click outside
-  document.addEventListener("click", (e) => {
-    const isMobile = window.matchMedia("(max-width: 900px)").matches;
-    if (!isMobile) return;
+  // На мобилке всегда стартуем закрытым (drawer не должен быть открыт после refresh)
+  html.setAttribute("data-sidebar", isMobile ? "closed" : saved);
 
-    if (document.documentElement.dataset.sidebar !== "open") return;
-
-    const sidebar = document.querySelector(".sidebar");
-    const burger = document.querySelector("[data-burger]");
-
-    const target = e.target;
-    const insideSidebar = sidebar && sidebar.contains(target);
-    const insideBurger = burger && burger.contains(target);
-
-    if (!insideSidebar && !insideBurger) {
-      setSidebar("closed");
+  // Если пользователь меняет размер окна — корректно переключаем режим
+  window.addEventListener("resize", () => {
+    const m = window.matchMedia("(max-width: 820px)").matches;
+    if (m) {
+      html.setAttribute("data-sidebar", "closed");
+    } else {
+      const s = localStorage.getItem(SIDEBAR_KEY) || "open";
+      html.setAttribute("data-sidebar", s);
     }
-  });
+  }, { passive: true });
 }
+
+/**
+ * toggleSidebar()
+ * toggleSidebar(true)  -> open
+ * toggleSidebar(false) -> closed
+ * toggleSidebar()      -> toggle
+ */
+export function toggleSidebar(force) {
+  const html = document.documentElement;
+  const isMobile = window.matchMedia("(max-width: 820px)").matches;
+
+  const cur = html.getAttribute("data-sidebar") || "open";
+  let next;
+
+  if (force === true) next = "open";
+  else if (force === false) next = "closed";
+  else next = (cur === "open") ? "closed" : "open";
+
+  html.setAttribute("data-sidebar", next);
+
+  // сохраняем только на ПК (на мобилке не сохраняем, чтобы drawer не открывался после refresh)
+  if (!isMobile) localStorage.setItem(SIDEBAR_KEY, next);
+
+  return next;
+}
+
 
 // простейший переводчик
 export const T = {
