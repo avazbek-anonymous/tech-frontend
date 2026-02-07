@@ -50,6 +50,7 @@ export function renderShell({
             <div class="menu-sub">
               <a href="/dict/filials.html" id="menu_filials">...</a>
               <a href="/dict/warehouses.html" id="menu_warehouses">...</a>
+              <a href="/dict/cash-accounts.html" id="menu_cash_accounts">...</a>
               <!-- позже: склады, товары и т.д. -->
             </div>
           </div>
@@ -98,6 +99,8 @@ export function renderShell({
     root.querySelector("#menuTitle").textContent = t("dict");
     root.querySelector("#menu_filials").textContent = t("filials");
     root.querySelector("#menu_warehouses").textContent = t("warehouses");
+    root.querySelector("#menu_cash_accounts").textContent = t("cash_accounts");
+
 
 
     pageTitleEl.textContent = t(titleKey);

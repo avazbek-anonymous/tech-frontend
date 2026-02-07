@@ -103,10 +103,8 @@ export const T = {
     timezone: "Часовой пояс",
     currency: "Валюта",
     default: "По умолчанию",
-
     create_filial: "Создать филиал",
     edit_filial: "Редактировать филиал",
-
     field_name: "Название",
     field_code: "Код (уникально)",
     field_phone: "Телефон",
@@ -114,11 +112,10 @@ export const T = {
     field_comment: "Комментарий",
     field_timezone: "Timezone",
     field_currency: "Валюта",
-
     switch_default: "Филиал по умолчанию",
     switch_active: "Активен",
     warehouses: "Склады",
-
+    cash_accounts: "Кассы / Счета",
   },
   uz: {
     app: "Tech Tizim",
@@ -163,7 +160,7 @@ export const T = {
     switch_default: "Standart filial",
     switch_active: "Faol",
     warehouses: "Omborlar",
-
+    cash_accounts: "Kassalar / Hisoblar",
   },
   en: {
     app: "Tech System",
@@ -208,6 +205,7 @@ export const T = {
     switch_default: "Default branch",
     switch_active: "Active",
     warehouses: "Warehouses",
+    cash_accounts: "Cash accounts",
   }
 };
 
