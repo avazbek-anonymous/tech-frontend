@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru" data-theme="light" data-sidebar="open" data-lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tech — Main</title>
+  <link rel="stylesheet" href="/assets/app.css" />
+</head>
+
+<body>
+  <div id="app"></div>
+
+  <script type="module">
+    import { requireFrontAuth, getLang, t } from "/assets/app.js";
+    import { renderShell } from "/assets/shell.js";
+
+    if (!requireFrontAuth()) throw new Error("NO_AUTH");
+
+    const ui = renderShell({ active: "", titleKey: "app" });
+
+    ui.setSub("");
+
+    // simple welcome card
+    ui.bodyEl.innerHTML = `
+      <div class="card pad">
+        <div style="font-size:18px; font-weight:800; margin-bottom:6px;">
+          ${getLang()==="en" ? "Welcome" : getLang()==="uz" ? "Xush kelibsiz" : "Добро пожаловать"}
+        </div>
+        <div class="muted">
+          ${getLang()==="en"
+            ? "Choose a section from the menu on the left."
+            : getLang()==="uz"
+              ? "Chapdagi menyudan bo‘limni tanlang."
+              : "Выберите раздел в меню слева."}
+        </div>
+      </div>
+    `;
+
+    // who (top-right name) will be filled by pages themselves usually,
+    // but for main page we can show a hint:
+    document.title = "Tech — " + t("app");
+  </script>
+</body>
+</html>
