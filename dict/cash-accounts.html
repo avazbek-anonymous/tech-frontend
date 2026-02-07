@@ -13,7 +13,7 @@
   <script type="module">
     import { renderShell } from "/assets/shell.js";
     import { getLang, t } from "/assets/app.js";
-    import { openModal } from "/assets/modal.js";
+    import { openModal, confirmModal } from "/assets/modal.js";
     import { enhanceSelect } from "/assets/select.js";
 
     const API_BASE = "https://api.tech.gekto.uz";
@@ -337,7 +337,7 @@
       }
     }
 
-    ui.bodyEl.addEventListener("click", (e) => {
+    ui.bodyEl.addEventListener("click", async (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
 
@@ -359,7 +359,15 @@
           ? L(`Отключить "${cur.name}"?`, `"${cur.name}" o‘chirilsinmi?`, `Disable "${cur.name}"?`)
           : L(`Включить "${cur.name}"?`, `"${cur.name}" yoqilsinmi?`, `Enable "${cur.name}"?`);
 
-        if (!confirm(conf)) return;
+        const ok = await confirmModal({
+            title: conf,
+            bodyHtml: `<div class="muted" style="margin-top:6px;">${L("Это изменит статус кассы/счёта.", "Bu kassa/hisob holatini o‘zgartiradi.", "This will change cash account status.")}</div>`,
+            okText: next === 0 ? L("Отключить", "O‘chirish", "Disable") : L("Включить", "Yoqish", "Enable"),
+            cancelText: t("cancel"),
+            danger: next === 0
+        });
+        if (!ok) return;
+
 
         apiFetch("/cash-accounts/" + id, {
           method: "PATCH",

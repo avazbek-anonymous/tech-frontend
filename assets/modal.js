@@ -164,3 +164,30 @@ export function promptModal({ title, label, value = "", placeholder = "", okText
     };
   });
 }
+// Красивое подтверждение вместо window.confirm()
+// usage:
+// const ok = await confirmModal({ title:"...", bodyHtml:"...", okText:"...", cancelText:"..." });
+// if(!ok) return;
+
+export function confirmModal({
+  title = "Confirm",
+  sub = "",
+  bodyHtml = "",
+  okText = "OK",
+  cancelText = "Cancel",
+  danger = false
+} = {}) {
+  return new Promise((resolve) => {
+    openModal({
+      title,
+      sub,
+      bodyHtml,
+      okText,
+      cancelText,
+      // если твой openModal поддерживает kind — можно подсветить danger
+      // kind: danger ? "danger" : "primary",
+      onOk: async () => resolve(true),
+      onCancel: () => resolve(false)
+    });
+  });
+}

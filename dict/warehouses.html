@@ -13,8 +13,9 @@
   <script type="module">
     import { renderShell } from "/assets/shell.js";
     import { getLang, t } from "/assets/app.js";
-    import { openModal } from "/assets/modal.js";
+    import { openModal, confirmModal } from "/assets/modal.js";
     import { enhanceSelect } from "/assets/select.js";
+    
 
     const API_BASE = "https://api.tech.gekto.uz";
     const ui = renderShell({ active: "warehouses", titleKey: "warehouses" });
@@ -302,7 +303,7 @@
     }
 
     // clicks in table
-    ui.bodyEl.addEventListener("click", (e) => {
+    ui.bodyEl.addEventListener("click", async (e) => {
       const btn = e.target.closest("button");
       if (!btn) return;
 
@@ -326,7 +327,15 @@
             ? `"${cur.name}" uchun active=${next} qilamizmi?`
             : `Точно active=${next} для "${cur.name}"?`;
 
-        if (!confirm(conf)) return;
+        const ok = await confirmModal({
+          title: conf,
+          bodyHtml: `<div class="muted" style="margin-top:6px;">${L("Это изменит статус склада.", "Bu ombor holatini o‘zgartiradi.", "This will change warehouse status.")}</div>`,
+          okText: next === 0 ? L("Отключить", "O‘chirish", "Disable") : L("Включить", "Yoqish", "Enable"),
+          cancelText: t("cancel"),
+          danger: next === 0
+        });
+        if (!ok) return;
+
 
         apiFetch("/warehouses/" + id, {
           method: "PATCH",
