@@ -14,7 +14,9 @@
     import { renderShell } from "/assets/shell.js";
     import { getLang, t } from "/assets/app.js";
     import { openModal, confirmModal } from "/assets/modal.js";
-
+    import { requireFrontAuth } from "/assets/app.js";
+    
+    if (!requireFrontAuth()) throw new Error("NO_AUTH");
 
 
     const API_BASE = "https://api.tech.gekto.uz";

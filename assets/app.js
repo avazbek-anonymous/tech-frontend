@@ -213,3 +213,16 @@ export function t(key) {
   const lang = getLang();
   return (T[lang] && T[lang][key]) ? T[lang][key] : (T.ru[key] || key);
 }
+export function requireFrontAuth() {
+  const token = localStorage.getItem("tech_token") || "";
+  const path = location.pathname || "";
+
+  // login page itself must be accessible
+  if (path.includes("/auth/login.html")) return true;
+
+  if (!token) {
+    location.href = "/auth/login.html";
+    return false;
+  }
+  return true;
+}

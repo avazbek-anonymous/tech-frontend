@@ -15,6 +15,10 @@
     import { getLang, t } from "/assets/app.js";
     import { openModal, confirmModal } from "/assets/modal.js";
     import { enhanceSelect } from "/assets/select.js";
+    import { requireFrontAuth } from "/assets/app.js";
+    
+    if (!requireFrontAuth()) throw new Error("NO_AUTH");
+
 
     const API_BASE = "https://api.tech.gekto.uz";
     const ui = renderShell({ active: "cash_accounts", titleKey: "cash_accounts" });
