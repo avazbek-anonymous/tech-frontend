@@ -1,12 +1,19 @@
-import {
-  initUI,
-  toggleSidebar,
-  setTheme,
-  getTheme,
-  setLang,
-  getLang,
-  t
-} from "/assets/app.js";
+import { initUI, toggleSidebar, setTheme, getTheme, setLang, getLang, t } from "/assets/app.js";
+
+function extractNameOnly(text) {
+  const s = String(text || "").trim();
+  if (!s) return "";
+  // Примеры входа:
+  // "Ты: Avazbek (business_owner)"
+  // "Siz: Avazbek (business_owner)"
+  // "You: Avazbek (business_owner)"
+  let x = s;
+  const p = x.indexOf(":");
+  if (p >= 0) x = x.slice(p + 1).trim();
+  const k = x.indexOf("(");
+  if (k >= 0) x = x.slice(0, k).trim();
+  return x;
+}
 
 export function renderShell({
   active = "filials",
@@ -15,7 +22,7 @@ export function renderShell({
   initUI();
 
   const root = document.getElementById("app");
-  if (!root) throw new Error("No #app element on page");
+  if (!root) throw new Error('No #app element on page');
 
   root.innerHTML = `
     <div class="app">
@@ -23,28 +30,37 @@ export function renderShell({
         <div class="left">
           <button class="btn icon" data-burger title="Menu" aria-label="Menu">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M4 6h16M4 12h16M4 18h16"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
 
           <div style="display:flex; flex-direction:column; line-height:1.1;">
             <div id="appTitle" style="font-weight:700;"></div>
-            <div id="who" class="who-pill" style="margin-top:6px;"></div>
           </div>
-
         </div>
 
+        <!-- DESKTOP actions (mobile скрывается CSS'ом) -->
         <div class="right">
+          <div id="whoTop" class="who-pill" title=""></div>
           <button id="themeBtn" class="btn" style="min-width:92px;"></button>
           <button id="langBtn" class="btn" style="min-width:72px;"></button>
-          <a class="btn" href="/auth/login.html" id="loginLink"
-             style="min-width:84px; text-align:center;"></a>
-          <button id="logoutBtn" class="btn danger" style="min-width:84px;"></button>
+          <button id="logoutBtn" class="btn danger" style="min-width:96px;"></button>
         </div>
       </div>
 
+      <div class="sidebar-backdrop" id="sbBackdrop" aria-hidden="true"></div>
+
       <aside class="sidebar">
+        <!-- sidebar top (mobile close) -->
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;">
+          <div class="muted" style="font-weight:700;">${"Tech System"}</div>
+          <button class="btn icon" id="sbClose" title="Close" aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+
         <nav class="menu">
           <div class="menu-group">
             <div class="menu-group-title" id="menuTitle"></div>
@@ -52,14 +68,14 @@ export function renderShell({
               <a href="/dict/filials.html" id="menu_filials">...</a>
               <a href="/dict/warehouses.html" id="menu_warehouses">...</a>
               <a href="/dict/cash-accounts.html" id="menu_cash_accounts">...</a>
-              <!-- позже: склады, товары и т.д. -->
             </div>
           </div>
         </nav>
+
+        <!-- MOBILE actions (desktop скрывается CSS'ом) -->
         <div class="mobile-actions" id="mobileActions">
           <button id="m_themeBtn" class="btn"></button>
           <button id="m_langBtn" class="btn"></button>
-          <a class="btn" href="/auth/login.html" id="m_loginLink" style="text-align:center;"></a>
           <button id="m_logoutBtn" class="btn danger"></button>
         </div>
 
@@ -69,14 +85,12 @@ export function renderShell({
       </aside>
 
       <main class="content">
-        <div class="card pad"
-             style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+        <div class="card pad" style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
           <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
             <h2 style="margin:0;" id="pageTitle"></h2>
             <span class="muted" id="pageSub"></span>
           </div>
-          <div id="pageActions"
-               style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;"></div>
+          <div id="pageActions" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;"></div>
         </div>
 
         <div id="pageMsg" class="msg muted" style="margin:12px 2px 0;"></div>
@@ -87,7 +101,7 @@ export function renderShell({
   `;
 
   // refs
-  const whoEl = root.querySelector("#who");
+  const whoTopEl = root.querySelector("#whoTop");
   const msgEl = root.querySelector("#pageMsg");
   const actionsEl = root.querySelector("#pageActions");
   const bodyEl = root.querySelector("#pageBody");
@@ -104,49 +118,39 @@ export function renderShell({
   function applyI18n() {
     root.querySelector("#appTitle").textContent = t("app");
     root.querySelector("#menuTitle").textContent = t("dict");
+
     root.querySelector("#menu_filials").textContent = t("filials");
     root.querySelector("#menu_warehouses").textContent = t("warehouses");
     root.querySelector("#menu_cash_accounts").textContent = t("cash_accounts");
 
-
-
     pageTitleEl.textContent = t(titleKey);
 
-    root.querySelector("#loginLink").textContent = t("login");
-    root.querySelector("#logoutBtn").textContent = t("logout");
-
     const th = getTheme();
-    root.querySelector("#themeBtn").textContent = (th === "dark") ? t("dark") : t("light");
+    const thText = (th === "dark") ? t("dark") : t("light");
+    root.querySelector("#themeBtn").textContent = thText;
+    root.querySelector("#m_themeBtn").textContent = thText;
 
     const lg = getLang();
-    root.querySelector("#langBtn").textContent =
-      (lg === "uz") ? "UZ" : (lg === "en") ? "EN" : "RU";
+    const lgText = (lg === "uz") ? "UZ" : (lg === "en") ? "EN" : "RU";
+    root.querySelector("#langBtn").textContent = lgText;
+    root.querySelector("#m_langBtn").textContent = lgText;
 
-    // mobile actions
-    root.querySelector("#m_loginLink").textContent = t("login");
+    root.querySelector("#logoutBtn").textContent = t("logout");
     root.querySelector("#m_logoutBtn").textContent = t("logout");
-    const th2 = getTheme();
-    root.querySelector("#m_themeBtn").textContent = (th2 === "dark") ? t("dark") : t("light");
-
-    const lg2 = getLang();
-    root.querySelector("#m_langBtn").textContent = (lg2 === "uz") ? "UZ" : (lg2 === "en") ? "EN" : "RU";
   }
 
   applyI18n();
 
-  // burger
-  root.querySelector("[data-burger]").addEventListener("click", () => {
-    toggleSidebar();
-  });
+  // events
+  root.querySelector("[data-burger]").addEventListener("click", () => toggleSidebar());
+  root.querySelector("#sbBackdrop")?.addEventListener("click", () => toggleSidebar(false));
+  root.querySelector("#sbClose")?.addEventListener("click", () => toggleSidebar(false));
 
-  // theme toggle + event
   root.querySelector("#themeBtn").addEventListener("click", () => {
     setTheme(getTheme() === "dark" ? "light" : "dark");
     applyI18n();
-    window.dispatchEvent(new Event("tech:theme"));
   });
 
-  // lang cycle RU->UZ->EN + event
   root.querySelector("#langBtn").addEventListener("click", () => {
     const cur = getLang();
     const next = (cur === "ru") ? "uz" : (cur === "uz") ? "en" : "ru";
@@ -155,19 +159,17 @@ export function renderShell({
     window.dispatchEvent(new Event("tech:lang"));
   });
 
-  // logout
   root.querySelector("#logoutBtn").addEventListener("click", () => {
     localStorage.removeItem("tech_token");
     location.href = "/auth/login.html";
   });
 
-  // mobile theme
+  // mobile actions
   root.querySelector("#m_themeBtn").addEventListener("click", () => {
     setTheme(getTheme() === "dark" ? "light" : "dark");
     applyI18n();
   });
 
-  // mobile lang
   root.querySelector("#m_langBtn").addEventListener("click", () => {
     const cur = getLang();
     const next = (cur === "ru") ? "uz" : (cur === "uz") ? "en" : "ru";
@@ -176,17 +178,25 @@ export function renderShell({
     window.dispatchEvent(new Event("tech:lang"));
   });
 
-  // mobile logout
   root.querySelector("#m_logoutBtn").addEventListener("click", () => {
     localStorage.removeItem("tech_token");
     location.href = "/auth/login.html";
   });
 
-  
+  // mobile UX: close drawer after clicking menu link
+  root.querySelectorAll(".sidebar a").forEach((link) => {
+    link.addEventListener("click", () => {
+      const isMobile = window.matchMedia("(max-width: 820px)").matches;
+      if (isMobile) toggleSidebar(false);
+    });
+  });
 
-  // public api
   return {
-    setWho(text) { whoEl.textContent = text || ""; },
+    setWho(text) {
+      const nameOnly = extractNameOnly(text);
+      whoTopEl.textContent = nameOnly ? nameOnly : "";
+      whoTopEl.title = nameOnly ? nameOnly : "";
+    },
     setMsg(text, ok = true) {
       msgEl.textContent = text || "";
       msgEl.style.color = ok ? "var(--muted)" : "var(--danger)";
