@@ -41,11 +41,12 @@ export function renderShell({
 
         <!-- DESKTOP actions (mobile скрывается CSS'ом) -->
         <div class="right">
-          <div id="whoTop" class="who-pill" title=""></div>
           <button id="themeBtn" class="btn" style="min-width:92px;"></button>
           <button id="langBtn" class="btn" style="min-width:72px;"></button>
           <button id="logoutBtn" class="btn danger" style="min-width:96px;"></button>
+          <div id="whoTop" class="who-pill" title="" style="margin-left:10px;"></div>
         </div>
+
       </div>
 
       <div class="sidebar-backdrop" id="sbBackdrop" aria-hidden="true"></div>
@@ -73,7 +74,7 @@ export function renderShell({
         </nav>
 
         <!-- MOBILE actions (desktop скрывается CSS'ом) -->
-        <div class="mobile-actions" id="mobileActions">
+        <div class="mobile-actions" id="mobileActions" data-mobile-only>
           <button id="m_themeBtn" class="btn"></button>
           <button id="m_langBtn" class="btn"></button>
           <button id="m_logoutBtn" class="btn danger"></button>
