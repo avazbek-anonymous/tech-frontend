@@ -19,24 +19,19 @@
       display:flex;
       align-items:center;
       justify-content:center;
-      padding: 18px;
-      background:
-        radial-gradient(1200px 600px at 20% 10%, rgba(42,140,255,.18), transparent 60%),
-        radial-gradient(900px 500px at 80% 90%, rgba(156,79,255,.14), transparent 60%);
+      padding: var(--pad);
+      background: var(--bg);
     }
 
     .auth-wrap{ width:min(100%, var(--auth-max)); }
     .auth-card{
+      background: var(--panel2);
       border: 1px solid var(--border);
-      border-radius: 20px;
-      box-shadow: var(--shadow);
-      background: rgba(255,255,255,.10);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
+      border-radius: var(--r);
+      box-shadow: var(--shadow2);
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
       overflow:hidden;
-    }
-    html[data-theme="dark"] .auth-card{
-      background: rgba(255,255,255,.06);
     }
 
     .auth-top{
@@ -44,8 +39,11 @@
       align-items:center;
       justify-content:space-between;
       gap:10px;
-      padding: 14px 14px 12px;
+      padding: 12px;
       border-bottom: 1px solid var(--border);
+      background: var(--panel);
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
     }
 
     .brand{
@@ -56,14 +54,12 @@
     }
     .logo{
       width:40px; height:40px;
-      border-radius: 14px;
+      border-radius: 12px;
       border: 1px solid var(--border);
       background: rgba(42,140,255,.18);
       display:flex;
       align-items:center;
       justify-content:center;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
       flex:0 0 auto;
     }
     .brand-txt{ min-width:0; }
@@ -92,15 +88,7 @@
       flex:0 0 auto;
     }
 
-    /* делаем кнопки как в системе */
-    .btn, .inp{ min-height:44px; height:44px; border-radius:14px; }
-    .btn.icon{ width:44px; padding:0; }
-    @media (min-width: 821px){
-      .btn, .inp{ min-height:40px; height:40px; border-radius:12px; }
-      .btn.icon{ width:40px; }
-    }
-
-    .auth-body{ padding: 14px; }
+    .auth-body{ padding: 12px; }
     .auth-title{
       font-size: 18px;
       font-weight: 900;
