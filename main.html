@@ -11,34 +11,130 @@
   <div id="app"></div>
 
   <script type="module">
-    import { requireFrontAuth, getLang, t } from "/assets/app.js";
     import { renderShell } from "/assets/shell.js";
+    import { getLang, t } from "/assets/app.js";
 
-    if (!requireFrontAuth()) throw new Error("NO_AUTH");
+    const API_BASE = "https://api.tech.gekto.uz";
 
     const ui = renderShell({ active: "", titleKey: "app" });
 
-    ui.setSub("");
+    function token() {
+      return localStorage.getItem("tech_token") || "";
+    }
 
-    // simple welcome card
-    ui.bodyEl.innerHTML = `
-      <div class="card pad">
-        <div style="font-size:18px; font-weight:800; margin-bottom:6px;">
-          ${getLang()==="en" ? "Welcome" : getLang()==="uz" ? "Xush kelibsiz" : "Добро пожаловать"}
-        </div>
-        <div class="muted">
-          ${getLang()==="en"
-            ? "Choose a section from the menu on the left."
-            : getLang()==="uz"
-              ? "Chapdagi menyudan bo‘limni tanlang."
-              : "Выберите раздел в меню слева."}
-        </div>
-      </div>
-    `;
+    async function apiFetch(path, opts = {}) {
+      const tkn = token();
+      if (!tkn) throw new Error("NO_TOKEN");
 
-    // who (top-right name) will be filled by pages themselves usually,
-    // but for main page we can show a hint:
-    document.title = "Tech — " + t("app");
+      const headers = Object.assign({}, opts.headers || {}, {
+        "Authorization": "Bearer " + tkn
+      });
+
+      const r = await fetch(API_BASE + path, Object.assign({}, opts, { headers }));
+      const data = await r.json().catch(() => ({}));
+
+      if (r.status === 401) {
+        localStorage.removeItem("tech_token");
+        throw new Error("UNAUTHORIZED");
+      }
+      if (!r.ok || !data.ok) throw new Error(data.error || ("ERR_" + r.status));
+      return data;
+    }
+
+    async function loadWho() {
+      try {
+        const data = await apiFetch("/me");
+        const lg = getLang();
+        const who = (lg === "uz")
+          ? `Siz: ${data.user.full_name} (${data.user.role})`
+          : (lg === "en")
+            ? `You: ${data.user.full_name} (${data.user.role})`
+            : `Ты: ${data.user.full_name} (${data.user.role})`;
+        ui.setWho(who); // shell сам оставит только имя справа
+      } catch {
+        ui.setWho("");
+      }
+    }
+
+    function L(ru, uz, en) {
+      const lg = getLang();
+      return lg === "uz" ? uz : (lg === "en" ? en : ru);
+    }
+
+    function renderHome() {
+      document.title = "Tech — " + t("app");
+
+      ui.setMsg("", true);
+      ui.setSub("");
+
+      ui.bodyEl.innerHTML = `
+        <div class="card pad" style="display:flex; flex-direction:column; gap:12px;">
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="font-size:18px; font-weight:900;">
+              ${L("Главная", "Bosh sahifa", "Home")}
+            </div>
+            <div class="muted">
+              ${L("Выберите раздел в меню слева или нажмите быстрые кнопки ниже.",
+                  "Chapdagi menyudan bo‘limni tanlang yoki quyidagi tezkor tugmalardan foydalaning.",
+                  "Choose a section from the left menu or use quick buttons below.")}
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px;">
+            <a class="btn" href="/dict/filials.html" style="text-decoration:none; justify-content:space-between;">
+              <span>${t("filials")}</span>
+              <span class="muted">→</span>
+            </a>
+
+            <a class="btn" href="/dict/warehouses.html" style="text-decoration:none; justify-content:space-between;">
+              <span>${t("warehouses")}</span>
+              <span class="muted">→</span>
+            </a>
+
+            <a class="btn" href="/dict/cash-accounts.html" style="text-decoration:none; justify-content:space-between;">
+              <span>${t("cash_accounts")}</span>
+              <span class="muted">→</span>
+            </a>
+
+            <button class="btn" id="btnLogout" style="justify-content:space-between;">
+              <span>${t("logout")}</span>
+              <span class="muted">⎋</span>
+            </button>
+          </div>
+
+          <div class="muted" style="font-size:12px; margin-top:2px;">
+            API: ${API_BASE}
+          </div>
+        </div>
+
+        <style>
+          @media (max-width: 520px){
+            .card.pad > div[style*="grid-template-columns"]{
+              grid-template-columns: 1fr !important;
+            }
+          }
+        </style>
+      `;
+
+      const btnLogout = document.getElementById("btnLogout");
+      btnLogout?.addEventListener("click", () => {
+        localStorage.removeItem("tech_token");
+        location.href = "/auth/login.html";
+      });
+    }
+
+    // если нет токена — на login (без правок login.html)
+    const tkn = token();
+    if (!tkn) location.href = "/auth/login.html";
+
+    window.addEventListener("tech:lang", () => {
+      ui.applyI18n();
+      renderHome();
+      loadWho();
+    });
+
+    renderHome();
+    await loadWho();
   </script>
 </body>
 </html>
