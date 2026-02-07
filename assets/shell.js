@@ -44,9 +44,6 @@ export function renderShell({
         </div>
       </div>
 
-      <div class="sidebar-backdrop" id="sbBackdrop" aria-hidden="true"></div>
-
-
       <aside class="sidebar">
         <nav class="menu">
           <div class="menu-group">
@@ -141,10 +138,6 @@ export function renderShell({
   root.querySelector("[data-burger]").addEventListener("click", () => {
     toggleSidebar();
   });
-
-  const bd = root.querySelector("#sbBackdrop");
-  if (bd) bd.addEventListener("click", () => toggleSidebar(false));
-
 
   // theme toggle + event
   root.querySelector("#themeBtn").addEventListener("click", () => {
