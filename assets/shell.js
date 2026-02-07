@@ -1,4 +1,5 @@
-import { initUI, toggleSidebar, setTheme, getTheme, setLang, getLang, t } from "/assets/app.js";
+import { initUI, toggleSidebar, setTheme, getTheme, setLang, getLang, t, requireFrontAuth } from "/assets/app.js";
+
 
 function extractNameOnly(text) {
   const s = String(text || "").trim();
@@ -22,6 +23,20 @@ export function renderShell({
   initUI();
 
   const root = document.getElementById("app");
+    // global auth guard (all pages except /auth/login.html)
+  if (!requireFrontAuth()) {
+    root.innerHTML = "";
+    return {
+      setWho(){},
+      setMsg(){},
+      setSub(){},
+      setTitleKey(){},
+      actionsEl: null,
+      bodyEl: null,
+      applyI18n(){},
+    };
+  }
+
   if (!root) throw new Error('No #app element on page');
 
   root.innerHTML = `
