@@ -25,6 +25,11 @@
 
     let allItems = [];
 
+    function L(ru, uz, en) {
+      const lg = getLang();
+      return lg === "uz" ? uz : (lg === "en" ? en : ru);
+    }
+
     function token() {
       return localStorage.getItem("tech_token") || "";
     }
