@@ -24,6 +24,8 @@
     const ui = renderShell({ active: "filials", titleKey: "filials" });
 
     let allItems = [];
+    let isSuperAdmin = false;
+    let businessFilter = "";
 
     function L(ru, uz, en) {
       const lg = getLang();
@@ -72,6 +74,7 @@
       // mode: "create" | "edit"
       const isEdit = mode === "edit";
       const x = item || {};
+      const showBiz = isSuperAdmin && !isEdit;
 
       const id = isEdit ? x.id : "";
       const v_name = x.name || "";
@@ -91,6 +94,11 @@
         cancelText: t("cancel"),
         bodyHtml: `
           <div class="form-grid">
+            ${showBiz ? `
+            <div class="field" style="grid-column:1 / -1;">
+              <label>business_id</label>
+              <input id="f_biz" class="inp" value="${escapeHtml(String(businessFilter || ""))}" placeholder="2" />
+            </div>` : ""}
             <div class="field">
               <label>${t("field_name")}</label>
               <input id="f_name" class="inp" value="${escapeHtml(v_name)}" />
@@ -149,6 +157,9 @@
           };
 
           if (!payload.name) throw new Error("name required");
+          if (showBiz) {
+            payload.business_id = Number((document.getElementById("f_biz").value || "").trim());
+          }
 
           if (isEdit) {
             await apiFetch("/filials/" + id, {
@@ -173,6 +184,7 @@
     async function loadWho() {
       try {
         const data = await apiFetch("/me");
+        isSuperAdmin = (data?.user?.role === "super_admin");
         ui.setWho(getLang() === "uz"
           ? `Siz: ${data.user.full_name} (${data.user.role})`
           : `Ты: ${data.user.full_name} (${data.user.role})`
@@ -210,6 +222,7 @@
             <thead>
               <tr>
                 <th style="width:80px;">ID</th>
+                ${isSuperAdmin ? `<th style="width:120px;">business_id</th>` : ""}
                 <th>${t("name")}</th>
                 <th style="width:120px;">${t("code")}</th>
                 <th style="width:150px;">${t("phone")}</th>
@@ -222,6 +235,7 @@
               ${items.map(x => `
                 <tr style="opacity:${x.is_active ? "1" : "0.55"}">
                   <td>${x.id}</td>
+                  ${isSuperAdmin ? `<td>${x.business_id ?? ""}</td>` : ""}
                   <td>${escapeHtml(x.name)}</td>
                   <td>${escapeHtml(x.code || "")}</td>
                   <td>${escapeHtml(x.phone || "")}</td>
@@ -269,11 +283,18 @@
 
     function mountActions() {
       ui.actionsEl.innerHTML = `
+          ${isSuperAdmin ? `<input id="biz" class="inp" placeholder="business_id" style="width:140px;" value="${businessFilter}" />` : ""}
           <input id="q" class="inp" placeholder="${t("search")}" style="width:220px;" />
           <button id="refresh" class="btn">${t("refresh")}</button>
           <button id="add" class="btn primary">${t("add")}</button>
       `;
 
+      if (isSuperAdmin) {
+        document.getElementById("biz").addEventListener("change", (e) => {
+          businessFilter = (e.target.value || "").trim();
+          load();
+        });
+      }
       document.getElementById("q").addEventListener("input", () => renderTable());
       document.getElementById("refresh").addEventListener("click", () => load());
       document.getElementById("add").addEventListener("click", async () => {openFilialForm({ mode: "create" });});
@@ -284,7 +305,8 @@
       const lg = getLang();
       try {
         ui.setMsg(lg === "uz" ? "Yuklanmoqda..." : "Загружаю...", true);
-        const data = await apiFetch("/filials");
+        const qs = (isSuperAdmin && businessFilter) ? ("?business_id=" + encodeURIComponent(businessFilter)) : "";
+        const data = await apiFetch("/filials" + qs);
         allItems = data.items || [];
         ui.setMsg("", true);
         mountActions();

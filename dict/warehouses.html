@@ -25,6 +25,8 @@
     let filials = [];
     let items = [];
     let filialFilter = "";
+    let isSuperAdmin = false;
+    let businessFilter = "";
     function L(ru, uz, en) {
       const lg = getLang();
       return lg === "uz" ? uz : (lg === "en" ? en : ru);
@@ -66,6 +68,7 @@
     async function loadWho() {
       try {
         const data = await apiFetch("/me");
+        isSuperAdmin = (data?.user?.role === "super_admin");
         ui.setWho(getLang() === "uz"
           ? `Siz: ${data.user.full_name} (${data.user.role})`
           : (getLang()==="en"
@@ -162,6 +165,7 @@
 
     function mountActions() {
       ui.actionsEl.innerHTML = `
+        ${isSuperAdmin ? `<input id="biz" class="inp" placeholder="business_id" style="width:140px;" value="${businessFilter}" />` : ""}
         <select id="filialSel" class="inp" style="width:220px;">
           <option value="">${L("Все филиалы", "Barcha filiallar", "All branches")}</option>
           ${filials.map(f => `<option value="${f.id}" ${String(f.id)===String(filialFilter) ? "selected" : ""}>${escapeHtml(f.name)}</option>`).join("")}
@@ -173,6 +177,13 @@
       `;
       enhanceSelect(document.getElementById("filialSel"));
 
+
+      if (isSuperAdmin) {
+        document.getElementById("biz").addEventListener("change", (e) => {
+          businessFilter = (e.target.value || "").trim();
+          load();
+        });
+      }
 
       document.getElementById("filialSel").addEventListener("change", (e) => {
         filialFilter = e.target.value || "";
@@ -221,6 +232,7 @@
                 <thead>
                 <tr>
                     <th style="width:80px;">ID</th>
+                    ${isSuperAdmin ? `<th style="width:120px;">business_id</th>` : ""}
                     <th style="width:200px;">${L("Филиал","Filial","Branch")}</th>
                     <th>${t("name")}</th>
                     <th style="width:120px;">${t("code")}</th>
@@ -235,6 +247,7 @@
                     return `
                     <tr style="opacity:${isOn ? "1" : "0.55"}">
                         <td>${x.id}</td>
+                        ${isSuperAdmin ? `<td>${x.business_id ?? ""}</td>` : ""}
                         <td>${escapeHtml(filialNameById.get(String(x.filial_id)) || ("#" + x.filial_id))}</td>
                         <td>${escapeHtml(x.name)}</td>
                         <td>${escapeHtml(x.code || "")}</td>
@@ -285,10 +298,11 @@
       try {
         ui.setMsg(getLang()==="en" ? "Loading..." : getLang()==="uz" ? "Yuklanmoqda..." : "Загружаю...", true);
 
-        const f = await apiFetch("/filials");
+        const qs = (isSuperAdmin && businessFilter) ? ("?business_id=" + encodeURIComponent(businessFilter)) : "";
+        const f = await apiFetch("/filials" + qs);
         filials = f.items || [];
 
-        const w = await apiFetch("/warehouses");
+        const w = await apiFetch("/warehouses" + qs);
         items = w.items || [];
 
         ui.setMsg("", true);
