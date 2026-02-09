@@ -86,6 +86,13 @@ export function renderShell({
               <a href="/dict/cash-accounts.html" id="menu_cash_accounts">...</a>
             </div>
           </div>
+
+          <div class="menu-group" id="adminGroup">
+            <div class="menu-group-title" id="menuAdminTitle"></div>
+            <div class="menu-sub">
+              <a href="/admin/businesses.html" id="menu_businesses">...</a>
+            </div>
+          </div>
         </nav>
 
         <!-- MOBILE actions (desktop скрывается CSS'ом) -->
@@ -134,10 +141,12 @@ export function renderShell({
   function applyI18n() {
     root.querySelector("#appTitle").textContent = t("app");
     root.querySelector("#menuTitle").textContent = t("dict");
+    root.querySelector("#menuAdminTitle").textContent = t("admin");
 
     root.querySelector("#menu_filials").textContent = t("filials");
     root.querySelector("#menu_warehouses").textContent = t("warehouses");
     root.querySelector("#menu_cash_accounts").textContent = t("cash_accounts");
+    root.querySelector("#menu_businesses").textContent = t("businesses");
 
     pageTitleEl.textContent = t(titleKey);
 
@@ -156,6 +165,27 @@ export function renderShell({
   }
 
   applyI18n();
+
+  async function applyRoleGate() {
+    try {
+      const token = localStorage.getItem("tech_token") || "";
+      if (!token) return;
+      const r = await fetch("https://api.tech.gekto.uz/me", {
+        headers: { "Authorization": "Bearer " + token }
+      });
+      const data = await r.json().catch(() => ({}));
+      const role = data?.user?.role || "";
+      if (role !== "super_admin") {
+        const g = root.querySelector("#adminGroup");
+        if (g) g.style.display = "none";
+      }
+    } catch {
+      const g = root.querySelector("#adminGroup");
+      if (g) g.style.display = "none";
+    }
+  }
+
+  applyRoleGate();
 
   // events
   root.querySelector("[data-burger]").addEventListener("click", () => toggleSidebar());
