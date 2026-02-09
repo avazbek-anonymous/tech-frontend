@@ -1,14 +1,14 @@
 /* ===== Tech UI (Telegram-like + glass) ===== */
 :root{
-  /* palette */
-  --bg: #ffffff;
-  --panel: rgba(245, 246, 248, .78);
-  --panel2: rgba(255, 255, 255, .78);
-  --text: #0f172a;
-  --muted: rgba(15, 23, 42, .55);
-  --border: rgba(15, 23, 42, .08);
+  /* palette (Telegram-like light) */
+  --bg: #f5f7fb;
+  --panel: #ffffff;
+  --panel2: #ffffff;
+  --text: #0f1a2b;
+  --muted: rgba(15, 26, 43, .58);
+  --border: rgba(15, 26, 43, .10);
 
-  --accent: #2a8cff;
+  --accent: #2aabee;
   --danger: #ff3b30;
 
   /* geometry */
@@ -23,28 +23,29 @@
   --inph: 42px;
 
   /* effects */
-  --shadow: 0 10px 30px rgba(0,0,0,.08);
-  --shadow2: 0 6px 18px rgba(0,0,0,.06);
+  --shadow: 0 10px 26px rgba(15,26,43,.10);
+  --shadow2: 0 6px 16px rgba(15,26,43,.08);
 
-  --blur: 18px;
+  --blur: 6px;
 
   --font: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
 html[data-theme="dark"]{
-  --bg: #0b1220;
-  --panel: rgba(23, 33, 43, .68);
-  --panel2: rgba(31, 44, 58, .66);
-  --text: rgba(230, 238, 248, .95);
-  --muted: rgba(230, 238, 248, .55);
-  --border: rgba(255,255,255,.08);
+  /* palette (Telegram-like dark) */
+  --bg: #0e1621;
+  --panel: #17212b;
+  --panel2: #1f2a36;
+  --text: #e6edf3;
+  --muted: rgba(230, 237, 243, .55);
+  --border: #253040;
 
-  --accent: #2a8cff;
+  --accent: #2aabee;
   --danger: #ff453a;
 
-  --shadow: 0 14px 34px rgba(0,0,0,.42);
-  --shadow2: 0 10px 24px rgba(0,0,0,.30);
-  --blur: 20px;
+  --shadow: 0 14px 30px rgba(0,0,0,.35);
+  --shadow2: 0 8px 22px rgba(0,0,0,.28);
+  --blur: 4px;
 }
 
 *{ box-sizing:border-box; }
@@ -121,11 +122,14 @@ body{
 /* ===== Buttons (glass) ===== */
 .btn{
   height: var(--btnh);
-  padding: 0 12px;
-  border-radius: var(--r);
+  padding: 0 14px;
+  min-width: 120px;
+  border-radius: 12px;
   border: 1px solid var(--border);
-  background: rgba(255,255,255,.28);
+  background: var(--panel);
   color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
   cursor:pointer;
   display:inline-flex;
   align-items:center;
@@ -138,20 +142,20 @@ body{
 }
 
 html[data-theme="dark"] .btn{
-  background: rgba(255,255,255,.06);
-  box-shadow: 0 1px 0 rgba(255,255,255,.12) inset;
+  background: var(--panel2);
+  box-shadow: 0 1px 0 rgba(255,255,255,.08) inset;
 }
 
-.btn:hover{ background: rgba(127,127,127,.14); }
+.btn:hover{ background: rgba(42,171,238,.10); border-color: rgba(42,171,238,.20); }
 .btn:active{ transform: scale(.98); }
 
 .btn.primary{
-  border-color: rgba(42,140,255,.30);
-  background: linear-gradient(180deg, rgba(42,140,255,.95), rgba(42,140,255,.78));
+  border-color: rgba(42,171,238,.40);
+  background: linear-gradient(180deg, rgba(42,171,238,.98), rgba(42,171,238,.80));
   color: #fff;
-  box-shadow: 0 10px 24px rgba(42,140,255,.22);
+  box-shadow: 0 10px 22px rgba(42,171,238,.25);
 }
-.btn.primary:hover{ background: linear-gradient(180deg, rgba(42,140,255,1), rgba(42,140,255,.82)); }
+.btn.primary:hover{ background: linear-gradient(180deg, rgba(42,171,238,1), rgba(42,171,238,.86)); }
 
 .btn.danger{
   border-color: rgba(255,69,58,.30);
@@ -164,6 +168,7 @@ html[data-theme="dark"] .btn{
   width: var(--btnh);
   padding:0;
   border-radius: var(--r);
+  min-width: var(--btnh);
 }
 
 /* ===== Inputs ===== */
@@ -173,14 +178,14 @@ html[data-theme="dark"] .btn{
   padding: 0 12px;
   border-radius: var(--r);
   border: 1px solid var(--border);
-  background: rgba(255,255,255,.40);
+  background: var(--panel);
   color: var(--text);
   outline: none;
   transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
 }
 
 html[data-theme="dark"] .inp{
-  background: rgba(255,255,255,.06);
+  background: var(--panel2);
 }
 
 .inp:focus{
@@ -665,9 +670,9 @@ html[data-theme="dark"] .who-pill{
   }
 
   /* fixed widths for header buttons */
-  .header .right #themeBtn{ width: 92px; }
-  .header .right #langBtn{ width: 72px; }
-  .header .right #logoutBtn{ width: 110px; }
+  .header .right #themeBtn{ width: 120px; }
+  .header .right #langBtn{ width: 120px; }
+  .header .right #logoutBtn{ width: 120px; }
 
   /* user pill width so it doesn't push layout */
   .header .right #whoTop{
