@@ -27,6 +27,7 @@
     let filialFilter = "";
     let isSuperAdmin = false;
     let businessFilter = "";
+    let businesses = [];
     function L(ru, uz, en) {
       const lg = getLang();
       return lg === "uz" ? uz : (lg === "en" ? en : ru);
@@ -165,7 +166,12 @@
 
     function mountActions() {
       ui.actionsEl.innerHTML = `
-        ${isSuperAdmin ? `<input id="biz" class="inp" placeholder="business_id" style="width:140px;" value="${businessFilter}" />` : ""}
+        ${isSuperAdmin ? `
+          <select id="biz" class="inp" style="width:220px;">
+            <option value="">${L("Все бизнесы","Barcha bizneslar","All businesses")}</option>
+            ${businesses.map(b => `<option value="${b.id}" ${String(b.id)===String(businessFilter) ? "selected" : ""}>${escapeHtml(b.name)}</option>`).join("")}
+          </select>
+        ` : ""}
         <select id="filialSel" class="inp" style="width:220px;">
           <option value="">${L("Все филиалы", "Barcha filiallar", "All branches")}</option>
           ${filials.map(f => `<option value="${f.id}" ${String(f.id)===String(filialFilter) ? "selected" : ""}>${escapeHtml(f.name)}</option>`).join("")}
@@ -181,6 +187,7 @@
       if (isSuperAdmin) {
         document.getElementById("biz").addEventListener("change", (e) => {
           businessFilter = (e.target.value || "").trim();
+          filialFilter = "";
           load();
         });
       }
@@ -232,7 +239,7 @@
                 <thead>
                 <tr>
                     <th style="width:80px;">ID</th>
-                    ${isSuperAdmin ? `<th style="width:120px;">business_id</th>` : ""}
+                    ${isSuperAdmin ? `<th style="width:180px;">${L("Бизнес","Biznes","Business")}</th>` : ""}
                     <th style="width:200px;">${L("Филиал","Filial","Branch")}</th>
                     <th>${t("name")}</th>
                     <th style="width:120px;">${t("code")}</th>
@@ -247,7 +254,7 @@
                     return `
                     <tr style="opacity:${isOn ? "1" : "0.55"}">
                         <td>${x.id}</td>
-                        ${isSuperAdmin ? `<td>${x.business_id ?? ""}</td>` : ""}
+                        ${isSuperAdmin ? `<td>${escapeHtml(businesses.find(b => String(b.id)===String(x.business_id))?.name || ("#" + (x.business_id ?? "")))}</td>` : ""}
                         <td>${escapeHtml(filialNameById.get(String(x.filial_id)) || ("#" + x.filial_id))}</td>
                         <td>${escapeHtml(x.name)}</td>
                         <td>${escapeHtml(x.code || "")}</td>
@@ -297,6 +304,11 @@
     async function load() {
       try {
         ui.setMsg(getLang()==="en" ? "Loading..." : getLang()==="uz" ? "Yuklanmoqda..." : "Загружаю...", true);
+
+        if (isSuperAdmin) {
+          const b = await apiFetch("/businesses");
+          businesses = b.items || [];
+        }
 
         const qs = (isSuperAdmin && businessFilter) ? ("?business_id=" + encodeURIComponent(businessFilter)) : "";
         const f = await apiFetch("/filials" + qs);

@@ -26,6 +26,7 @@
     let allItems = [];
     let isSuperAdmin = false;
     let businessFilter = "";
+    let businesses = [];
 
     function L(ru, uz, en) {
       const lg = getLang();
@@ -96,8 +97,11 @@
           <div class="form-grid">
             ${showBiz ? `
             <div class="field" style="grid-column:1 / -1;">
-              <label>business_id</label>
-              <input id="f_biz" class="inp" value="${escapeHtml(String(businessFilter || ""))}" placeholder="2" />
+              <label>${L("Бизнес","Biznes","Business")}</label>
+              <select id="f_biz" class="inp">
+                <option value="">${L("Выберите бизнес","Biznesni tanlang","Select business")}</option>
+                ${businesses.map(b => `<option value="${b.id}" ${String(b.id)===String(businessFilter) ? "selected" : ""}>${escapeHtml(b.name)}</option>`).join("")}
+              </select>
             </div>` : ""}
             <div class="field">
               <label>${t("field_name")}</label>
@@ -158,7 +162,7 @@
 
           if (!payload.name) throw new Error("name required");
           if (showBiz) {
-            payload.business_id = Number((document.getElementById("f_biz").value || "").trim());
+            payload.business_id = Number(document.getElementById("f_biz").value || "");
           }
 
           if (isEdit) {
@@ -222,7 +226,7 @@
             <thead>
               <tr>
                 <th style="width:80px;">ID</th>
-                ${isSuperAdmin ? `<th style="width:120px;">business_id</th>` : ""}
+                ${isSuperAdmin ? `<th style="width:180px;">${L("Бизнес","Biznes","Business")}</th>` : ""}
                 <th>${t("name")}</th>
                 <th style="width:120px;">${t("code")}</th>
                 <th style="width:150px;">${t("phone")}</th>
@@ -235,7 +239,7 @@
               ${items.map(x => `
                 <tr style="opacity:${x.is_active ? "1" : "0.55"}">
                   <td>${x.id}</td>
-                  ${isSuperAdmin ? `<td>${x.business_id ?? ""}</td>` : ""}
+                  ${isSuperAdmin ? `<td>${escapeHtml(businesses.find(b => String(b.id)===String(x.business_id))?.name || ("#" + (x.business_id ?? "")))}</td>` : ""}
                   <td>${escapeHtml(x.name)}</td>
                   <td>${escapeHtml(x.code || "")}</td>
                   <td>${escapeHtml(x.phone || "")}</td>
@@ -283,7 +287,12 @@
 
     function mountActions() {
       ui.actionsEl.innerHTML = `
-          ${isSuperAdmin ? `<input id="biz" class="inp" placeholder="business_id" style="width:140px;" value="${businessFilter}" />` : ""}
+          ${isSuperAdmin ? `
+            <select id="biz" class="inp" style="width:220px;">
+              <option value="">${L("Все бизнесы","Barcha bizneslar","All businesses")}</option>
+              ${businesses.map(b => `<option value="${b.id}" ${String(b.id)===String(businessFilter) ? "selected" : ""}>${escapeHtml(b.name)}</option>`).join("")}
+            </select>
+          ` : ""}
           <input id="q" class="inp" placeholder="${t("search")}" style="width:220px;" />
           <button id="refresh" class="btn">${t("refresh")}</button>
           <button id="add" class="btn primary">${t("add")}</button>
@@ -305,6 +314,11 @@
       const lg = getLang();
       try {
         ui.setMsg(lg === "uz" ? "Yuklanmoqda..." : "Загружаю...", true);
+        if (isSuperAdmin) {
+          const b = await apiFetch("/businesses");
+          businesses = b.items || [];
+        }
+
         const qs = (isSuperAdmin && businessFilter) ? ("?business_id=" + encodeURIComponent(businessFilter)) : "";
         const data = await apiFetch("/filials" + qs);
         allItems = data.items || [];
