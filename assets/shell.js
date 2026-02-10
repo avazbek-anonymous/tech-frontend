@@ -91,6 +91,7 @@ export function renderShell({
             <div class="menu-group-title" id="menuAdminTitle"></div>
             <div class="menu-sub">
               <a href="/admin/businesses.html" id="menu_businesses">...</a>
+              <a href="/admin/roles.html" id="menu_roles">...</a>
             </div>
           </div>
         </nav>
@@ -147,6 +148,7 @@ export function renderShell({
     root.querySelector("#menu_warehouses").textContent = t("warehouses");
     root.querySelector("#menu_cash_accounts").textContent = t("cash_accounts");
     root.querySelector("#menu_businesses").textContent = t("businesses");
+    root.querySelector("#menu_roles").textContent = t("roles");
 
     pageTitleEl.textContent = t(titleKey);
 

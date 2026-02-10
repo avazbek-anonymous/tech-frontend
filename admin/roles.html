@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="ru" data-theme="light" data-sidebar="open" data-lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tech — Роли</title>
+  <link rel="stylesheet" href="/assets/app.css" />
+</head>
+
+<body>
+  <div id="app"></div>
+
+  <script type="module">
+    import { renderShell } from "/assets/shell.js";
+    import { getLang, t, requireFrontAuth } from "/assets/app.js";
+    import { openModal, confirmModal } from "/assets/modal.js";
+    import { enhanceSelect } from "/assets/select.js";
+
+    if (!requireFrontAuth()) throw new Error("NO_AUTH");
+
+    const API_BASE = "https://api.tech.gekto.uz";
+    const ui = renderShell({ active: "roles", titleKey: "roles" });
+
+    let items = [];
+    let businesses = [];
+    let isSuperAdmin = false;
+    let businessFilter = "";
+
+    const MODULES = [
+      { key: "filials", name: { ru: "Филиалы", uz: "Filiallar", en: "Branches" } },
+      { key: "warehouses", name: { ru: "Склады", uz: "Omborlar", en: "Warehouses" } },
+      { key: "cash_accounts", name: { ru: "Кассы/Счета", uz: "Kassalar/Hisoblar", en: "Cash accounts" } },
+      { key: "partners", name: { ru: "Контрагенты", uz: "Kontragentlar", en: "Partners" } },
+      { key: "products", name: { ru: "Товары", uz: "Mahsulotlar", en: "Products" } },
+      { key: "sales", name: { ru: "Продажи", uz: "Sotuvlar", en: "Sales" } },
+      { key: "reports", name: { ru: "Отчёты", uz: "Hisobotlar", en: "Reports" } },
+      { key: "settings", name: { ru: "Настройки", uz: "Sozlamalar", en: "Settings" } },
+    ];
+
+    const ACTIONS = [
+      { key: "read", label: () => t("perms_read") },
+      { key: "add", label: () => t("perms_add") },
+      { key: "change", label: () => t("perms_change") },
+      { key: "disable", label: () => t("perms_disable") },
+      { key: "delete", label: () => t("perms_delete") },
+      { key: "export", label: () => t("perms_export") },
+    ];
+
+    function L(ru, uz, en) {
+      const lg = getLang();
+      return lg === "uz" ? uz : (lg === "en" ? en : ru);
+    }
+
+    function token() {
+      return localStorage.getItem("tech_token") || "";
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    async function apiFetch(path, opts = {}) {
+      const tkn = token();
+      if (!tkn) throw new Error("NO_TOKEN");
+
+      const headers = Object.assign({}, opts.headers || {}, {
+        "Authorization": "Bearer " + tkn
+      });
+
+      const r = await fetch(API_BASE + path, Object.assign({}, opts, { headers }));
+      const data = await r.json().catch(() => ({}));
+
+      if (r.status === 401) {
+        localStorage.removeItem("tech_token");
+        throw new Error("UNAUTHORIZED");
+      }
+      if (!r.ok || !data.ok) throw new Error(data.error || ("ERR_" + r.status));
+      return data;
+    }
+
+    async function loadWho() {
+      try {
+        const data = await apiFetch("/me");
+        isSuperAdmin = (data?.user?.role === "super_admin");
+        ui.setWho(getLang() === "uz"
+          ? `Siz: ${data.user.full_name} (${data.user.role})`
+          : (getLang()==="en"
+            ? `You: ${data.user.full_name} (${data.user.role})`
+            : `Ты: ${data.user.full_name} (${data.user.role})`
+          )
+        );
+      } catch { ui.setWho(""); }
+    }
+
+    function moduleLabel(m) {
+      const lg = getLang();
+      return m.name[lg] || m.name.ru;
+    }
+
+    function permsToSet(list) {
+      const s = new Set();
+      (list || []).forEach(x => s.add(String(x)));
+      return s;
+    }
+
+    async function openPerms(role) {
+      const data = await apiFetch("/roles/" + role.id + "/permissions");
+      const cur = permsToSet(data.permissions || []);
+
+      openModal({
+        title: t("permissions") + ": " + role.name,
+        okText: t("save"),
+        cancelText: t("cancel"),
+        bodyHtml: `
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            ${MODULES.map(m => `
+              <div class="card pad" style="display:flex; flex-direction:column; gap:8px;">
+                <div style="font-weight:700;">${escapeHtml(moduleLabel(m))}</div>
+                <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                  ${ACTIONS.map(a => {
+                    const key = `${m.key}.${a.key}`;
+                    const checked = cur.has(key) ? "checked" : "";
+                    return `
+                      <label style="display:inline-flex; align-items:center; gap:6px; font-size:13px;">
+                        <input type="checkbox" data-perm="${key}" ${checked} />
+                        ${escapeHtml(a.label())}
+                      </label>
+                    `;
+                  }).join("")}
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        `,
+        onOk: async () => {
+          const perms = Array.from(document.querySelectorAll("[data-perm]"))
+            .filter(el => el.checked)
+            .map(el => el.getAttribute("data-perm"));
+
+          await apiFetch("/roles/" + role.id + "/permissions", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ permissions: perms })
+          });
+        }
+      });
+    }
+
+    function openRoleForm({ mode, item }) {
+      const isEdit = mode === "edit";
+      const x = item || {};
+
+      openModal({
+        title: isEdit ? t("edit_role") : t("create_role"),
+        sub: isEdit ? ("ID: " + x.id) : "",
+        okText: t("save"),
+        cancelText: t("cancel"),
+        bodyHtml: `
+          <div class="form-grid">
+            ${isSuperAdmin && !isEdit ? `
+              <div class="field" style="grid-column:1 / -1;">
+                <label>${L("Бизнес","Biznes","Business")}</label>
+                <select id="r_biz" class="inp">
+                  <option value="">${L("Выберите бизнес","Biznesni tanlang","Select business")}</option>
+                  ${businesses.map(b => `<option value="${b.id}" ${String(b.id)===String(businessFilter) ? "selected" : ""}>${escapeHtml(b.name)}</option>`).join("")}
+                </select>
+              </div>` : ""}
+            <div class="field" style="grid-column:1 / -1;">
+              <label>${t("role_name")}</label>
+              <input id="r_name" class="inp" value="${escapeHtml(x.name || "")}" />
+            </div>
+            <div class="switch" style="grid-column:1 / -1;">
+              <div class="label">${t("switch_active")}</div>
+              <input id="r_active" type="checkbox" ${((x.is_active === 0) ? "" : "checked")} />
+            </div>
+          </div>
+        `,
+        onOk: async () => {
+          const payload = {
+            name: (document.getElementById("r_name").value || "").trim(),
+            is_active: document.getElementById("r_active").checked ? 1 : 0
+          };
+
+          if (!payload.name) throw new Error("name required");
+
+          if (isEdit) {
+            await apiFetch("/roles/" + x.id, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+          } else {
+            if (isSuperAdmin) {
+              payload.business_id = Number(document.getElementById("r_biz").value || "");
+            }
+            await apiFetch("/roles", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+          }
+
+          await load();
+        }
+      });
+      setTimeout(() => {
+        const sel = document.getElementById("r_biz");
+        if (sel) enhanceSelect(sel);
+      }, 0);
+    }
+
+    function mountActions() {
+      ui.actionsEl.innerHTML = `
+        ${isSuperAdmin ? `
+          <select id="biz" class="inp" style="width:220px;">
+            <option value="">${L("Все бизнесы","Barcha bizneslar","All businesses")}</option>
+            ${businesses.map(b => `<option value="${b.id}" ${String(b.id)===String(businessFilter) ? "selected" : ""}>${escapeHtml(b.name)}</option>`).join("")}
+          </select>
+        ` : ""}
+        <input id="q" class="inp" placeholder="${t("search")}" style="width:220px;" />
+        <button id="refresh" class="btn">${t("refresh")}</button>
+        <button id="add" class="btn primary">${t("add")}</button>
+      `;
+
+      if (isSuperAdmin) {
+        document.getElementById("biz").addEventListener("change", (e) => {
+          businessFilter = (e.target.value || "").trim();
+          load();
+        });
+      }
+
+      document.getElementById("q").addEventListener("input", () => renderTable());
+      document.getElementById("refresh").addEventListener("click", () => load());
+      document.getElementById("add").addEventListener("click", () => openRoleForm({ mode: "create" }));
+    }
+
+    function renderTable() {
+      const yes = t("yes");
+      const no  = t("no");
+      const q = (document.getElementById("q")?.value || "").trim().toLowerCase();
+
+      let view = items;
+      if (q) {
+        view = view.filter(x => (x.name || "").toLowerCase().includes(q));
+      }
+
+      ui.setSub(view.length ? `(${view.length})` : "");
+
+      if (!view.length) {
+        ui.bodyEl.innerHTML = `
+          <div class="tablewrap">
+            <table><tbody><tr><td style="padding:12px;">—</td></tr></tbody></table>
+          </div>`;
+        return;
+      }
+
+      ui.bodyEl.innerHTML = `
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:80px;">ID</th>
+                ${isSuperAdmin ? `<th style="width:200px;">${L("Бизнес","Biznes","Business")}</th>` : ""}
+                <th>${t("role_name")}</th>
+                <th style="width:110px;">${t("active")}</th>
+                <th style="width:220px;">${t("actions")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${view.map(x => {
+                const isOn = x.is_active ? 1 : 0;
+                const bizName = businesses.find(b => String(b.id)===String(x.business_id))?.name;
+                return `
+                  <tr style="opacity:${isOn ? "1" : "0.55"}">
+                    <td>${x.id}</td>
+                    ${isSuperAdmin ? `<td>${escapeHtml(bizName || ("#" + (x.business_id ?? "")))}</td>` : ""}
+                    <td>${escapeHtml(x.name)}</td>
+                    <td>${isOn ? yes : no}</td>
+                    <td style="display:flex; gap:8px; flex-wrap:wrap;">
+                      <button class="btn icon" data-act="perms" data-id="${x.id}" title="${t("permissions")}" aria-label="${t("permissions")}">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 3l8 4v6c0 5-3.5 8-8 8s-8-3-8-8V7l8-4Z" stroke="currentColor" stroke-width="2"/>
+                          <path d="M8 12h8M8 16h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                      </button>
+
+                      <button class="btn icon" data-act="edit" data-id="${x.id}" title="${L("Редактировать","Tahrirlash","Edit")}" aria-label="${L("Редактировать","Tahrirlash","Edit")}">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5Z"
+                            stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        </svg>
+                      </button>
+
+                      <button class="btn icon" data-act="toggle" data-id="${x.id}" data-next="${isOn ? 0 : 1}"
+                              title="${isOn ? L("Отключить","O‘chirish","Disable") : L("Включить","Yoqish","Enable")}"
+                              aria-label="${isOn ? L("Отключить","O‘chirish","Disable") : L("Включить","Yoqish","Enable")}">
+                        ${isOn
+                          ? `
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                              <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                              <path d="M8 6V4h8v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                              <path d="M7 6l1 14h8l1-14" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                              <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                          `
+                          : `
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                              <path d="M9 14l-4-4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                              <path d="M5 10h9a5 5 0 1 1 0 10h-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                          `}
+                      </button>
+                    </td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    async function load() {
+      try {
+        ui.setMsg(L("Загружаю...","Yuklanmoqda...","Loading..."), true);
+
+        if (isSuperAdmin) {
+          const b = await apiFetch("/businesses");
+          businesses = b.items || [];
+        }
+
+        const qs = (isSuperAdmin && businessFilter) ? ("?business_id=" + encodeURIComponent(businessFilter)) : "";
+        const r = await apiFetch("/roles" + qs);
+        items = r.items || [];
+
+        ui.setMsg("", true);
+        mountActions();
+        renderTable();
+      } catch (e) {
+        const m = String(e.message || e);
+        if (m === "NO_TOKEN" || m === "UNAUTHORIZED") {
+          ui.setMsg(L("Сначала войди (/auth/login.html)","Avval kiring (/auth/login.html)","Please login (/auth/login.html)"), false);
+        } else {
+          ui.setMsg("Error: " + m, false);
+        }
+      }
+    }
+
+    ui.bodyEl.addEventListener("click", async (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+
+      const act = btn.getAttribute("data-act");
+      const id = btn.getAttribute("data-id");
+      if (!act || !id) return;
+
+      const cur = items.find(x => String(x.id) === String(id));
+      if (!cur) return;
+
+      if (act === "perms") {
+        await openPerms(cur);
+        return;
+      }
+
+      if (act === "edit") {
+        openRoleForm({ mode: "edit", item: cur });
+        return;
+      }
+
+      if (act === "toggle") {
+        const next = Number(btn.getAttribute("data-next"));
+        const ok = await confirmModal({
+          title: next === 0
+            ? L(`Отключить роль "${cur.name}"?`, `"${cur.name}" rolini o‘chirish?`, `Disable role "${cur.name}"?`)
+            : L(`Включить роль "${cur.name}"?`, `"${cur.name}" rolini yoqish?`, `Enable role "${cur.name}"?`),
+          bodyHtml: `<div class="muted" style="margin-top:6px;">${L("Это изменит статус роли.", "Bu rol holatini o‘zgartiradi.", "This will change role status.")}</div>`,
+          okText: next === 0 ? L("Отключить","O‘chirish","Disable") : L("Включить","Yoqish","Enable"),
+          cancelText: t("cancel"),
+          danger: next === 0
+        });
+        if (!ok) return;
+
+        await apiFetch("/roles/" + id, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ is_active: next })
+        });
+        await load();
+      }
+    });
+
+    window.addEventListener("tech:lang", () => {
+      ui.applyI18n();
+      mountActions();
+      renderTable();
+      loadWho();
+    });
+
+    await loadWho();
+    await load();
+  </script>
+</body>
+</html>
