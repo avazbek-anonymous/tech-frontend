@@ -27,6 +27,7 @@
     let filials = [];
     let isSuperAdmin = false;
     let businessFilter = "";
+    let myBusinessId = null;
 
     function L(ru, uz, en) {
       const lg = getLang();
@@ -69,6 +70,7 @@
       try {
         const data = await apiFetch("/me");
         isSuperAdmin = (data?.user?.role === "super_admin");
+        myBusinessId = data?.user?.business_id ?? null;
         ui.setWho(getLang() === "uz"
           ? `Siz: ${data.user.full_name} (${data.user.role})`
           : (getLang()==="en"
@@ -97,7 +99,7 @@
       const isEdit = mode === "edit";
       const x = item || {};
 
-      const bizId = isSuperAdmin ? (x.business_id || businessFilter || "") : (x.business_id || "");
+      const bizId = isSuperAdmin ? (x.business_id || businessFilter || "") : (x.business_id || myBusinessId || "");
       const roleLevel = x.role || "branch_manager";
       const roleList = bizId ? rolesByBusiness(bizId) : [];
       const filialList = bizId ? filialsByBusiness(bizId) : [];
@@ -231,6 +233,28 @@
         if (s1) enhanceSelect(s1);
         if (s2) enhanceSelect(s2);
         if (s3) enhanceSelect(s3);
+
+        if (isSuperAdmin && s1) {
+          s1.addEventListener("change", async (e) => {
+            const bid = e.target.value || "";
+            const roleSel = document.getElementById("u_role");
+            const filWrap = document.getElementById("u_filials");
+            const rlist = bid ? rolesByBusiness(bid) : [];
+            const flist = bid ? filialsByBusiness(bid) : [];
+
+            if (roleSel) {
+              roleSel.innerHTML = `<option value="">—</option>` + rlist.map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join("");
+            }
+            if (filWrap) {
+              filWrap.innerHTML = flist.map(f => `
+                <label style="display:inline-flex; align-items:center; gap:6px; font-size:13px;">
+                  <input type="checkbox" value="${f.id}" />
+                  ${escapeHtml(f.name)}
+                </label>
+              `).join("");
+            }
+          });
+        }
 
         const allEl = document.getElementById("u_all_fil");
         const filWrap = document.getElementById("u_filials");

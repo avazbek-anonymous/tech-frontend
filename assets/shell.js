@@ -179,9 +179,20 @@ export function renderShell({
       });
       const data = await r.json().catch(() => ({}));
       const role = data?.user?.role || "";
+
+      const g = root.querySelector("#adminGroup");
+      if (!g) return;
+
+      const isAdmin = (role === "super_admin" || role === "business_owner");
+      if (!isAdmin) {
+        g.style.display = "none";
+        return;
+      }
+
+      // бизнесы видит только super_admin
       if (role !== "super_admin") {
-        const g = root.querySelector("#adminGroup");
-        if (g) g.style.display = "none";
+        const b = root.querySelector("#menu_businesses");
+        if (b) b.style.display = "none";
       }
     } catch {
       const g = root.querySelector("#adminGroup");
