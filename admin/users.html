@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="ru" data-theme="light" data-sidebar="open" data-lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tech — Пользователи</title>
+  <link rel="stylesheet" href="/assets/app.css" />
+</head>
+
+<body>
+  <div id="app"></div>
+
+  <script type="module">
+    import { renderShell } from "/assets/shell.js";
+    import { getLang, t, requireFrontAuth } from "/assets/app.js";
+    import { openModal, confirmModal } from "/assets/modal.js";
+    import { enhanceSelect } from "/assets/select.js";
+
+    if (!requireFrontAuth()) throw new Error("NO_AUTH");
+
+    const API_BASE = "https://api.tech.gekto.uz";
+    const ui = renderShell({ active: "users", titleKey: "users" });
+
+    let items = [];
+    let businesses = [];
+    let roles = [];
+    let filials = [];
+    let isSuperAdmin = false;
+    let businessFilter = "";
+
+    function L(ru, uz, en) {
+      const lg = getLang();
+      return lg === "uz" ? uz : (lg === "en" ? en : ru);
+    }
+
+    function token() {
+      return localStorage.getItem("tech_token") || "";
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    async function apiFetch(path, opts = {}) {
+      const tkn = token();
+      if (!tkn) throw new Error("NO_TOKEN");
+
+      const headers = Object.assign({}, opts.headers || {}, {
+        "Authorization": "Bearer " + tkn
+      });
+
+      const r = await fetch(API_BASE + path, Object.assign({}, opts, { headers }));
+      const data = await r.json().catch(() => ({}));
+
+      if (r.status === 401) {
+        localStorage.removeItem("tech_token");
+        throw new Error("UNAUTHORIZED");
+      }
+      if (!r.ok || !data.ok) throw new Error(data.error || ("ERR_" + r.status));
+      return data;
+    }
+
+    async function loadWho() {
+      try {
+        const data = await apiFetch("/me");
+        isSuperAdmin = (data?.user?.role === "super_admin");
+        ui.setWho(getLang() === "uz"
+          ? `Siz: ${data.user.full_name} (${data.user.role})`
+          : (getLang()==="en"
+            ? `You: ${data.user.full_name} (${data.user.role})`
+            : `Ты: ${data.user.full_name} (${data.user.role})`
+          )
+        );
+      } catch { ui.setWho(""); }
+    }
+
+    function roleLevelLabel(r) {
+      if (r === "super_admin") return t("role_super_admin");
+      if (r === "business_owner") return t("role_admin");
+      return t("role_user");
+    }
+
+    function rolesByBusiness(bizId) {
+      return roles.filter(r => String(r.business_id) === String(bizId));
+    }
+
+    function filialsByBusiness(bizId) {
+      return filials.filter(f => String(f.business_id) === String(bizId));
+    }
+
+    function openUserForm({ mode, item }) {
+      const isEdit = mode === "edit";
+      const x = item || {};
+
+      const bizId = isSuperAdmin ? (x.business_id || businessFilter || "") : (x.business_id || "");
+      const roleLevel = x.role || "branch_manager";
+      const roleList = bizId ? rolesByBusiness(bizId) : [];
+      const filialList = bizId ? filialsByBusiness(bizId) : [];
+
+      openModal({
+        title: isEdit ? t("edit_user") : t("create_user"),
+        sub: isEdit ? ("ID: " + x.id) : "",
+        okText: t("save"),
+        cancelText: t("cancel"),
+        bodyHtml: `
+          <div class="form-grid">
+            ${isSuperAdmin ? `
+              <div class="field" style="grid-column:1 / -1;">
+                <label>${L("Бизнес","Biznes","Business")}</label>
+                <select id="u_biz" class="inp">
+                  <option value="">${L("Выберите бизнес","Biznesni tanlang","Select business")}</option>
+                  ${businesses.map(b => `<option value="${b.id}" ${String(b.id)===String(bizId) ? "selected" : ""}>${escapeHtml(b.name)}</option>`).join("")}
+                </select>
+              </div>` : ""}
+
+            <div class="field">
+              <label>${t("user_email")}</label>
+              <input id="u_email" class="inp" value="${escapeHtml(x.email || "")}" ${isEdit ? "disabled" : ""} />
+            </div>
+            <div class="field">
+              <label>${t("user_full_name")}</label>
+              <input id="u_full" class="inp" value="${escapeHtml(x.full_name || "")}" />
+            </div>
+
+            <div class="field">
+              <label>${t("user_role_level")}</label>
+              <select id="u_level" class="inp">
+                ${isSuperAdmin ? `<option value="super_admin" ${roleLevel==="super_admin"?"selected":""}>${t("role_super_admin")}</option>` : ""}
+                <option value="business_owner" ${roleLevel==="business_owner"?"selected":""}>${t("role_admin")}</option>
+                <option value="branch_manager" ${(!["super_admin","business_owner"].includes(roleLevel))?"selected":""}>${t("role_user")}</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>${t("user_role_perm")}</label>
+              <select id="u_role" class="inp">
+                <option value="">—</option>
+                ${roleList.map(r => `<option value="${r.id}" ${String(r.id)===String(x.role_id||"") ? "selected" : ""}>${escapeHtml(r.name)}</option>`).join("")}
+              </select>
+            </div>
+
+            ${isEdit ? "" : `
+              <div class="field" style="grid-column:1 / -1;">
+                <label>${t("password")}</label>
+                <input id="u_pass" class="inp" type="password" placeholder="Min 8 chars" />
+              </div>
+            `}
+
+            <div class="switch" style="grid-column:1 / -1;">
+              <div class="label">${t("filials_access")}</div>
+              <input id="u_all_fil" type="checkbox" ${x.can_all_filials ? "checked" : ""} />
+            </div>
+
+            <div class="field" style="grid-column:1 / -1;">
+              <label>${L("Филиалы","Filiallar","Branches")}</label>
+              <div id="u_filials" style="display:flex; flex-wrap:wrap; gap:10px;">
+                ${filialList.map(f => `
+                  <label style="display:inline-flex; align-items:center; gap:6px; font-size:13px;">
+                    <input type="checkbox" value="${f.id}" />
+                    ${escapeHtml(f.name)}
+                  </label>
+                `).join("")}
+              </div>
+            </div>
+          </div>
+        `,
+        onOk: async () => {
+          const payload = {
+            full_name: (document.getElementById("u_full").value || "").trim(),
+            role: document.getElementById("u_level").value,
+            role_id: document.getElementById("u_role").value ? Number(document.getElementById("u_role").value) : null,
+            can_all_filials: document.getElementById("u_all_fil").checked ? 1 : 0
+          };
+
+          if (!payload.full_name) throw new Error("full_name required");
+
+          if (payload.role === "super_admin") {
+            payload.role_id = null;
+            payload.can_all_filials = 1;
+          }
+
+          if (isSuperAdmin && payload.role !== "super_admin") {
+            payload.business_id = Number(document.getElementById("u_biz").value || "");
+            if (!payload.business_id) throw new Error("business_id required");
+          }
+
+          let targetId = x.id;
+
+          if (!isEdit) {
+            payload.email = (document.getElementById("u_email").value || "").trim();
+            payload.password = (document.getElementById("u_pass").value || "");
+            const created = await apiFetch("/users", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+            targetId = created?.item?.id;
+          } else {
+            await apiFetch("/users/" + x.id, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+          }
+
+          const all = document.getElementById("u_all_fil").checked;
+          if (!all && payload.role !== "super_admin" && targetId) {
+            const selected = Array.from(document.querySelectorAll("#u_filials input[type=checkbox]"))
+              .filter(el => el.checked)
+              .map(el => Number(el.value));
+            await apiFetch("/users/" + targetId + "/filials", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ filial_ids: selected })
+            }).catch(() => {});
+          }
+
+          await load();
+        }
+      });
+
+      setTimeout(async () => {
+        const s1 = document.getElementById("u_biz");
+        const s2 = document.getElementById("u_level");
+        const s3 = document.getElementById("u_role");
+        if (s1) enhanceSelect(s1);
+        if (s2) enhanceSelect(s2);
+        if (s3) enhanceSelect(s3);
+
+        const allEl = document.getElementById("u_all_fil");
+        const filWrap = document.getElementById("u_filials");
+        function syncFilials() {
+          const off = allEl?.checked;
+          if (!filWrap) return;
+          filWrap.style.opacity = off ? "0.5" : "1";
+          filWrap.querySelectorAll("input[type=checkbox]").forEach(el => {
+            el.disabled = !!off;
+          });
+        }
+        if (allEl) {
+          allEl.addEventListener("change", syncFilials);
+          syncFilials();
+        }
+
+        if (isEdit) {
+          try {
+            const r = await apiFetch("/users/" + x.id + "/filials");
+            const ids = new Set((r.filial_ids || []).map(String));
+            document.querySelectorAll("#u_filials input[type=checkbox]").forEach(el => {
+              if (ids.has(String(el.value))) el.checked = true;
+            });
+          } catch {}
+        }
+      }, 0);
+    }
+
+    async function resetPassword(id) {
+      openModal({
+        title: t("reset_password"),
+        okText: t("save"),
+        cancelText: t("cancel"),
+        bodyHtml: `
+          <div class="form-grid">
+            <div class="field" style="grid-column:1 / -1;">
+              <label>${t("password_new")}</label>
+              <input id="p_new" class="inp" type="password" placeholder="Min 8 chars" />
+            </div>
+          </div>
+        `,
+        onOk: async () => {
+          const pwd = (document.getElementById("p_new").value || "");
+          await apiFetch("/users/" + id + "/password", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password: pwd })
+          });
+        }
+      });
+    }
+
+    function mountActions() {
+      ui.actionsEl.innerHTML = `
+        ${isSuperAdmin ? `
+          <select id="biz" class="inp" style="width:220px;">
+            <option value="">${L("Все бизнесы","Barcha bizneslar","All businesses")}</option>
+            ${businesses.map(b => `<option value="${b.id}" ${String(b.id)===String(businessFilter) ? "selected" : ""}>${escapeHtml(b.name)}</option>`).join("")}
+          </select>
+        ` : ""}
+        <input id="q" class="inp" placeholder="${t("search")}" style="width:220px;" />
+        <button id="refresh" class="btn">${t("refresh")}</button>
+        <button id="add" class="btn primary">${t("add")}</button>
+      `;
+
+      if (isSuperAdmin) {
+        document.getElementById("biz").addEventListener("change", (e) => {
+          businessFilter = (e.target.value || "").trim();
+          load();
+        });
+      }
+
+      document.getElementById("q").addEventListener("input", () => renderTable());
+      document.getElementById("refresh").addEventListener("click", () => load());
+      document.getElementById("add").addEventListener("click", () => openUserForm({ mode: "create" }));
+    }
+
+    function renderTable() {
+      const yes = t("yes");
+      const no  = t("no");
+      const q = (document.getElementById("q")?.value || "").trim().toLowerCase();
+
+      let view = items;
+      if (q) {
+        view = view.filter(x => {
+          const s = (x.email||"") + " " + (x.full_name||"");
+          return s.toLowerCase().includes(q);
+        });
+      }
+
+      ui.setSub(view.length ? `(${view.length})` : "");
+
+      if (!view.length) {
+        ui.bodyEl.innerHTML = `
+          <div class="tablewrap">
+            <table><tbody><tr><td style="padding:12px;">—</td></tr></tbody></table>
+          </div>`;
+        return;
+      }
+
+      ui.bodyEl.innerHTML = `
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:80px;">ID</th>
+                ${isSuperAdmin ? `<th style="width:200px;">${L("Бизнес","Biznes","Business")}</th>` : ""}
+                <th>${t("user_email")}</th>
+                <th>${t("user_full_name")}</th>
+                <th style="width:140px;">${t("user_role_level")}</th>
+                <th style="width:180px;">${t("user_role_perm")}</th>
+                <th style="width:110px;">${t("active")}</th>
+                <th style="width:260px;">${t("actions")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${view.map(x => {
+                const isOn = x.is_active ? 1 : 0;
+                const bizName = businesses.find(b => String(b.id)===String(x.business_id))?.name;
+                const roleName = roles.find(r => String(r.id)===String(x.role_id))?.name;
+                return `
+                  <tr style="opacity:${isOn ? "1" : "0.55"}">
+                    <td>${x.id}</td>
+                    ${isSuperAdmin ? `<td>${escapeHtml(bizName || ("#" + (x.business_id ?? "")))}</td>` : ""}
+                    <td>${escapeHtml(x.email)}</td>
+                    <td>${escapeHtml(x.full_name)}</td>
+                    <td>${escapeHtml(roleLevelLabel(x.role))}</td>
+                    <td>${escapeHtml(roleName || "")}</td>
+                    <td>${isOn ? yes : no}</td>
+                    <td style="display:flex; gap:8px; flex-wrap:wrap;">
+                      <button class="btn icon" data-act="edit" data-id="${x.id}" title="${L("Редактировать","Tahrirlash","Edit")}" aria-label="${L("Редактировать","Tahrirlash","Edit")}">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5Z"
+                            stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        </svg>
+                      </button>
+
+                      <button class="btn icon" data-act="pwd" data-id="${x.id}" title="${t("reset_password")}" aria-label="${t("reset_password")}">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                          <rect x="4" y="11" width="16" height="9" rx="2" stroke="currentColor" stroke-width="2"/>
+                          <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                      </button>
+
+                      <button class="btn icon" data-act="toggle" data-id="${x.id}" data-next="${isOn ? 0 : 1}"
+                              title="${isOn ? L("Отключить","O‘chirish","Disable") : L("Включить","Yoqish","Enable")}"
+                              aria-label="${isOn ? L("Отключить","O‘chirish","Disable") : L("Включить","Yoqish","Enable")}">
+                        ${isOn
+                          ? `
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                              <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                              <path d="M8 6V4h8v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                              <path d="M7 6l1 14h8l1-14" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                              <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                          `
+                          : `
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                              <path d="M9 14l-4-4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                              <path d="M5 10h9a5 5 0 1 1 0 10h-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                          `}
+                      </button>
+                    </td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    async function load() {
+      try {
+        ui.setMsg(L("Загружаю...","Yuklanmoqda...","Loading..."), true);
+
+        if (isSuperAdmin) {
+          const b = await apiFetch("/businesses");
+          businesses = b.items || [];
+          const f = await apiFetch("/filials");
+          filials = f.items || [];
+          const r = await apiFetch("/roles");
+          roles = r.items || [];
+        } else {
+          const f = await apiFetch("/filials");
+          filials = f.items || [];
+          const r = await apiFetch("/roles");
+          roles = r.items || [];
+        }
+
+        const qs = (isSuperAdmin && businessFilter) ? ("?business_id=" + encodeURIComponent(businessFilter)) : "";
+        const u = await apiFetch("/users" + qs);
+        items = u.items || [];
+
+        ui.setMsg("", true);
+        mountActions();
+        renderTable();
+      } catch (e) {
+        const m = String(e.message || e);
+        if (m === "NO_TOKEN" || m === "UNAUTHORIZED") {
+          ui.setMsg(L("Сначала войди (/auth/login.html)","Avval kiring (/auth/login.html)","Please login (/auth/login.html)"), false);
+        } else {
+          ui.setMsg("Error: " + m, false);
+        }
+      }
+    }
+
+    ui.bodyEl.addEventListener("click", async (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+
+      const act = btn.getAttribute("data-act");
+      const id = btn.getAttribute("data-id");
+      if (!act || !id) return;
+
+      const cur = items.find(x => String(x.id) === String(id));
+      if (!cur) return;
+
+      if (act === "edit") {
+        openUserForm({ mode: "edit", item: cur });
+        return;
+      }
+
+      if (act === "pwd") {
+        await resetPassword(cur.id);
+        return;
+      }
+
+      if (act === "toggle") {
+        const next = Number(btn.getAttribute("data-next"));
+        const ok = await confirmModal({
+          title: next === 0
+            ? L(`Отключить "${cur.full_name}"?`, `"${cur.full_name}" ni o‘chirish?`, `Disable "${cur.full_name}"?`)
+            : L(`Включить "${cur.full_name}"?`, `"${cur.full_name}" ni yoqish?`, `Enable "${cur.full_name}"?`),
+          bodyHtml: `<div class="muted" style="margin-top:6px;">${L("Это изменит статус пользователя.", "Bu foydalanuvchi holatini o‘zgartiradi.", "This will change user status.")}</div>`,
+          okText: next === 0 ? L("Отключить","O‘chirish","Disable") : L("Включить","Yoqish","Enable"),
+          cancelText: t("cancel"),
+          danger: next === 0
+        });
+        if (!ok) return;
+
+        await apiFetch("/users/" + id, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ is_active: next })
+        });
+        await load();
+      }
+    });
+
+    window.addEventListener("tech:lang", () => {
+      ui.applyI18n();
+      mountActions();
+      renderTable();
+      loadWho();
+    });
+
+    await loadWho();
+    await load();
+  </script>
+</body>
+</html>
