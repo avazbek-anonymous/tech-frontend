@@ -84,6 +84,10 @@ export function renderShell({
               <a href="/dict/filials.html" id="menu_filials">...</a>
               <a href="/dict/warehouses.html" id="menu_warehouses">...</a>
               <a href="/dict/cash-accounts.html" id="menu_cash_accounts">...</a>
+              <a href="/dict/units.html" id="menu_units">...</a>
+              <a href="/dict/product-categories.html" id="menu_product_categories">...</a>
+              <a href="/dict/products.html" id="menu_products">...</a>
+              <a href="/dict/stock-docs.html" id="menu_stock_docs">...</a>
             </div>
           </div>
 
@@ -148,6 +152,10 @@ export function renderShell({
     root.querySelector("#menu_filials").textContent = t("filials");
     root.querySelector("#menu_warehouses").textContent = t("warehouses");
     root.querySelector("#menu_cash_accounts").textContent = t("cash_accounts");
+    root.querySelector("#menu_units").textContent = t("units");
+    root.querySelector("#menu_product_categories").textContent = t("product_categories");
+    root.querySelector("#menu_products").textContent = t("products");
+    root.querySelector("#menu_stock_docs").textContent = t("stock_docs");
     root.querySelector("#menu_businesses").textContent = t("businesses");
     root.querySelector("#menu_roles").textContent = t("roles");
     root.querySelector("#menu_users").textContent = t("users");
@@ -185,18 +193,18 @@ export function renderShell({
 
       const isAdmin = (role === "super_admin" || role === "business_owner");
       if (!isAdmin) {
-        g.style.display = "none";
+        g.remove();
         return;
       }
 
       // бизнесы видит только super_admin
       if (role !== "super_admin") {
         const b = root.querySelector("#menu_businesses");
-        if (b) b.style.display = "none";
+        if (b) b.remove();
       }
     } catch {
       const g = root.querySelector("#adminGroup");
-      if (g) g.style.display = "none";
+      if (g) g.remove();
     }
   }
 

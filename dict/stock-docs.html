@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="ru" data-theme="light" data-sidebar="open" data-lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tech — Stock Docs</title>
+  <link rel="stylesheet" href="/assets/app.css" />
+</head>
+
+<body>
+  <div id="app"></div>
+
+  <script type="module">
+    import { renderShell } from "/assets/shell.js";
+    import { getLang, t, requireFrontAuth } from "/assets/app.js";
+    import { openModal } from "/assets/modal.js";
+    import { enhanceSelect } from "/assets/select.js";
+
+    if (!requireFrontAuth()) throw new Error("NO_AUTH");
+
+    const API_BASE = "https://api.tech.gekto.uz";
+    const ui = renderShell({ active: "stock_docs", titleKey: "stock_docs" });
+
+    let items = [];
+    let filials = [];
+    let warehouses = [];
+    let products = [];
+    let isSuperAdmin = false;
+    let businessFilter = "";
+    let businesses = [];
+
+    function L(ru, uz, en) {
+      const lg = getLang();
+      return lg === "uz" ? uz : (lg === "en" ? en : ru);
+    }
+
+    function token() {
+      return localStorage.getItem("tech_token") || "";
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function fmtDate(sec) {
+      if (!sec) return "";
+      const d = new Date(Number(sec) * 1000);
+      if (Number.isNaN(d.getTime())) return "";
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(d.getUTCDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+
+    async function apiFetch(path, opts = {}) {
+      const tkn = token();
+      if (!tkn) throw new Error("NO_TOKEN");
+
+      const headers = Object.assign({}, opts.headers || {}, {
+        "Authorization": "Bearer " + tkn
+      });
+
+      const r = await fetch(API_BASE + path, Object.assign({}, opts, { headers }));
+      const data = await r.json().catch(() => ({}));
+
+      if (r.status === 401) {
+        localStorage.removeItem("tech_token");
+        throw new Error("UNAUTHORIZED");
+      }
+      if (!r.ok || !data.ok) throw new Error(data.error || ("ERR_" + r.status));
+      return data;
+    }
+
+    async function loadWho() {
+      try {
+        const data = await apiFetch("/me");
+        isSuperAdmin = (data?.user?.role === "super_admin");
+        ui.setWho(getLang() === "uz"
+          ? `Siz: ${data.user.full_name} (${data.user.role})`
+          : (getLang()==="en"
+            ? `You: ${data.user.full_name} (${data.user.role})`
+            : `Ты: ${data.user.full_name} (${data.user.role})`
+          )
+        );
+      } catch { ui.setWho(""); }
+    }
+
+    async function loadBusinesses() {
+      if (!isSuperAdmin) return;
+      const data = await apiFetch("/businesses");
+      businesses = data.items || [];
+    }
+
+    async function loadRefs() {
+      const q = businessFilter ? `?business_id=${encodeURIComponent(businessFilter)}` : "";
+      const [fRes, wRes, pRes] = await Promise.all([
+        apiFetch("/filials" + q),
+        apiFetch("/warehouses" + q),
+        apiFetch("/products" + q)
+      ]);
+      filials = fRes.items || [];
+      warehouses = wRes.items || [];
+      products = pRes.items || [];
+    }
+
+    function kindLabel(k) {
+      const map = {
+        in: L("Приход", "Kirim", "In"),
+        out: L("Расход", "Chiqim", "Out"),
+        transfer: L("Перемещение", "Ko‘chirish", "Transfer"),
+        adjust: L("Инвентаризация", "Inventarizatsiya", "Adjust"),
+        return_in: L("Возврат (приход)", "Qaytish (kirim)", "Return in"),
+        return_out: L("Возврат (расход)", "Qaytish (chiqim)", "Return out"),
+      };
+      return map[k] || k;
+    }
+
+    function statusLabel(s) {
+      const map = {
+        draft: L("Черновик", "Qoralama", "Draft"),
+        posted: L("Проведен", "Tasdiqlangan", "Posted"),
+        cancelled: L("Отменен", "Bekor qilingan", "Cancelled"),
+      };
+      return map[s] || s;
+    }
+
+    function openDocForm({ mode, doc, docItems }) {
+      const isEdit = mode === "edit";
+      const x = doc || {};
+      const itemsLocal = Array.isArray(docItems) ? docItems.slice() : [];
+
+      const today = (() => {
+        const d = new Date();
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+        const day = String(d.getUTCDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      })();
+
+      openModal({
+        title: isEdit
+          ? L("Редактировать документ", "Hujjatni tahrirlash", "Edit document")
+          : L("Создать документ", "Hujjat yaratish", "Create document"),
+        okText: t("save"),
+        cancelText: t("cancel"),
+        bodyHtml: `
+          <div class="form-grid">
+            <div class="field" style="grid-column:1 / -1;">
+              <label>${L("Филиал","Filial","Filial")}</label>
+              <select id="d_filial" class="inp">
+                ${filials.map(f => `<option value="${f.id}" ${String(f.id)===String(x.filial_id||"") ? "selected" : ""}>${escapeHtml(f.name)}</option>`).join("")}
+              </select>
+            </div>
+
+            <div class="field">
+              <label>${L("Тип","Turi","Kind")}</label>
+              <select id="d_kind" class="inp">
+                ${["in","out","transfer","adjust","return_in","return_out"].map(k => `
+                  <option value="${k}" ${String(k)===String(x.kind||"in") ? "selected" : ""}>${escapeHtml(kindLabel(k))}</option>
+                `).join("")}
+              </select>
+            </div>
+
+            <div class="field">
+              <label>${L("Статус","Status","Status")}</label>
+              <select id="d_status" class="inp">
+                ${["draft","posted","cancelled"].map(s => `
+                  <option value="${s}" ${String(s)===String(x.status||"draft") ? "selected" : ""}>${escapeHtml(statusLabel(s))}</option>
+                `).join("")}
+              </select>
+            </div>
+
+            <div class="field">
+              <label>${L("Номер","Raqam","Doc No")}</label>
+              <input id="d_no" class="inp" value="${escapeHtml(x.doc_no || "")}" />
+            </div>
+
+            <div class="field">
+              <label>${L("Дата","Sana","Date")}</label>
+              <input id="d_date" class="inp" type="date" value="${escapeHtml(fmtDate(x.doc_date) || today)}" />
+            </div>
+
+            <div class="field" id="wrap_from">
+              <label>${L("Со склада","Ombordan","From warehouse")}</label>
+              <select id="d_from" class="inp">
+                <option value="">—</option>
+                ${warehouses.map(w => `<option value="${w.id}" ${String(w.id)===String(x.from_warehouse_id||"") ? "selected" : ""}>${escapeHtml(w.name)}</option>`).join("")}
+              </select>
+            </div>
+
+            <div class="field" id="wrap_to">
+              <label>${L("На склад","Omborga","To warehouse")}</label>
+              <select id="d_to" class="inp">
+                <option value="">—</option>
+                ${warehouses.map(w => `<option value="${w.id}" ${String(w.id)===String(x.to_warehouse_id||"") ? "selected" : ""}>${escapeHtml(w.name)}</option>`).join("")}
+              </select>
+            </div>
+
+            <div class="field">
+              <label>${L("Контрагент ID","Kontragent ID","Partner ID")}</label>
+              <input id="d_partner" class="inp" type="number" value="${escapeHtml(String(x.partner_id ?? ""))}" />
+            </div>
+
+            <div class="field">
+              <label>${L("Доп. расход","Qo‘shimcha xarajat","Extra cost")}</label>
+              <input id="d_extra" class="inp" type="number" step="0.01" value="${escapeHtml(String(x.extra_cost ?? 0))}" />
+            </div>
+
+            <div class="field" style="grid-column:1 / -1;">
+              <label>${t("comment")}</label>
+              <input id="d_comment" class="inp" value="${escapeHtml(x.comment || "")}" />
+            </div>
+          </div>
+
+          <div style="margin-top:14px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px;">
+              <div style="font-weight:700;">${L("Позиции","Pozitsiyalar","Items")}</div>
+              <button id="add_item" class="btn">${t("add")}</button>
+            </div>
+            <div id="items_wrap"></div>
+          </div>
+        `,
+        onOk: async () => {
+          const payload = {
+            filial_id: Number(document.getElementById("d_filial").value),
+            kind: document.getElementById("d_kind").value,
+            status: document.getElementById("d_status").value,
+            doc_no: (document.getElementById("d_no").value || "").trim(),
+            doc_date: document.getElementById("d_date").value,
+            from_warehouse_id: document.getElementById("d_from").value ? Number(document.getElementById("d_from").value) : null,
+            to_warehouse_id: document.getElementById("d_to").value ? Number(document.getElementById("d_to").value) : null,
+            partner_id: document.getElementById("d_partner").value ? Number(document.getElementById("d_partner").value) : null,
+            extra_cost: Number(document.getElementById("d_extra").value || 0),
+            comment: (document.getElementById("d_comment").value || "").trim() || null,
+            items: []
+          };
+
+          document.querySelectorAll(".item-row").forEach(row => {
+            const idx = Number(row.getAttribute("data-idx"));
+            const product_id = Number(document.getElementById(`it_prod_${idx}`).value || 0);
+            const qty = Number(document.getElementById(`it_qty_${idx}`).value || 0);
+            const price = Number(document.getElementById(`it_price_${idx}`).value || 0);
+            const amountRaw = document.getElementById(`it_amount_${idx}`).value;
+            const amount = (amountRaw === "" || amountRaw == null) ? null : Number(amountRaw);
+            const costRaw = document.getElementById(`it_cost_${idx}`).value;
+            const cost = (costRaw === "" || costRaw == null) ? null : Number(costRaw);
+            const whEl = document.getElementById(`it_wh_${idx}`);
+            const warehouse_id = whEl ? (whEl.value ? Number(whEl.value) : null) : null;
+            const comment = (document.getElementById(`it_comment_${idx}`).value || "").trim() || null;
+
+            if (product_id && qty) {
+              payload.items.push({ product_id, warehouse_id, qty, price, amount, cost, comment });
+            }
+          });
+
+          if (isEdit) {
+            await apiFetch("/stock_docs/" + x.id, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+          } else {
+            await apiFetch("/stock_docs", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+          }
+
+          await load();
+        }
+      });
+
+      function renderItems() {
+        const kind = document.getElementById("d_kind").value;
+        const showWarehouse = (kind !== "transfer");
+
+        const headWarehouse = showWarehouse ? `<th style="width:180px;">${L("Склад","Ombor","Warehouse")}</th>` : "";
+        const cols = `
+          <th style="width:220px;">${t("products")}</th>
+          ${headWarehouse}
+          <th style="width:90px;">${L("Кол-во","Miqdor","Qty")}</th>
+          <th style="width:110px;">${L("Цена","Narx","Price")}</th>
+          <th style="width:110px;">${L("Сумма","Summa","Amount")}</th>
+          <th style="width:110px;">${L("Себестоимость","Tannarx","Cost")}</th>
+          <th>${t("comment")}</th>
+          <th style="width:60px;"></th>
+        `;
+
+        const rows = itemsLocal.map((it, i) => {
+          const whCol = showWarehouse ? `
+            <td>
+              <select id="it_wh_${i}" class="inp">
+                <option value="">—</option>
+                ${warehouses.map(w => `<option value="${w.id}" ${String(w.id)===String(it.warehouse_id||"") ? "selected" : ""}>${escapeHtml(w.name)}</option>`).join("")}
+              </select>
+            </td>
+          ` : "";
+
+          return `
+            <tr class="item-row" data-idx="${i}">
+              <td>
+                <select id="it_prod_${i}" class="inp">
+                  <option value="">—</option>
+                  ${products.map(p => `<option value="${p.id}" ${String(p.id)===String(it.product_id||"") ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}
+                </select>
+              </td>
+              ${whCol}
+              <td><input id="it_qty_${i}" class="inp" type="number" step="0.01" value="${escapeHtml(String(it.qty ?? ""))}"></td>
+              <td><input id="it_price_${i}" class="inp" type="number" step="0.01" value="${escapeHtml(String(it.price ?? ""))}"></td>
+              <td><input id="it_amount_${i}" class="inp" type="number" step="0.01" value="${escapeHtml(String(it.amount ?? ""))}"></td>
+              <td><input id="it_cost_${i}" class="inp" type="number" step="0.01" value="${escapeHtml(String(it.cost ?? ""))}"></td>
+              <td><input id="it_comment_${i}" class="inp" value="${escapeHtml(it.comment ?? "")}"></td>
+              <td><button class="btn danger" data-del="${i}">×</button></td>
+            </tr>
+          `;
+        }).join("");
+
+        document.getElementById("items_wrap").innerHTML = `
+          <div class="tablewrap">
+            <table>
+              <thead><tr>${cols}</tr></thead>
+              <tbody>${rows || `<tr><td colspan="8">—</td></tr>`}</tbody>
+            </table>
+          </div>
+        `;
+
+        document.querySelectorAll("[data-del]").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const i = Number(btn.getAttribute("data-del"));
+            itemsLocal.splice(i, 1);
+            renderItems();
+          });
+        });
+
+        document.querySelectorAll("select.inp").forEach(sel => enhanceSelect(sel));
+      }
+
+      function applyKindVisibility() {
+        const kind = document.getElementById("d_kind").value;
+        const wrapFrom = document.getElementById("wrap_from");
+        const wrapTo = document.getElementById("wrap_to");
+        if (kind === "transfer") {
+          wrapFrom.style.display = "";
+          wrapTo.style.display = "";
+        } else if (kind === "in" || kind === "return_in") {
+          wrapFrom.style.display = "none";
+          wrapTo.style.display = "";
+        } else if (kind === "out" || kind === "return_out") {
+          wrapFrom.style.display = "";
+          wrapTo.style.display = "none";
+        } else {
+          wrapFrom.style.display = "";
+          wrapTo.style.display = "";
+        }
+      }
+
+      setTimeout(() => {
+        enhanceSelect(document.getElementById("d_filial"));
+        enhanceSelect(document.getElementById("d_kind"));
+        enhanceSelect(document.getElementById("d_status"));
+        enhanceSelect(document.getElementById("d_from"));
+        enhanceSelect(document.getElementById("d_to"));
+
+        document.getElementById("add_item").addEventListener("click", () => {
+          itemsLocal.push({ product_id: null, warehouse_id: null, qty: 1, price: 0, amount: "", cost: "", comment: "" });
+          renderItems();
+        });
+
+        document.getElementById("d_kind").addEventListener("change", () => {
+          applyKindVisibility();
+          renderItems();
+        });
+
+        applyKindVisibility();
+        renderItems();
+      }, 0);
+    }
+
+    function mountActions() {
+      ui.actionsEl.innerHTML = `
+        ${isSuperAdmin ? `
+          <select id="biz" class="inp" style="width:220px;">
+            <option value="">${L("Все бизнесы","Barcha bizneslar","All businesses")}</option>
+            ${businesses.map(b => `<option value="${b.id}" ${String(b.id)===String(businessFilter) ? "selected" : ""}>${escapeHtml(b.name)}</option>`).join("")}
+          </select>
+        ` : ""}
+        <select id="filial" class="inp" style="width:220px;">
+          <option value="">${L("Все филиалы","Barcha filiallar","All filials")}</option>
+          ${filials.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join("")}
+        </select>
+        <select id="kind" class="inp" style="width:200px;">
+          <option value="">${L("Все типы","Barcha turlar","All kinds")}</option>
+          ${["in","out","transfer","adjust","return_in","return_out"].map(k => `<option value="${k}">${escapeHtml(kindLabel(k))}</option>`).join("")}
+        </select>
+        <select id="status" class="inp" style="width:180px;">
+          <option value="">${L("Все статусы","Barcha statuslar","All statuses")}</option>
+          ${["draft","posted","cancelled"].map(s => `<option value="${s}">${escapeHtml(statusLabel(s))}</option>`).join("")}
+        </select>
+        <input id="q" class="inp" placeholder="${t("search")}" style="width:200px;" />
+        <button id="refresh" class="btn">${t("refresh")}</button>
+        <button id="add" class="btn primary">${t("add")}</button>
+      `;
+
+      if (isSuperAdmin) {
+        document.getElementById("biz").addEventListener("change", (e) => {
+          businessFilter = (e.target.value || "").trim();
+          load();
+        });
+        enhanceSelect(document.getElementById("biz"));
+      }
+
+      enhanceSelect(document.getElementById("filial"));
+      enhanceSelect(document.getElementById("kind"));
+      enhanceSelect(document.getElementById("status"));
+
+      document.getElementById("filial").addEventListener("change", () => renderTable());
+      document.getElementById("kind").addEventListener("change", () => renderTable());
+      document.getElementById("status").addEventListener("change", () => renderTable());
+      document.getElementById("q").addEventListener("input", () => renderTable());
+      document.getElementById("refresh").addEventListener("click", () => load());
+      document.getElementById("add").addEventListener("click", () => openDocForm({ mode: "create" }));
+    }
+
+    function renderTable() {
+      const q = (document.getElementById("q")?.value || "").trim().toLowerCase();
+      const fFilial = document.getElementById("filial")?.value || "";
+      const fKind = document.getElementById("kind")?.value || "";
+      const fStatus = document.getElementById("status")?.value || "";
+
+      const filtered = items.filter(x => {
+        if (fFilial && String(x.filial_id) !== String(fFilial)) return false;
+        if (fKind && String(x.kind) !== String(fKind)) return false;
+        if (fStatus && String(x.status) !== String(fStatus)) return false;
+        if (q) {
+          const s = (x.doc_no || "") + " " + (x.comment || "");
+          if (!s.toLowerCase().includes(q)) return false;
+        }
+        return true;
+      });
+
+      ui.setSub(filtered.length ? `(${filtered.length})` : "");
+
+      if (!filtered.length) {
+        ui.bodyEl.innerHTML = `
+          <div class="tablewrap"><table><tbody><tr><td style="padding:12px;">—</td></tr></tbody></table></div>
+        `;
+        return;
+      }
+
+      ui.bodyEl.innerHTML = `
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:70px;">ID</th>
+                <th style="width:140px;">${L("Номер","Raqam","Doc No")}</th>
+                <th style="width:120px;">${L("Дата","Sana","Date")}</th>
+                <th style="width:160px;">${L("Тип","Turi","Kind")}</th>
+                <th style="width:130px;">${L("Статус","Status","Status")}</th>
+                <th>${L("Филиал","Filial","Filial")}</th>
+                <th style="width:220px;">${L("Склад(ы)","Ombor(lar)","Warehouses")}</th>
+                <th style="width:90px;">${L("Позиций","Pozitsiyalar","Items")}</th>
+                <th style="width:120px;">${t("actions")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filtered.map(x => `
+                <tr>
+                  <td>${x.id}</td>
+                  <td>${escapeHtml(x.doc_no || "")}</td>
+                  <td>${escapeHtml(fmtDate(x.doc_date) || "")}</td>
+                  <td>${escapeHtml(kindLabel(x.kind))}</td>
+                  <td>${escapeHtml(statusLabel(x.status))}</td>
+                  <td>${escapeHtml(x.filial_name || ("#" + x.filial_id))}</td>
+                  <td>${escapeHtml([x.from_warehouse_name, x.to_warehouse_name].filter(Boolean).join(" → ") || "—")}</td>
+                  <td>${escapeHtml(String(x.items_count ?? 0))}</td>
+                  <td>
+                    <button class="btn icon" data-act="edit" data-id="${x.id}" title="${L("Редактировать","Tahrirlash","Edit")}">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5Z"
+                          stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      document.querySelectorAll("[data-act='edit']").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const id = Number(btn.getAttribute("data-id"));
+          const res = await apiFetch("/stock_docs/" + id);
+          openDocForm({ mode: "edit", doc: res.item, docItems: res.items });
+        });
+      });
+    }
+
+    async function load() {
+      ui.setMsg(t("loading") || "Loading...");
+      await loadRefs();
+      const q = businessFilter ? `?business_id=${encodeURIComponent(businessFilter)}` : "";
+      const data = await apiFetch("/stock_docs" + q);
+      items = data.items || [];
+      ui.setMsg("");
+      mountActions();
+      renderTable();
+    }
+
+    async function init() {
+      await loadWho();
+      await loadBusinesses();
+      await load();
+    }
+
+    init().catch(e => ui.setMsg(String(e.message || e)));
+  </script>
+</body>
+</html>
