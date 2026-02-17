@@ -1,6 +1,10 @@
 const TARIFFS = ["monthly", "3m", "6m", "12m", "24m"];
 const STATUSES = ["active", "blocked"];
 
+function e(v) {
+  return String(v ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+}
+
 function formGroup(label, control) {
   return `<div class="mb-3"><label class="form-label">${label}</label>${control}</div>`;
 }
@@ -8,17 +12,17 @@ function formGroup(label, control) {
 function businessFormHtml(item = {}) {
   return `
     <div class="row">
-      <div class="col-md-6">${formGroup("Business name", `<input class="form-control" name="name" value="${item.name || ""}">`)}</div>
-      <div class="col-md-6">${formGroup("Owner full name", `<input class="form-control" name="owner_full_name" value="${item.owner_full_name || ""}">`)}</div>
-      <div class="col-md-6">${formGroup("Owner phone", `<input class="form-control" name="owner_phone" value="${item.owner_phone || ""}">`)}</div>
-      <div class="col-md-6">${formGroup("Admin full name", `<input class="form-control" name="admin_full_name" value="${item.admin_full_name || ""}">`)}</div>
-      <div class="col-md-6">${formGroup("Admin phone", `<input class="form-control" name="admin_phone" value="${item.admin_phone || ""}">`)}</div>
+      <div class="col-md-6">${formGroup("Business name", `<input class="form-control" name="name" value="${e(item.name)}">`)}</div>
+      <div class="col-md-6">${formGroup("Owner full name", `<input class="form-control" name="owner_full_name" value="${e(item.owner_full_name)}">`)}</div>
+      <div class="col-md-6">${formGroup("Owner phone", `<input class="form-control" name="owner_phone" value="${e(item.owner_phone)}">`)}</div>
+      <div class="col-md-6">${formGroup("Admin full name", `<input class="form-control" name="admin_full_name" value="${e(item.admin_full_name)}">`)}</div>
+      <div class="col-md-6">${formGroup("Admin phone", `<input class="form-control" name="admin_phone" value="${e(item.admin_phone)}">`)}</div>
       <div class="col-md-3">${formGroup("Filials", `<input type="number" min="0" class="form-control" name="filials_count" value="${Number(item.filials_count ?? 1)}">`)}</div>
       <div class="col-md-3">${formGroup("Tariff", `<select class="form-select" name="tariff_plan">${TARIFFS.map(v => `<option value="${v}" ${item.tariff_plan === v ? "selected" : ""}>${v}</option>`).join("")}</select>`)}</div>
       <div class="col-md-3">${formGroup("Price per filial", `<input type="number" min="0" class="form-control" name="tariff_price_per_filial" value="${Number(item.tariff_price_per_filial ?? 0)}">`)}</div>
       <div class="col-md-3">${formGroup("Start date", `<input type="date" class="form-control" name="subscription_start_date" value="${item.subscription_start_date || ""}">`)}</div>
-      <div class="col-md-6">${formGroup("Payment method", `<input class="form-control" name="payment_method" value="${item.payment_method || ""}">`)}</div>
-      <div class="col-md-3">${formGroup("INN (optional)", `<input class="form-control" name="inn" value="${item.inn || ""}">`)}</div>
+      <div class="col-md-6">${formGroup("Payment method", `<input class="form-control" name="payment_method" value="${e(item.payment_method)}">`)}</div>
+      <div class="col-md-3">${formGroup("INN (optional)", `<input class="form-control" name="inn" value="${e(item.inn)}">`)}</div>
       <div class="col-md-3">${formGroup("Status", `<select class="form-select" name="status">${STATUSES.map(v => `<option value="${v}" ${item.status === v ? "selected" : ""}>${v}</option>`).join("")}</select>`)}</div>
     </div>`;
 }
@@ -63,8 +67,7 @@ export async function render(ctx) {
         <div class="col-md-4"><label class="form-label">Search</label><input id="f_q" class="form-control" value="${esc(q)}"></div>
         <div class="col-md-2"><label class="form-label">${t("status")}</label><select id="f_status" class="form-select"><option value="">All</option>${STATUSES.map(v => `<option value="${v}" ${status === v ? "selected" : ""}>${v}</option>`).join("")}</select></div>
         <div class="col-md-2"><label class="form-label">${t("tariff")}</label><select id="f_tariff" class="form-select"><option value="">All</option>${TARIFFS.map(v => `<option value="${v}" ${tariff === v ? "selected" : ""}>${v}</option>`).join("")}</select></div>
-        <div class="col-md-2 d-grid"><button id="f_apply" class="btn btn-outline-primary">Apply</button></div>
-        ${canWrite ? `<div class="col-md-2 d-grid"><button id="b_create" class="btn btn-primary">${t("create")}</button></div>` : ""}
+        ${canWrite ? `<div class="col-md-2 d-grid"><button id="b_create" class="btn btn-primary">${t("create")}</button></div>` : `<div class="col-md-2"></div>`}
       </div>
     </div></div>
     <div class="card"><div class="card-body table-wrap">
@@ -84,12 +87,25 @@ export async function render(ctx) {
       </table>
     </div></div>`;
 
-  document.getElementById("f_apply").onclick = () => {
-    viewEl.setAttribute("data-q", document.getElementById("f_q").value.trim());
-    viewEl.setAttribute("data-status", document.getElementById("f_status").value);
-    viewEl.setAttribute("data-tariff", document.getElementById("f_tariff").value);
-    render(ctx);
+  const queueRender = () => {
+    clearTimeout(viewEl.__fltTimer);
+    viewEl.__fltTimer = setTimeout(() => render(ctx), 220);
   };
+  const qEl = document.getElementById("f_q");
+  qEl.addEventListener("input", () => {
+    const next = qEl.value.trim();
+    if (next.length !== 0 && next.length < 3) return;
+    viewEl.setAttribute("data-q", next);
+    queueRender();
+  });
+  document.getElementById("f_status").addEventListener("change", () => {
+    viewEl.setAttribute("data-status", document.getElementById("f_status").value);
+    queueRender();
+  });
+  document.getElementById("f_tariff").addEventListener("change", () => {
+    viewEl.setAttribute("data-tariff", document.getElementById("f_tariff").value);
+    queueRender();
+  });
 
   if (!canWrite) return;
 

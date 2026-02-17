@@ -16,7 +16,6 @@ export async function render(ctx) {
       <div class="row g-2 align-items-end">
         <div class="col-md-3"><label class="form-label">${t("month")}</label><input id="c_month" type="month" class="form-control" value="${month}"></div>
         <div class="col-md-6"><label class="form-label">Search business</label><input id="c_q" class="form-control" value="${esc(q)}"></div>
-        <div class="col-md-3 d-grid"><button id="c_apply" class="btn btn-outline-primary">Apply</button></div>
       </div>
     </div></div>
     <div class="card"><div class="card-header"><h3 class="card-title">${month}</h3></div>
@@ -28,9 +27,17 @@ export async function render(ctx) {
       </div>
     </div>`;
 
-  document.getElementById("c_apply").onclick = () => {
+  document.getElementById("c_month").addEventListener("change", () => {
     viewEl.setAttribute("data-month", document.getElementById("c_month").value || monthNow());
-    viewEl.setAttribute("data-q", document.getElementById("c_q").value.trim());
-    render(ctx);
-  };
+    clearTimeout(viewEl.__fltTimer);
+    viewEl.__fltTimer = setTimeout(() => render(ctx), 180);
+  });
+  const qEl = document.getElementById("c_q");
+  qEl.addEventListener("input", () => {
+    const next = qEl.value.trim();
+    if (next.length !== 0 && next.length < 3) return;
+    viewEl.setAttribute("data-q", next);
+    clearTimeout(viewEl.__fltTimer);
+    viewEl.__fltTimer = setTimeout(() => render(ctx), 220);
+  });
 }

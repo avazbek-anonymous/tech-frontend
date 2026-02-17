@@ -11,7 +11,8 @@ html.setAttribute("data-bs-theme", theme);
 
 const state = {
   me: null,
-  activeSection: "dashboard"
+  activeSection: "dashboard",
+  renderSeq: 0
 };
 
 function t(k) {
@@ -81,7 +82,38 @@ function openModal({ title, bodyHtml, saveText, onSave }) {
     </div>`;
   const modalEl = host.firstElementChild;
   document.body.appendChild(modalEl);
-  const modal = new bootstrap.Modal(modalEl);
+  const ModalCtor = window.bootstrap && window.bootstrap.Modal ? window.bootstrap.Modal : null;
+  if (!ModalCtor) {
+    modalEl.classList.add("show");
+    modalEl.style.display = "block";
+    document.body.classList.add("modal-open");
+    const backdrop = document.createElement("div");
+    backdrop.className = "modal-backdrop fade show";
+    document.body.appendChild(backdrop);
+    modalEl.querySelectorAll("[data-bs-dismiss='modal']").forEach(btn => btn.addEventListener("click", () => {
+      modalEl.remove();
+      backdrop.remove();
+      document.body.classList.remove("modal-open");
+    }));
+    const errEl = modalEl.querySelector("[data-err]");
+    const saveBtn = modalEl.querySelector("[data-save]");
+    saveBtn.addEventListener("click", async () => {
+      errEl.textContent = "";
+      saveBtn.disabled = true;
+      try {
+        await onSave(modalEl);
+        modalEl.remove();
+        backdrop.remove();
+        document.body.classList.remove("modal-open");
+      } catch (e) {
+        errEl.textContent = String(e?.message || e);
+      } finally {
+        saveBtn.disabled = false;
+      }
+    });
+    return;
+  }
+  const modal = new ModalCtor(modalEl);
   const errEl = modalEl.querySelector("[data-err]");
   const saveBtn = modalEl.querySelector("[data-save]");
 
@@ -133,6 +165,7 @@ function renderMenu() {
 }
 
 async function renderCurrent() {
+  const seq = ++state.renderSeq;
   const perms = accessFor(state.me.role);
   if (!perms[state.activeSection]?.read) {
     document.getElementById("view").innerHTML = `<div class="alert alert-danger">${t("noAccess")}</div>`;
@@ -142,7 +175,9 @@ async function renderCurrent() {
   if (!section) return;
 
   try {
+    document.getElementById("view").innerHTML = `<div class="text-muted small py-2">Loading...</div>`;
     const mod = await import(section.module);
+    if (seq !== state.renderSeq) return;
     await mod.render({
       state,
       t,
@@ -173,6 +208,7 @@ async function bootstrap() {
   state.activeSection = sections.find(s => s.id === hash) ? hash : "dashboard";
   renderMenu();
   paintControls();
+  for (const s of sections) import(s.module).catch(() => {});
   await renderCurrent();
 }
 

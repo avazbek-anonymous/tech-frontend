@@ -16,9 +16,6 @@ export async function render(ctx) {
             <label class="form-label">${t("month")}</label>
             <input id="dash_month" type="month" class="form-control" value="${month}">
           </div>
-          <div class="col-md-2 d-grid">
-            <button id="dash_apply" class="btn btn-outline-primary">${t("refresh") || "Refresh"}</button>
-          </div>
           <div class="col-md-4">
             <label class="form-label">${t("monthPlan")}</label>
             <input id="dash_plan" type="number" min="0" class="form-control" value="${Number(d.metrics.month_plan_total || 0)}" ${canWrite ? "" : "disabled"}>
@@ -45,11 +42,12 @@ export async function render(ctx) {
       </div>
     </div>`;
 
-  document.getElementById("dash_apply").onclick = () => {
+  document.getElementById("dash_month").addEventListener("change", () => {
     const m = document.getElementById("dash_month").value || monthNow();
     viewEl.setAttribute("data-month", m);
-    render(ctx);
-  };
+    clearTimeout(viewEl.__fltTimer);
+    viewEl.__fltTimer = setTimeout(() => render(ctx), 180);
+  });
 
   if (canWrite) {
     document.getElementById("dash_save_plan").onclick = async () => {

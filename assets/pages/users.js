@@ -1,5 +1,9 @@
 const ROLES = ["super_admin", "gekto_viewer", "business_owner", "branch_manager", "sales", "warehouse", "cashier", "analyst"];
 
+function e(v) {
+  return String(v ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+}
+
 function fg(label, control) {
   return `<div class="mb-3"><label class="form-label">${label}</label>${control}</div>`;
 }
@@ -12,11 +16,11 @@ function userFormHtml(businesses, item = {}, scope = "gekto") {
     .map(v => `<option value="${v}" ${role === v ? "selected" : ""}>${v}</option>`).join("");
   return `
     <div class="row">
-      <div class="col-md-6">${fg("Full name", `<input name="full_name" class="form-control" value="${item.full_name || ""}">`)}</div>
-      <div class="col-md-6">${fg("Login", `<input name="email" class="form-control" value="${item.email || ""}">`)}</div>
-      <div class="col-md-6">${fg("Phone", `<input name="phone" class="form-control" value="${item.phone || ""}">`)}</div>
+      <div class="col-md-6">${fg("Full name", `<input name="full_name" class="form-control" value="${e(item.full_name)}">`)}</div>
+      <div class="col-md-6">${fg("Login", `<input name="email" class="form-control" value="${e(item.email)}">`)}</div>
+      <div class="col-md-6">${fg("Phone", `<input name="phone" class="form-control" value="${e(item.phone)}">`)}</div>
       <div class="col-md-6">${fg("Role", `<select name="role" class="form-select">${roleOptions}</select>`)}</div>
-      ${scope === "businesses" ? `<div class="col-md-6">${fg("Business", `<select name="business_id" class="form-select">${(businesses || []).map(b => `<option value="${b.id}" ${Number(businessId) === Number(b.id) ? "selected" : ""}>${b.name}</option>`).join("")}</select>`)}</div>` : ""}
+      ${scope === "businesses" ? `<div class="col-md-6">${fg("Business", `<select name="business_id" class="form-select">${(businesses || []).map(b => `<option value="${b.id}" ${Number(businessId) === Number(b.id) ? "selected" : ""}>${e(b.name)}</option>`).join("")}</select>`)}</div>` : ""}
       ${isCreate ? `<div class="col-md-6">${fg("Password", `<input name="password" type="password" class="form-control">`)}</div>` : ""}
       ${!isCreate ? `<div class="col-md-6">${fg("New password (optional)", `<input name="new_password" type="password" class="form-control">`)}</div>` : ""}
       <div class="col-md-6">${fg("Active", `<select name="is_active" class="form-select"><option value="1" ${Number(item.is_active ?? 1) === 1 ? "selected" : ""}>1</option><option value="0" ${Number(item.is_active ?? 1) === 0 ? "selected" : ""}>0</option></select>`)}</div>
@@ -44,8 +48,10 @@ export async function render(ctx) {
 
   const scope = viewEl.getAttribute("data-scope") || "gekto";
   const q = viewEl.getAttribute("data-q") || "";
-  const users = await api(`/gekto/users?scope=${scope}${q ? `&q=${encodeURIComponent(q)}` : ""}`);
-  const businesses = await api("/gekto/businesses");
+  const [users, businesses] = await Promise.all([
+    api(`/gekto/users?scope=${scope}${q ? `&q=${encodeURIComponent(q)}` : ""}`),
+    api("/gekto/businesses")
+  ]);
   const items = users.items || [];
 
   viewEl.innerHTML = `
@@ -54,7 +60,6 @@ export async function render(ctx) {
         <div class="col-md-2 d-grid"><button id="tab_gekto" class="btn ${scope === "gekto" ? "btn-secondary" : "btn-outline-secondary"}">Gekto</button></div>
         <div class="col-md-2 d-grid"><button id="tab_biz" class="btn ${scope === "businesses" ? "btn-secondary" : "btn-outline-secondary"}">Businesses</button></div>
         <div class="col-md-5"><label class="form-label">Search</label><input id="u_q" class="form-control" value="${esc(q)}"></div>
-        <div class="col-md-1 d-grid"><button id="u_apply" class="btn btn-outline-primary">Apply</button></div>
         ${canWrite ? `<div class="col-md-2 d-grid"><button id="u_create" class="btn btn-primary">${t("create")}</button></div>` : ""}
       </div>
     </div></div>
@@ -82,10 +87,14 @@ export async function render(ctx) {
     viewEl.setAttribute("data-scope", "businesses");
     render(ctx);
   };
-  document.getElementById("u_apply").onclick = () => {
-    viewEl.setAttribute("data-q", document.getElementById("u_q").value.trim());
-    render(ctx);
-  };
+  const qEl = document.getElementById("u_q");
+  qEl.addEventListener("input", () => {
+    const next = qEl.value.trim();
+    if (next.length !== 0 && next.length < 3) return;
+    viewEl.setAttribute("data-q", next);
+    clearTimeout(viewEl.__fltTimer);
+    viewEl.__fltTimer = setTimeout(() => render(ctx), 220);
+  });
 
   if (!canWrite) return;
 

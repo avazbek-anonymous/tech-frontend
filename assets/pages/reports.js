@@ -22,7 +22,6 @@ export async function render(ctx) {
     <div class="card mb-3"><div class="card-body">
       <div class="row g-2 align-items-end">
         <div class="col-md-8"><label class="form-label">Search business</label><input id="r_q" class="form-control" value="${esc(q)}"></div>
-        <div class="col-md-2 d-grid"><button id="r_apply" class="btn btn-outline-primary">Apply</button></div>
       </div>
     </div></div>
     <div class="card"><div class="card-body table-wrap">
@@ -39,10 +38,14 @@ export async function render(ctx) {
       </table>
     </div></div>`;
 
-  document.getElementById("r_apply").onclick = () => {
-    viewEl.setAttribute("data-q", document.getElementById("r_q").value.trim());
-    render(ctx);
-  };
+  const qEl = document.getElementById("r_q");
+  qEl.addEventListener("input", () => {
+    const next = qEl.value.trim();
+    if (next.length !== 0 && next.length < 3) return;
+    viewEl.setAttribute("data-q", next);
+    clearTimeout(viewEl.__fltTimer);
+    viewEl.__fltTimer = setTimeout(() => render(ctx), 220);
+  });
 
   if (!canWrite) return;
 
