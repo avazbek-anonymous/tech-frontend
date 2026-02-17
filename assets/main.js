@@ -36,7 +36,7 @@ function accessFor(role) {
   const all = { read: true, write: role === "super_admin" };
   if (role === "super_admin" || role === "gekto_viewer") {
     return {
-      dashboard: all, businesses: all, reports: all, payments: all, calendar: all, users: all, plan: all
+      dashboard: all, businesses: all, reports: all, payments: all, calendar: all, users: all
     };
   }
   return {};
@@ -58,6 +58,52 @@ async function api(path, opts = {}) {
 function page(titleKey, sub = "") {
   document.getElementById("pageTitle").textContent = t(titleKey);
   document.getElementById("pageSub").textContent = sub;
+}
+
+function openModal({ title, bodyHtml, saveText, onSave }) {
+  const host = document.createElement("div");
+  host.innerHTML = `
+    <div class="modal fade" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">${esc(title || "")}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">${bodyHtml || ""}</div>
+          <div class="modal-footer">
+            <div class="text-danger me-auto small" data-err></div>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary" data-save>${esc(saveText || t("save"))}</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  const modalEl = host.firstElementChild;
+  document.body.appendChild(modalEl);
+  const modal = new bootstrap.Modal(modalEl);
+  const errEl = modalEl.querySelector("[data-err]");
+  const saveBtn = modalEl.querySelector("[data-save]");
+
+  saveBtn.addEventListener("click", async () => {
+    errEl.textContent = "";
+    saveBtn.disabled = true;
+    try {
+      await onSave(modalEl);
+      modal.hide();
+    } catch (e) {
+      errEl.textContent = String(e?.message || e);
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  modalEl.addEventListener("hidden.bs.modal", () => {
+    modal.dispose();
+    modalEl.remove();
+  });
+
+  modal.show();
 }
 
 function paintControls() {
@@ -106,6 +152,7 @@ async function renderCurrent() {
       page,
       monthNow,
       accessFor,
+      openModal,
       viewEl: document.getElementById("view")
     });
   } catch (e) {
@@ -130,7 +177,8 @@ async function bootstrap() {
 }
 
 window.addEventListener("hashchange", () => {
-  state.activeSection = (location.hash || "#dashboard").replace("#", "");
+  const next = (location.hash || "#dashboard").replace("#", "");
+  state.activeSection = sections.find(s => s.id === next) ? next : "dashboard";
   renderMenu();
   renderCurrent();
 });

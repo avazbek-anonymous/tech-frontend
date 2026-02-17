@@ -8,7 +8,6 @@ export const I18N = {
     payments: "Оплаты",
     calendar: "Платежный календарь",
     users: "Пользователи",
-    revenuePlan: "План поступлений",
     logout: "Выход",
     save: "Сохранить",
     create: "Создать",
@@ -51,7 +50,6 @@ export const I18N = {
     payments: "To'lovlar",
     calendar: "To'lov taqvimi",
     users: "Foydalanuvchilar",
-    revenuePlan: "Tushum rejasi",
     logout: "Chiqish",
     save: "Saqlash",
     create: "Yaratish",
@@ -94,7 +92,6 @@ export const I18N = {
     payments: "Payments",
     calendar: "Payment calendar",
     users: "Users",
-    revenuePlan: "Revenue plan",
     logout: "Logout",
     save: "Save",
     create: "Create",
@@ -138,6 +135,5 @@ export const sections = [
   { id: "reports", icon: "bi-bar-chart", key: "reportsAccess", module: "/assets/pages/reports.js" },
   { id: "payments", icon: "bi-cash-stack", key: "payments", module: "/assets/pages/payments.js" },
   { id: "calendar", icon: "bi-calendar3", key: "calendar", module: "/assets/pages/calendar.js" },
-  { id: "users", icon: "bi-people", key: "users", module: "/assets/pages/users.js" },
-  { id: "plan", icon: "bi-graph-up-arrow", key: "revenuePlan", module: "/assets/pages/plan.js" }
+  { id: "users", icon: "bi-people", key: "users", module: "/assets/pages/users.js" }
 ];
