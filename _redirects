@@ -1,0 +1,7 @@
+/assets/* /assets/:splat 200
+/auth/* /auth/:splat 200
+/admin/* /admin/:splat 200
+/dict/* /dict/:splat 200
+/main /main.html 200
+/main.html /main.html 200
+/* /main.html 200

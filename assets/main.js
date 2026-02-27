@@ -1,8 +1,20 @@
 ﻿import { API_BASE, I18N } from "./config.js";
 import { BUSINESS_ROLES, GEKTO_ROLES, LEVEL1_SECTIONS, LEVEL2_SECTIONS } from "./sections.js";
 
+function safeNextPath(path) {
+  const p = String(path || "");
+  if (!p.startsWith("/")) return "/";
+  if (p.startsWith("//")) return "/";
+  return p;
+}
+
+function redirectToLogin() {
+  const next = encodeURIComponent(safeNextPath(location.pathname + location.search + location.hash));
+  location.href = `/auth/login.html?next=${next}`;
+}
+
 const token = localStorage.getItem("tech_token") || "";
-if (!token) location.href = "/auth/login.html";
+if (!token) redirectToLogin();
 
 const html = document.documentElement;
 let lang = localStorage.getItem("tech_lang") || "ru";
@@ -15,7 +27,8 @@ const state = {
   activeSection: "",
   renderSeq: 0,
   sections: [],
-  roleScope: ""
+  roleScope: "",
+  openParents: new Set()
 };
 
 function t(k) {
@@ -34,6 +47,19 @@ function esc(s) {
 
 function monthNow() {
   return new Date().toISOString().slice(0, 7);
+}
+
+function routeForSection(sectionId) {
+  return `/${encodeURIComponent(sectionId)}`;
+}
+
+function sectionIdFromUrl() {
+  const path = String(location.pathname || "/").replace(/\/+$/, "") || "/";
+  if (path === "/main" || path === "/main.html") {
+    return String(location.hash || "").replace(/^#/, "");
+  }
+  const first = path.split("/").filter(Boolean)[0] || "";
+  return decodeURIComponent(first);
 }
 
 function isWriteRole(role) {
@@ -76,13 +102,17 @@ function groupLabel(section) {
   return "";
 }
 
+function parentIconFromChildren(children = []) {
+  return children[0]?.icon || "bi-folder2-open";
+}
+
 async function api(path, opts = {}) {
   const headers = Object.assign({}, opts.headers || {}, { Authorization: "Bearer " + token });
   const r = await fetch(API_BASE + path, Object.assign({}, opts, { headers }));
   const data = await r.json().catch(() => ({}));
   if (r.status === 401) {
     localStorage.removeItem("tech_token");
-    location.href = "/auth/login.html";
+    redirectToLogin();
     return;
   }
   if (!r.ok || !data.ok) throw new Error(data.error || ("ERR_" + r.status));
@@ -190,24 +220,69 @@ function renderMenu() {
   const ul = document.getElementById("menu");
   ul.innerHTML = "";
 
-  let currentGroupId = "";
-  for (const s of state.sections) {
-    if (!perms[s.id]?.read) continue;
+  const visible = state.sections.filter(s => perms[s.id]?.read);
+  if (state.roleScope === "business") {
+    const standalone = [];
+    const groups = [];
+    const map = new Map();
 
-    const groupId = s.groupId || "";
-    if (s.group && groupId && groupId !== currentGroupId) {
-      const head = document.createElement("li");
-      head.className = "nav-header text-uppercase small";
-      head.textContent = groupLabel(s);
-      ul.appendChild(head);
-      currentGroupId = groupId;
+    for (const s of visible) {
+      const gid = String(s.groupId || "");
+      if (gid === "core" || !gid) {
+        standalone.push(s);
+        continue;
+      }
+      if (!map.has(gid)) {
+        const g = { id: gid, label: groupLabel(s), children: [] };
+        map.set(gid, g);
+        groups.push(g);
+      }
+      map.get(gid).children.push(s);
     }
 
-    const li = document.createElement("li");
-    li.className = "nav-item";
-    li.innerHTML = `<a href="#${s.id}" class="nav-link ${state.activeSection === s.id ? "active" : ""}">
-      <i class="nav-icon bi ${s.icon}"></i><p>${esc(sectionLabel(s))}</p></a>`;
-    ul.appendChild(li);
+    for (const s of standalone) {
+      const li = document.createElement("li");
+      li.className = "nav-item";
+      li.innerHTML = `<a href="${routeForSection(s.id)}" data-section="${s.id}" class="nav-link ${state.activeSection === s.id ? "active" : ""}">
+        <i class="nav-icon bi ${s.icon}"></i><p>${esc(sectionLabel(s))}</p></a>`;
+      ul.appendChild(li);
+    }
+
+    for (const g of groups) {
+      const hasActive = g.children.some(x => x.id === state.activeSection);
+      const opened = hasActive || state.openParents.has(g.id);
+      const li = document.createElement("li");
+      li.className = `nav-item has-treeview ${opened ? "menu-open" : ""}`;
+      li.innerHTML = `
+        <a href="#" data-parent-id="${esc(g.id)}" class="nav-link ${opened ? "active" : ""}">
+          <i class="nav-icon bi ${parentIconFromChildren(g.children)}"></i>
+          <p>${esc(g.label)}<i class="nav-arrow bi ${opened ? "bi-chevron-down" : "bi-chevron-right"}"></i></p>
+        </a>
+        <ul class="nav nav-treeview" style="${opened ? "" : "display:none;"}">
+          ${g.children.map(s => `
+            <li class="nav-item">
+              <a href="${routeForSection(s.id)}" data-section="${s.id}" class="nav-link ${state.activeSection === s.id ? "active" : ""}">
+                <i class="nav-icon bi ${s.icon}"></i><p>${esc(sectionLabel(s))}</p>
+              </a>
+            </li>
+          `).join("")}
+        </ul>`;
+      ul.appendChild(li);
+    }
+  } else {
+    for (const s of visible) {
+      const li = document.createElement("li");
+      li.className = "nav-item";
+      li.innerHTML = `<a href="${routeForSection(s.id)}" data-section="${s.id}" class="nav-link ${state.activeSection === s.id ? "active" : ""}">
+        <i class="nav-icon bi ${s.icon}"></i><p>${esc(sectionLabel(s))}</p></a>`;
+      ul.appendChild(li);
+    }
+  }
+
+  const homeId = getDefaultSectionId();
+  const brand = document.querySelector(".brand-link");
+  if (brand && homeId) {
+    brand.setAttribute("href", routeForSection(homeId));
   }
 }
 
@@ -247,10 +322,20 @@ function getDefaultSectionId() {
   return state.sections.length ? state.sections[0].id : "";
 }
 
-function resolveSectionByHash() {
-  const hash = (location.hash || "").replace("#", "");
+function resolveSectionByUrl() {
+  const sectionId = sectionIdFromUrl();
   const fallback = getDefaultSectionId();
-  return state.sections.find(s => s.id === hash) ? hash : fallback;
+  return state.sections.find(s => s.id === sectionId) ? sectionId : fallback;
+}
+
+function navigateTo(sectionId, replace = false) {
+  if (!state.sections.find(s => s.id === sectionId)) return;
+  const url = routeForSection(sectionId);
+  if (replace) history.replaceState({}, "", url);
+  else history.pushState({}, "", url);
+  state.activeSection = sectionId;
+  renderMenu();
+  renderCurrent();
 }
 
 async function bootstrap() {
@@ -259,19 +344,25 @@ async function bootstrap() {
   const pick = getSectionsForRole(role);
   state.roleScope = pick.scope;
   state.sections = pick.sections;
+  state.openParents = new Set();
 
   if (!state.sections.length) {
     localStorage.removeItem("tech_token");
-    location.href = "/auth/login.html";
+    redirectToLogin();
     return;
   }
 
   document.getElementById("who").textContent = `${state.me.full_name} (${state.me.role})`;
-  state.activeSection = resolveSectionByHash();
+  state.activeSection = resolveSectionByUrl();
   if (!state.activeSection) {
     localStorage.removeItem("tech_token");
-    location.href = "/auth/login.html";
+    redirectToLogin();
     return;
+  }
+
+  const canonical = routeForSection(state.activeSection);
+  if (location.pathname !== canonical || location.hash) {
+    history.replaceState({}, "", canonical);
   }
 
   renderMenu();
@@ -280,11 +371,41 @@ async function bootstrap() {
   await renderCurrent();
 }
 
-window.addEventListener("hashchange", () => {
+window.addEventListener("popstate", () => {
   if (!state.sections.length) return;
-  state.activeSection = resolveSectionByHash();
+  state.activeSection = resolveSectionByUrl();
+  if (!state.activeSection) state.activeSection = getDefaultSectionId();
   renderMenu();
   renderCurrent();
+});
+
+document.getElementById("menu").addEventListener("click", (e) => {
+  const parentLink = e.target.closest("a[data-parent-id]");
+  if (parentLink) {
+    e.preventDefault();
+    const pid = String(parentLink.getAttribute("data-parent-id") || "");
+    if (!pid) return;
+    if (state.openParents.has(pid)) state.openParents.delete(pid);
+    else state.openParents.add(pid);
+    renderMenu();
+    return;
+  }
+
+  const link = e.target.closest("a[data-section]");
+  if (!link) return;
+  const sectionId = link.getAttribute("data-section");
+  if (!sectionId) return;
+  e.preventDefault();
+  if (sectionId === state.activeSection) return;
+  navigateTo(sectionId, false);
+});
+
+document.querySelector(".brand-link")?.addEventListener("click", (e) => {
+  const homeId = getDefaultSectionId();
+  if (!homeId) return;
+  e.preventDefault();
+  if (homeId === state.activeSection) return;
+  navigateTo(homeId, false);
 });
 
 document.querySelectorAll("[data-lang]").forEach(btn => btn.addEventListener("click", () => {
