@@ -20,19 +20,21 @@ const state = {
   skipAutoCollapse: false
 };
 
-const LABEL_OVERRIDES = {
-  sales_dbkd: { ru: "Продажи: Дт, Кт", uz: "Savdo: Dt, Kt", en: "Sales: Dt, Kt" },
-  stock_income: { ru: "Приход", uz: "Kirim", en: "Receipt" },
-  stock_list: { ru: "Список", uz: "Ro'yxat", en: "List" },
-  stock_dbkd: { ru: "Дт, Кт", uz: "Dt, Kt", en: "Dt, Kt" },
-  stock_inventory: { ru: "Инвентаризация", uz: "Inventarizatsiya", en: "Inventory" },
-  hr_advances: { ru: "HR: Авансы и Дт, Кт", uz: "HR: Avans va Dt, Kt", en: "HR: Advances and Dt, Kt" }
+const SECTION_OVERRIDES = {
+  sales_dbkd: { label: { ru: "Продажи: Дт, Кт", uz: "Savdo: Dt, Kt", en: "Sales: Dt, Kt" } },
+  stock_income: { label: { ru: "Приход", uz: "Kirim", en: "Receipt" } },
+  stock_list: { label: { ru: "Список", uz: "Ro'yxat", en: "List" } },
+  stock_dbkd: { label: { ru: "Дт, Кт", uz: "Dt, Kt", en: "Dt, Kt" } },
+  stock_inventory: { label: { ru: "Инвентаризация", uz: "Inventarizatsiya", en: "Inventory" } },
+  hr_advances: { label: { ru: "HR: Авансы и Дт, Кт", uz: "HR: Avans va Dt, Kt", en: "HR: Advances and Dt, Kt" } },
+  settings_roles: { module: "/assets/pages/roles.js" }
 };
 
 function applySectionOverrides(sections) {
   return sections.map(section => {
-    const label = LABEL_OVERRIDES[section.id];
-    return label ? { ...section, label } : section;
+    const override = SECTION_OVERRIDES[section.id];
+    if (!override) return section;
+    return { ...section, ...override };
   });
 }
 

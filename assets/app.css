@@ -65,9 +65,33 @@ body {
   display: none !important;
 }
 
+.roles-toolbar .card-body {
+  padding-bottom: 0.75rem;
+}
+
+.roles-perm-wrap {
+  max-height: 52vh;
+  background: var(--bs-body-bg);
+}
+
+.roles-perm-wrap .table > :not(caption) > * > * {
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+
+.roles-perm-wrap .sticky-top th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
 @media (max-width: 991.98px) {
   .content-header {
     padding-top: 0.75rem;
     padding-bottom: 0.75rem;
+  }
+
+  .roles-perm-wrap {
+    max-height: 46vh;
   }
 }
