@@ -15,8 +15,25 @@ const state = {
   activeSection: "",
   renderSeq: 0,
   sections: [],
-  roleScope: ""
+  roleScope: "",
+  openParents: {}
 };
+
+const LABEL_OVERRIDES = {
+  sales_dbkd: { ru: "Продажи: Дт, Кт", uz: "Savdo: Dt, Kt", en: "Sales: Dt, Kt" },
+  stock_income: { ru: "Приход", uz: "Kirim", en: "Receipt" },
+  stock_list: { ru: "Список", uz: "Ro'yxat", en: "List" },
+  stock_dbkd: { ru: "Дт, Кт", uz: "Dt, Kt", en: "Dt, Kt" },
+  stock_inventory: { ru: "Инвентаризация", uz: "Inventarizatsiya", en: "Inventory" },
+  hr_advances: { ru: "HR: Авансы и Дт, Кт", uz: "HR: Avans va Dt, Kt", en: "HR: Advances and Dt, Kt" }
+};
+
+function applySectionOverrides(sections) {
+  return sections.map(section => {
+    const label = LABEL_OVERRIDES[section.id];
+    return label ? { ...section, label } : section;
+  });
+}
 
 function t(k) {
   return (I18N[lang] && I18N[lang][k]) || I18N.ru[k] || k;
@@ -185,11 +202,7 @@ function paintControls() {
   document.getElementById("logoutBtn").title = t("logout");
 }
 
-function renderMenu() {
-  const perms = accessFor(state.me.role);
-  const ul = document.getElementById("menu");
-  ul.innerHTML = "";
-
+function renderFlatMenu(ul, perms) {
   let currentGroupId = "";
   for (const s of state.sections) {
     if (!perms[s.id]?.read) continue;
@@ -209,6 +222,90 @@ function renderMenu() {
       <i class="nav-icon bi ${s.icon}"></i><p>${esc(sectionLabel(s))}</p></a>`;
     ul.appendChild(li);
   }
+}
+
+function renderBusinessTreeMenu(ul, perms) {
+  const groupOrder = [];
+  const groups = new Map();
+
+  for (const section of state.sections) {
+    if (!perms[section.id]?.read) continue;
+    const groupId = section.groupId || section.id;
+    if (!groups.has(groupId)) {
+      groups.set(groupId, { id: groupId, label: groupLabel(section), sections: [] });
+      groupOrder.push(groupId);
+    }
+    groups.get(groupId).sections.push(section);
+  }
+
+  for (const groupId of groupOrder) {
+    const item = groups.get(groupId);
+    const root = item.sections.find(s => s.id.endsWith("_root")) || null;
+    const children = root ? item.sections.filter(s => s.id !== root.id) : item.sections;
+
+    if ((root && children.length === 0) || (!root && children.length === 1)) {
+      const single = root || children[0];
+      const li = document.createElement("li");
+      li.className = "nav-item";
+      li.innerHTML = `<a href="#${single.id}" class="nav-link ${state.activeSection === single.id ? "active" : ""}">
+        <i class="nav-icon bi ${single.icon}"></i><p>${esc(sectionLabel(single))}</p></a>`;
+      ul.appendChild(li);
+      continue;
+    }
+
+    const parentLabel = root ? sectionLabel(root) : (item.label || sectionLabel(children[0]));
+    const parentIcon = root?.icon || "bi-folder";
+    const parentActive = root ? state.activeSection === root.id : false;
+    const childActive = children.some(s => s.id === state.activeSection);
+    const open = Object.prototype.hasOwnProperty.call(state.openParents, groupId)
+      ? !!state.openParents[groupId]
+      : (parentActive || childActive);
+    state.openParents[groupId] = open;
+
+    const li = document.createElement("li");
+    li.className = `nav-item ${open ? "menu-open" : ""}`;
+    li.innerHTML = `<a href="${root ? `#${root.id}` : "#"}" class="nav-link ${parentActive ? "active" : ""}" data-parent-id="${esc(groupId)}"${root ? ` data-parent-section="${esc(root.id)}"` : ""}>
+      <i class="nav-icon bi ${parentIcon}"></i>
+      <p>${esc(parentLabel)}<i class="nav-arrow bi bi-chevron-right"></i></p>
+    </a>`;
+
+    const tree = document.createElement("ul");
+    tree.className = "nav nav-treeview";
+    tree.style.display = open ? "block" : "none";
+
+    for (const child of children) {
+      const childLi = document.createElement("li");
+      childLi.className = "nav-item";
+      childLi.innerHTML = `<a href="#${child.id}" class="nav-link ${state.activeSection === child.id ? "active" : ""}">
+        <i class="nav-icon bi ${child.icon}"></i><p>${esc(sectionLabel(child))}</p></a>`;
+      tree.appendChild(childLi);
+    }
+
+    li.appendChild(tree);
+    ul.appendChild(li);
+  }
+}
+
+function ensureActiveParentOpen() {
+  if (state.roleScope !== "business") return;
+  const active = state.sections.find(s => s.id === state.activeSection);
+  if (!active || !active.groupId) return;
+
+  const siblings = state.sections.filter(s => s.groupId === active.groupId);
+  const root = siblings.find(s => s.id.endsWith("_root")) || null;
+  if (!root || active.id !== root.id) state.openParents[active.groupId] = true;
+}
+
+function renderMenu() {
+  const perms = accessFor(state.me.role);
+  const ul = document.getElementById("menu");
+  ul.innerHTML = "";
+
+  if (state.roleScope === "business") {
+    renderBusinessTreeMenu(ul, perms);
+    return;
+  }
+  renderFlatMenu(ul, perms);
 }
 
 async function renderCurrent() {
@@ -258,7 +355,8 @@ async function bootstrap() {
   const role = state.me.role;
   const pick = getSectionsForRole(role);
   state.roleScope = pick.scope;
-  state.sections = pick.sections;
+  state.sections = applySectionOverrides(pick.sections);
+  state.openParents = {};
 
   if (!state.sections.length) {
     localStorage.removeItem("tech_token");
@@ -274,6 +372,7 @@ async function bootstrap() {
     return;
   }
 
+  ensureActiveParentOpen();
   renderMenu();
   paintControls();
   for (const s of state.sections) import(s.module).catch(() => {});
@@ -283,8 +382,31 @@ async function bootstrap() {
 window.addEventListener("hashchange", () => {
   if (!state.sections.length) return;
   state.activeSection = resolveSectionByHash();
+  ensureActiveParentOpen();
   renderMenu();
   renderCurrent();
+});
+
+document.getElementById("menu").addEventListener("click", ev => {
+  const link = ev.target.closest("a[data-parent-id]");
+  if (!link) return;
+
+  const parentId = link.dataset.parentId || "";
+  const sectionId = link.dataset.parentSection || "";
+  if (parentId) state.openParents[parentId] = !state.openParents[parentId];
+
+  if (sectionId) {
+    const nextHash = `#${sectionId}`;
+    if (location.hash !== nextHash) {
+      location.hash = sectionId;
+    } else {
+      renderMenu();
+      renderCurrent();
+    }
+  } else {
+    renderMenu();
+  }
+  ev.preventDefault();
 });
 
 document.querySelectorAll("[data-lang]").forEach(btn => btn.addEventListener("click", () => {
