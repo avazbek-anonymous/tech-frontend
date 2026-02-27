@@ -78,15 +78,6 @@
       return (I18N[l] && I18N[l][key]) || I18N.ru[key] || key;
     }
 
-    function safeNextPath(path) {
-      const p = String(path || "");
-      if (!p.startsWith("/")) return "/";
-      if (p.startsWith("//")) return "/";
-      return p;
-    }
-
-    const nextAfterLogin = safeNextPath(new URLSearchParams(location.search).get("next") || "/");
-
     function paint() {
       document.getElementById("subtitle").textContent = t("subtitle");
       document.getElementById("submitBtn").textContent = t("submit");
@@ -137,7 +128,7 @@
           return;
         }
         localStorage.setItem("tech_token", data.token);
-        location.href = nextAfterLogin;
+        location.href = "/main.html";
       } catch (err) {
         msgEl.textContent = `${t("err")}: ${err?.message || err}`;
       }
