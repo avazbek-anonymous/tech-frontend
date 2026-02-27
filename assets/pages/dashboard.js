@@ -1,7 +1,6 @@
 export async function render(ctx) {
-  const { page, t, monthNow, api, fmt, esc, viewEl, state, accessFor } = ctx;
+  const { page, t, monthNow, api, fmt, esc, viewEl } = ctx;
   page("dashboard", t("dashboardHint"));
-  const canWrite = accessFor(state.me.role).dashboard.write;
   const month = viewEl.getAttribute("data-month") || monthNow();
   viewEl.setAttribute("data-month", month);
   const [d, c] = await Promise.all([
@@ -18,15 +17,15 @@ export async function render(ctx) {
           </div>
           <div class="col-md-4">
             <label class="form-label">${t("monthPlan")}</label>
-            <input id="dash_plan" type="number" min="0" class="form-control" value="${Number(d.metrics.month_plan_total || 0)}" ${canWrite ? "" : "disabled"}>
+            <input id="dash_plan" type="text" class="form-control" value="${fmt(d.metrics.month_plan_total || 0)}" disabled>
           </div>
-          ${canWrite ? `<div class="col-md-3 d-grid"><button id="dash_save_plan" class="btn btn-primary">${t("save")}</button></div>` : ""}
         </div>
       </div>
     </div>
     <div class="row g-3">
       <div class="col-12 col-sm-6 col-xl-3"><div class="small-box text-bg-primary"><div class="inner"><h3>${fmt(d.metrics.active_businesses)}</h3><p>${t("businesses")}</p></div><i class="small-box-icon bi bi-buildings"></i></div></div>
       <div class="col-12 col-sm-6 col-xl-3"><div class="small-box text-bg-danger"><div class="inner"><h3>${fmt(d.metrics.overdue_businesses)}</h3><p>${t("overdueCount")}</p></div><i class="small-box-icon bi bi-exclamation-triangle"></i></div></div>
+      <div class="col-12 col-sm-6 col-xl-3"><div class="small-box text-bg-info"><div class="inner"><h3>${fmt(d.metrics.paid_businesses || 0)}</h3><p>${t("paid")} (${t("businesses")})</p></div><i class="small-box-icon bi bi-check2-circle"></i></div></div>
       <div class="col-12 col-sm-6 col-xl-3"><div class="small-box text-bg-success"><div class="inner"><h3>${fmt(d.metrics.month_paid_total)}</h3><p>${t("monthFact")}</p></div><i class="small-box-icon bi bi-cash-coin"></i></div></div>
       <div class="col-12 col-sm-6 col-xl-3"><div class="small-box text-bg-warning"><div class="inner"><h3>${fmt(d.metrics.month_plan_total)}</h3><p>${t("monthPlan")}</p></div><i class="small-box-icon bi bi-graph-up"></i></div></div>
     </div>
@@ -48,16 +47,4 @@ export async function render(ctx) {
     clearTimeout(viewEl.__fltTimer);
     viewEl.__fltTimer = setTimeout(() => render(ctx), 180);
   });
-
-  if (canWrite) {
-    document.getElementById("dash_save_plan").onclick = async () => {
-      const planValue = Number(document.getElementById("dash_plan").value || 0);
-      await api("/gekto/revenue-plan", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month_key: month, planned_amount: planValue })
-      });
-      render(ctx);
-    };
-  }
 }

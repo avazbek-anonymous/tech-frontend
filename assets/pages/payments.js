@@ -1,5 +1,6 @@
 const TARIFFS = ["monthly", "3m", "6m", "12m", "24m"];
 const STATUSES = ["draft", "posted"];
+const PAYMENT_METHODS = ["На карту", "Наличные", "Перечисление", "Visa (списание)"];
 
 function e(v) {
   return String(v ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
@@ -17,7 +18,7 @@ function paymentFormHtml(businesses, item = {}) {
       <div class="col-md-3">${fg("Amount", `<input name="amount" type="number" min="0" class="form-control" value="${Number(item.amount ?? 0)}">`)}</div>
       <div class="col-md-4">${fg("Tariff", `<select name="tariff_plan" class="form-select">${TARIFFS.map(v => `<option value="${v}" ${item.tariff_plan === v ? "selected" : ""}>${v}</option>`).join("")}</select>`)}</div>
       <div class="col-md-4">${fg("Status", `<select name="status" class="form-select">${STATUSES.map(v => `<option value="${v}" ${item.status === v ? "selected" : ""}>${v}</option>`).join("")}</select>`)}</div>
-      <div class="col-md-4">${fg("Payment method", `<input name="payment_method" class="form-control" value="${e(item.payment_method)}">`)}</div>
+      <div class="col-md-4">${fg("Payment method", `<select name="payment_method" class="form-select"><option value=""></option>${PAYMENT_METHODS.map(v => `<option value="${e(v)}" ${item.payment_method === v ? "selected" : ""}>${e(v)}</option>`).join("")}</select>`)}</div>
       <div class="col-md-12">${fg("Comment", `<input name="comment" class="form-control" value="${e(item.comment)}">`)}</div>
     </div>`;
 }
@@ -98,7 +99,7 @@ export async function render(ctx) {
 
   document.getElementById("p_create").onclick = () => openModal({
     title: t("create"),
-    bodyHtml: paymentFormHtml(businesses.items || [], { tariff_plan: "monthly", status: "draft" }),
+    bodyHtml: paymentFormHtml(businesses.items || [], { tariff_plan: "monthly", status: "draft", payment_method: PAYMENT_METHODS[0] }),
     onSave: async (modalEl) => {
       await api("/gekto/payments", {
         method: "POST",

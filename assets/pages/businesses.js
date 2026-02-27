@@ -1,5 +1,6 @@
 const TARIFFS = ["monthly", "3m", "6m", "12m", "24m"];
 const STATUSES = ["active", "blocked"];
+const PAYMENT_METHODS = ["На карту", "Наличные", "Перечисление", "Visa (списание)"];
 
 function e(v) {
   return String(v ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
@@ -21,9 +22,19 @@ function businessFormHtml(item = {}) {
       <div class="col-md-3">${formGroup("Tariff", `<select class="form-select" name="tariff_plan">${TARIFFS.map(v => `<option value="${v}" ${item.tariff_plan === v ? "selected" : ""}>${v}</option>`).join("")}</select>`)}</div>
       <div class="col-md-3">${formGroup("Price per filial", `<input type="number" min="0" class="form-control" name="tariff_price_per_filial" value="${Number(item.tariff_price_per_filial ?? 0)}">`)}</div>
       <div class="col-md-3">${formGroup("Start date", `<input type="date" class="form-control" name="subscription_start_date" value="${item.subscription_start_date || ""}">`)}</div>
-      <div class="col-md-6">${formGroup("Payment method", `<input class="form-control" name="payment_method" value="${e(item.payment_method)}">`)}</div>
+      <div class="col-md-6">${formGroup("Payment method", `<select class="form-select" name="payment_method"><option value=""></option>${PAYMENT_METHODS.map(v => `<option value="${e(v)}" ${item.payment_method === v ? "selected" : ""}>${e(v)}</option>`).join("")}</select>`)}</div>
       <div class="col-md-3">${formGroup("INN (optional)", `<input class="form-control" name="inn" value="${e(item.inn)}">`)}</div>
       <div class="col-md-3">${formGroup("Status", `<select class="form-select" name="status">${STATUSES.map(v => `<option value="${v}" ${item.status === v ? "selected" : ""}>${v}</option>`).join("")}</select>`)}</div>
+    </div>`;
+}
+
+function tariffFormHtml(item = {}) {
+  return `
+    <div class="row">
+      <div class="col-md-4">${formGroup("Tariff", `<select class="form-select" name="tariff_plan">${TARIFFS.map(v => `<option value="${v}" ${item.tariff_plan === v ? "selected" : ""}>${v}</option>`).join("")}</select>`)}</div>
+      <div class="col-md-4">${formGroup("Price per filial", `<input type="number" min="0" class="form-control" name="tariff_price_per_filial" value="${Number(item.tariff_price_per_filial ?? 0)}">`)}</div>
+      <div class="col-md-4">${formGroup("Filials", `<input type="number" min="0" class="form-control" name="filials_count" value="${Number(item.filials_count ?? 1)}">`)}</div>
+      <div class="col-md-4">${formGroup("Start date", `<input type="date" class="form-control" name="subscription_start_date" value="${item.subscription_start_date || ""}">`)}</div>
     </div>`;
 }
 
@@ -42,6 +53,16 @@ function readBusinessForm(root) {
     payment_method: g("payment_method").value.trim(),
     inn: g("inn").value.trim(),
     status: g("status").value
+  };
+}
+
+function readTariffForm(root) {
+  const g = (n) => root.querySelector(`[name="${n}"]`);
+  return {
+    tariff_plan: g("tariff_plan").value,
+    tariff_price_per_filial: Number(g("tariff_price_per_filial").value || 0),
+    filials_count: Number(g("filials_count").value || 0),
+    subscription_start_date: g("subscription_start_date").value || null
   };
 }
 
@@ -81,7 +102,7 @@ export async function render(ctx) {
         ${items.map(x => `<tr>
           <td>${x.id}</td><td>${esc(x.name)}</td><td>${esc(x.owner_full_name || "")}</td><td>${esc(x.owner_phone || "")}</td><td>${esc(x.admin_full_name || "")}</td><td>${esc(x.admin_phone || "")}</td>
           <td>${fmt(x.filials_count)}</td><td>${esc(x.tariff_plan)}</td><td>${fmt(x.tariff_price_per_filial)}</td><td>${esc(x.subscription_start_date || "")}</td><td>${esc(x.payment_method || "")}</td><td>${esc(x.inn || "")}</td><td>${esc(x.status)}</td>
-          ${canWrite ? `<td><button class="btn btn-xs btn-outline-primary" data-edit="${x.id}">${t("edit")}</button></td>` : ""}
+          ${canWrite ? `<td><button class="btn btn-xs btn-outline-primary me-1" data-edit="${x.id}">${t("edit")}</button><button class="btn btn-xs btn-outline-secondary" data-tariff="${x.id}">Tariff</button></td>` : ""}
         </tr>`).join("")}
         </tbody>
       </table>
@@ -111,7 +132,7 @@ export async function render(ctx) {
 
   document.getElementById("b_create").onclick = () => openModal({
     title: t("create"),
-    bodyHtml: businessFormHtml({ tariff_plan: "monthly", status: "active" }),
+    bodyHtml: businessFormHtml({ tariff_plan: "monthly", status: "active", payment_method: PAYMENT_METHODS[0] }),
     onSave: async (modalEl) => {
       await api("/gekto/businesses", {
         method: "POST",
@@ -134,6 +155,24 @@ export async function render(ctx) {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(readBusinessForm(modalEl))
+        });
+        await render(ctx);
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-tariff]").forEach(btn => btn.onclick = () => {
+    const id = Number(btn.dataset.tariff);
+    const item = items.find(x => x.id === id);
+    if (!item) return;
+    openModal({
+      title: `Tariff #${id}`,
+      bodyHtml: tariffFormHtml(item),
+      onSave: async (modalEl) => {
+        await api("/gekto/businesses/" + id, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(readTariffForm(modalEl))
         });
         await render(ctx);
       }
