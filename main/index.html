@@ -1,18 +1,75 @@
 ﻿<!doctype html>
-<html lang="ru">
+<html lang="ru" data-bs-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>GEKTO Tech</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.0.12/index.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="/assets/adminlte.min.css" />
+  <link rel="stylesheet" href="/assets/app.css" />
 </head>
-<body>
-  <script>
-    const t = localStorage.getItem("tech_token");
-    if (!t) {
-      location.replace("/auth/login.html?next=%2Fdashboard");
-    } else {
-      location.replace("/dashboard");
-    }
-  </script>
+<body class="layout-fixed sidebar-expand-lg sidebar-open bg-body-tertiary">
+  <div class="app-wrapper">
+    <nav class="app-header navbar navbar-expand bg-body">
+      <div class="container-fluid">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link" data-lte-toggle="sidebar" href="#" role="button"><i class="bi bi-list"></i></a>
+          </li>
+          <li class="nav-item d-none d-md-block"><span class="nav-link fw-semibold" id="appTitle">GEKTO Tech</span></li>
+        </ul>
+        <ul class="navbar-nav ms-auto align-items-center">
+          <li class="nav-item me-2 lang-group">
+            <div class="btn-group btn-group-sm" role="group">
+              <button class="btn btn-outline-secondary" data-lang="ru">RU</button>
+              <button class="btn btn-outline-secondary" data-lang="uz">UZ</button>
+              <button class="btn btn-outline-secondary" data-lang="en">EN</button>
+            </div>
+          </li>
+          <li class="nav-item me-3 theme-group">
+            <div class="btn-group btn-group-sm" role="group">
+              <button class="btn btn-outline-secondary" data-theme="light"><i class="bi bi-sun"></i></button>
+              <button class="btn btn-outline-secondary" data-theme="dark"><i class="bi bi-moon"></i></button>
+            </div>
+          </li>
+          <li class="nav-item me-2"><span class="badge text-bg-secondary" id="who"></span></li>
+          <li class="nav-item"><button class="btn btn-sm btn-outline-danger" id="logoutBtn"><i class="bi bi-box-arrow-right"></i></button></li>
+        </ul>
+      </div>
+    </nav>
+
+    <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
+      <div class="sidebar-brand">
+        <a href="/" class="brand-link">
+          <span class="brand-text fw-light">GEKTO Tech</span>
+        </a>
+      </div>
+      <div class="sidebar-wrapper">
+        <nav class="mt-2">
+          <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" id="menu"></ul>
+        </nav>
+      </div>
+    </aside>
+
+    <main class="app-main">
+      <div class="app-content-header">
+        <div class="container-fluid">
+          <div class="row align-items-center">
+            <div class="col-sm-6"><h1 id="pageTitle">Dashboard</h1></div>
+            <div class="col-sm-6"><div class="text-sm-end text-muted" id="pageSub"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="app-content">
+        <div class="container-fluid" id="view"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/assets/adminlte.min.js"></script>
+  <script type="module" src="/assets/main.js"></script>
 </body>
 </html>
+
