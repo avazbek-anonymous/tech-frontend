@@ -16,7 +16,8 @@ const state = {
   renderSeq: 0,
   sections: [],
   roleScope: "",
-  openParents: {}
+  openParents: {},
+  skipAutoCollapse: false
 };
 
 const LABEL_OVERRIDES = {
@@ -202,6 +203,14 @@ function paintControls() {
   document.getElementById("logoutBtn").title = t("logout");
 }
 
+function collapseAllParents() {
+  const next = {};
+  for (const section of state.sections) {
+    if (section.groupId) next[section.groupId] = false;
+  }
+  state.openParents = next;
+}
+
 function renderFlatMenu(ul, perms) {
   let currentGroupId = "";
   for (const s of state.sections) {
@@ -255,11 +264,11 @@ function renderBusinessTreeMenu(ul, perms) {
 
     const parentLabel = root ? sectionLabel(root) : (item.label || sectionLabel(children[0]));
     const parentIcon = root?.icon || "bi-folder";
-    const parentActive = root ? state.activeSection === root.id : false;
     const childActive = children.some(s => s.id === state.activeSection);
+    const parentActive = (root ? state.activeSection === root.id : false) || childActive;
     const open = Object.prototype.hasOwnProperty.call(state.openParents, groupId)
       ? !!state.openParents[groupId]
-      : (parentActive || childActive);
+      : false;
     state.openParents[groupId] = open;
 
     const li = document.createElement("li");
@@ -284,16 +293,6 @@ function renderBusinessTreeMenu(ul, perms) {
     li.appendChild(tree);
     ul.appendChild(li);
   }
-}
-
-function ensureActiveParentOpen() {
-  if (state.roleScope !== "business") return;
-  const active = state.sections.find(s => s.id === state.activeSection);
-  if (!active || !active.groupId) return;
-
-  const siblings = state.sections.filter(s => s.groupId === active.groupId);
-  const root = siblings.find(s => s.id.endsWith("_root")) || null;
-  if (!root || active.id !== root.id) state.openParents[active.groupId] = true;
 }
 
 function renderMenu() {
@@ -372,7 +371,7 @@ async function bootstrap() {
     return;
   }
 
-  ensureActiveParentOpen();
+  collapseAllParents();
   renderMenu();
   paintControls();
   for (const s of state.sections) import(s.module).catch(() => {});
@@ -381,8 +380,10 @@ async function bootstrap() {
 
 window.addEventListener("hashchange", () => {
   if (!state.sections.length) return;
+  const doCollapse = state.roleScope === "business" && !state.skipAutoCollapse;
+  state.skipAutoCollapse = false;
+  if (doCollapse) collapseAllParents();
   state.activeSection = resolveSectionByHash();
-  ensureActiveParentOpen();
   renderMenu();
   renderCurrent();
 });
@@ -396,6 +397,7 @@ document.getElementById("menu").addEventListener("click", ev => {
   if (parentId) state.openParents[parentId] = !state.openParents[parentId];
 
   if (sectionId) {
+    state.skipAutoCollapse = true;
     const nextHash = `#${sectionId}`;
     if (location.hash !== nextHash) {
       location.hash = sectionId;
