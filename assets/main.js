@@ -67,6 +67,15 @@ function sectionLabel(section) {
   return section.id;
 }
 
+function groupLabel(section) {
+  if (!section || !section.group) return "";
+  if (typeof section.group === "string") return section.group;
+  if (typeof section.group === "object") {
+    return section.group[lang] || section.group.ru || section.group.en || "";
+  }
+  return "";
+}
+
 async function api(path, opts = {}) {
   const headers = Object.assign({}, opts.headers || {}, { Authorization: "Bearer " + token });
   const r = await fetch(API_BASE + path, Object.assign({}, opts, { headers }));
@@ -181,16 +190,17 @@ function renderMenu() {
   const ul = document.getElementById("menu");
   ul.innerHTML = "";
 
-  let currentGroup = "";
+  let currentGroupId = "";
   for (const s of state.sections) {
     if (!perms[s.id]?.read) continue;
 
-    if (s.group && s.group !== currentGroup) {
+    const groupId = s.groupId || "";
+    if (s.group && groupId && groupId !== currentGroupId) {
       const head = document.createElement("li");
       head.className = "nav-header text-uppercase small";
-      head.textContent = s.group;
+      head.textContent = groupLabel(s);
       ul.appendChild(head);
-      currentGroup = s.group;
+      currentGroupId = groupId;
     }
 
     const li = document.createElement("li");

@@ -1,56 +1,74 @@
 export const GEKTO_ROLES = ["super_admin", "gekto_viewer"];
 export const BUSINESS_ROLES = ["business_owner", "branch_manager", "sales", "warehouse", "cashier", "analyst"];
 
+function tr(ru, uz, en) {
+  return { ru, uz, en };
+}
+
+const GROUPS = {
+  GEKTO: tr("GEKTO", "GEKTO", "GEKTO"),
+  CORE: tr("Основное", "Asosiy", "Core"),
+  REPORTS: tr("Отчеты", "Hisobotlar", "Reports"),
+  SALES: tr("Продажи", "Savdo", "Sales"),
+  STOCK: tr("Склад", "Ombor", "Warehouse"),
+  CASH: tr("Касса", "Kassa", "Cash desk"),
+  HR: tr("HR", "HR", "HR"),
+  NOMENCLATURE: tr("Номенклатура", "Nomenklatura", "Nomenclature"),
+  PRICES: tr("Цены", "Narxlar", "Prices"),
+  COUNTERPARTIES: tr("Контрагенты", "Kontragentlar", "Counterparties"),
+  SETTINGS: tr("Настройки", "Sozlamalar", "Settings")
+};
+
 export const LEVEL1_SECTIONS = [
-  { id: "dashboard", icon: "bi-speedometer2", key: "dashboard", module: "/assets/pages/dashboard.js", group: "GEKTO" },
-  { id: "businesses", icon: "bi-buildings", key: "businesses", module: "/assets/pages/businesses.js", group: "GEKTO" },
-  { id: "reports", icon: "bi-bar-chart", key: "reportsAccess", module: "/assets/pages/reports.js", group: "GEKTO" },
-  { id: "payments", icon: "bi-cash-stack", key: "payments", module: "/assets/pages/payments.js", group: "GEKTO" },
-  { id: "calendar", icon: "bi-calendar3", key: "calendar", module: "/assets/pages/calendar.js", group: "GEKTO" },
-  { id: "users", icon: "bi-people", key: "users", module: "/assets/pages/users.js", group: "GEKTO" }
+  { id: "dashboard", icon: "bi-speedometer2", key: "dashboard", module: "/assets/pages/dashboard.js", groupId: "gekto", group: GROUPS.GEKTO },
+  { id: "businesses", icon: "bi-buildings", key: "businesses", module: "/assets/pages/businesses.js", groupId: "gekto", group: GROUPS.GEKTO },
+  { id: "reports", icon: "bi-bar-chart", key: "reportsAccess", module: "/assets/pages/reports.js", groupId: "gekto", group: GROUPS.GEKTO },
+  { id: "payments", icon: "bi-cash-stack", key: "payments", module: "/assets/pages/payments.js", groupId: "gekto", group: GROUPS.GEKTO },
+  { id: "calendar", icon: "bi-calendar3", key: "calendar", module: "/assets/pages/calendar.js", groupId: "gekto", group: GROUPS.GEKTO },
+  { id: "users", icon: "bi-people", key: "users", module: "/assets/pages/users.js", groupId: "gekto", group: GROUPS.GEKTO }
 ];
 
 export const LEVEL2_SECTIONS = [
-  { id: "biz_dashboard", icon: "bi-speedometer2", label: "Главное", module: "/assets/pages/soon.js", group: "Основное" },
+  { id: "biz_dashboard", icon: "bi-speedometer2", label: tr("Главное", "Bosh sahifa", "Dashboard"), module: "/assets/pages/soon.js", groupId: "core", group: GROUPS.CORE },
 
-  { id: "reports_root", icon: "bi-bar-chart", label: "Отчеты", module: "/assets/pages/soon.js", group: "Отчеты" },
-  { id: "reports_pnl", icon: "bi-graph-up", label: "P&L", module: "/assets/pages/soon.js", group: "Отчеты" },
-  { id: "reports_cashflow", icon: "bi-cash", label: "CashFlow", module: "/assets/pages/soon.js", group: "Отчеты" },
-  { id: "reports_balance", icon: "bi-bank", label: "Balance", module: "/assets/pages/soon.js", group: "Отчеты" },
+  { id: "reports_root", icon: "bi-bar-chart", label: tr("Отчеты", "Hisobotlar", "Reports"), module: "/assets/pages/soon.js", groupId: "reports", group: GROUPS.REPORTS },
+  { id: "reports_pnl", icon: "bi-graph-up", label: tr("P&L", "P&L", "P&L"), module: "/assets/pages/soon.js", groupId: "reports", group: GROUPS.REPORTS },
+  { id: "reports_cashflow", icon: "bi-cash", label: tr("CashFlow", "CashFlow", "CashFlow"), module: "/assets/pages/soon.js", groupId: "reports", group: GROUPS.REPORTS },
+  { id: "reports_balance", icon: "bi-bank", label: tr("Balance", "Balance", "Balance"), module: "/assets/pages/soon.js", groupId: "reports", group: GROUPS.REPORTS },
 
-  { id: "sales_create", icon: "bi-cart-plus", label: "Продажи: Создать", module: "/assets/pages/soon.js", group: "Продажи" },
-  { id: "sales_list", icon: "bi-list-check", label: "Продажи: Список", module: "/assets/pages/soon.js", group: "Продажи" },
-  { id: "sales_installments", icon: "bi-calendar-event", label: "Продажи: Календарь рассрочки", module: "/assets/pages/soon.js", group: "Продажи" },
-  { id: "sales_dbkd", icon: "bi-arrow-left-right", label: "Продажи: Дб/Кд", module: "/assets/pages/soon.js", group: "Продажи" },
+  { id: "sales_create", icon: "bi-cart-plus", label: tr("Продажи: Создать", "Savdo: Yaratish", "Sales: Create"), module: "/assets/pages/soon.js", groupId: "sales", group: GROUPS.SALES },
+  { id: "sales_list", icon: "bi-list-check", label: tr("Продажи: Список", "Savdo: Ro'yxat", "Sales: List"), module: "/assets/pages/soon.js", groupId: "sales", group: GROUPS.SALES },
+  { id: "sales_installments", icon: "bi-calendar-event", label: tr("Продажи: Календарь рассрочки", "Savdo: Muddatli to'lov kalendari", "Sales: Installment calendar"), module: "/assets/pages/soon.js", groupId: "sales", group: GROUPS.SALES },
+  { id: "sales_dbkd", icon: "bi-arrow-left-right", label: tr("Продажи: Дб/Кд", "Savdo: Db/Kd", "Sales: Db/Kd"), module: "/assets/pages/soon.js", groupId: "sales", group: GROUPS.SALES },
 
-  { id: "stock_income", icon: "bi-box-arrow-in-down", label: "Склад: Создать приход", module: "/assets/pages/soon.js", group: "Склад" },
-  { id: "stock_list", icon: "bi-boxes", label: "Склад: Список", module: "/assets/pages/soon.js", group: "Склад" },
-  { id: "stock_dbkd", icon: "bi-arrow-left-right", label: "Склад: Дб/Кд", module: "/assets/pages/soon.js", group: "Склад" },
-  { id: "stock_inventory", icon: "bi-clipboard-data", label: "Склад: Инвентаризация", module: "/assets/pages/soon.js", group: "Склад" },
+  { id: "stock_income", icon: "bi-box-arrow-in-down", label: tr("Склад: Создать приход", "Ombor: Kirim yaratish", "Warehouse: Create receipt"), module: "/assets/pages/soon.js", groupId: "stock", group: GROUPS.STOCK },
+  { id: "stock_list", icon: "bi-boxes", label: tr("Склад: Список", "Ombor: Ro'yxat", "Warehouse: List"), module: "/assets/pages/soon.js", groupId: "stock", group: GROUPS.STOCK },
+  { id: "stock_dbkd", icon: "bi-arrow-left-right", label: tr("Склад: Дб/Кд", "Ombor: Db/Kd", "Warehouse: Db/Kd"), module: "/assets/pages/soon.js", groupId: "stock", group: GROUPS.STOCK },
+  { id: "stock_inventory", icon: "bi-clipboard-data", label: tr("Склад: Инвентаризация", "Ombor: Inventarizatsiya", "Warehouse: Inventory"), module: "/assets/pages/soon.js", groupId: "stock", group: GROUPS.STOCK },
 
-  { id: "cash_create", icon: "bi-wallet2", label: "Касса: Создать", module: "/assets/pages/soon.js", group: "Касса" },
-  { id: "cash_list", icon: "bi-receipt", label: "Касса: Список", module: "/assets/pages/soon.js", group: "Касса" },
+  { id: "cash_create", icon: "bi-wallet2", label: tr("Касса: Создать", "Kassa: Yaratish", "Cash desk: Create"), module: "/assets/pages/soon.js", groupId: "cash", group: GROUPS.CASH },
+  { id: "cash_list", icon: "bi-receipt", label: tr("Касса: Список", "Kassa: Ro'yxat", "Cash desk: List"), module: "/assets/pages/soon.js", groupId: "cash", group: GROUPS.CASH },
 
-  { id: "hr_kpi", icon: "bi-bullseye", label: "HR: Назначение KPI", module: "/assets/pages/soon.js", group: "HR" },
-  { id: "hr_accrual", icon: "bi-calculator", label: "HR: Начисление", module: "/assets/pages/soon.js", group: "HR" },
-  { id: "hr_advances", icon: "bi-cash-coin", label: "HR: Авансы и Дб/Кд", module: "/assets/pages/soon.js", group: "HR" },
+  { id: "hr_kpi", icon: "bi-bullseye", label: tr("HR: Назначение KPI", "HR: KPI tayinlash", "HR: KPI assignment"), module: "/assets/pages/soon.js", groupId: "hr", group: GROUPS.HR },
+  { id: "hr_accrual", icon: "bi-calculator", label: tr("HR: Начисление", "HR: Hisoblash", "HR: Accrual"), module: "/assets/pages/soon.js", groupId: "hr", group: GROUPS.HR },
+  { id: "hr_advances", icon: "bi-cash-coin", label: tr("HR: Авансы и Дб/Кд", "HR: Avans va Db/Kd", "HR: Advances and Db/Kd"), module: "/assets/pages/soon.js", groupId: "hr", group: GROUPS.HR },
 
-  { id: "nomenclature_products", icon: "bi-box-seam", label: "Номенклатура: Товары", module: "/assets/pages/soon.js", group: "Номенклатура" },
-  { id: "nomenclature_categories", icon: "bi-tags", label: "Номенклатура: Категория", module: "/assets/pages/soon.js", group: "Номенклатура" },
+  { id: "nomenclature_products", icon: "bi-box-seam", label: tr("Номенклатура: Товары", "Nomenklatura: Tovarlar", "Nomenclature: Products"), module: "/assets/pages/soon.js", groupId: "nomenclature", group: GROUPS.NOMENCLATURE },
+  { id: "nomenclature_categories", icon: "bi-tags", label: tr("Номенклатура: Категория", "Nomenklatura: Kategoriya", "Nomenclature: Category"), module: "/assets/pages/soon.js", groupId: "nomenclature", group: GROUPS.NOMENCLATURE },
 
-  { id: "prices_docs", icon: "bi-file-earmark-text", label: "Цены: Документы", module: "/assets/pages/soon.js", group: "Цены" },
-  { id: "prices_list", icon: "bi-list-ul", label: "Цены: Список цен", module: "/assets/pages/soon.js", group: "Цены" },
-  { id: "prices_installment", icon: "bi-percent", label: "Цены: Проценты рассрочки", module: "/assets/pages/soon.js", group: "Цены" },
+  { id: "prices_docs", icon: "bi-file-earmark-text", label: tr("Цены: Документы", "Narxlar: Hujjatlar", "Prices: Documents"), module: "/assets/pages/soon.js", groupId: "prices", group: GROUPS.PRICES },
+  { id: "prices_list", icon: "bi-list-ul", label: tr("Цены: Список цен", "Narxlar: Narxlar ro'yxati", "Prices: Price list"), module: "/assets/pages/soon.js", groupId: "prices", group: GROUPS.PRICES },
+  { id: "prices_installment", icon: "bi-percent", label: tr("Цены: Проценты рассрочки", "Narxlar: Muddatli to'lov foizlari", "Prices: Installment percentages"), module: "/assets/pages/soon.js", groupId: "prices", group: GROUPS.PRICES },
 
-  { id: "counterparties_suppliers", icon: "bi-truck", label: "Контрагенты: Поставщики", module: "/assets/pages/soon.js", group: "Контрагенты" },
-  { id: "counterparties_clients", icon: "bi-person-lines-fill", label: "Контрагенты: Клиенты", module: "/assets/pages/soon.js", group: "Контрагенты" },
+  { id: "counterparties_suppliers", icon: "bi-truck", label: tr("Контрагенты: Поставщики", "Kontragentlar: Ta'minotchilar", "Counterparties: Suppliers"), module: "/assets/pages/soon.js", groupId: "counterparties", group: GROUPS.COUNTERPARTIES },
+  { id: "counterparties_clients", icon: "bi-person-lines-fill", label: tr("Контрагенты: Клиенты", "Kontragentlar: Mijozlar", "Counterparties: Clients"), module: "/assets/pages/soon.js", groupId: "counterparties", group: GROUPS.COUNTERPARTIES },
 
-  { id: "settings_users", icon: "bi-people", label: "Настройки: Пользователи", module: "/assets/pages/soon.js", group: "Настройки" },
-  { id: "settings_roles", icon: "bi-shield-check", label: "Настройки: Роли", module: "/assets/pages/soon.js", group: "Настройки" },
-  { id: "settings_filials", icon: "bi-diagram-3", label: "Настройки: Филиалы", module: "/assets/pages/soon.js", group: "Настройки" },
-  { id: "settings_cash_accounts", icon: "bi-wallet", label: "Настройки: Кассы", module: "/assets/pages/soon.js", group: "Настройки" },
-  { id: "settings_warehouses", icon: "bi-building", label: "Настройки: Склады", module: "/assets/pages/soon.js", group: "Настройки" },
-  { id: "settings_units", icon: "bi-rulers", label: "Настройки: Ед.изм", module: "/assets/pages/soon.js", group: "Настройки" },
-  { id: "settings_product_types", icon: "bi-card-list", label: "Настройки: Типы товаров", module: "/assets/pages/soon.js", group: "Настройки" },
-  { id: "settings_currency", icon: "bi-currency-exchange", label: "Настройки: Валюта", module: "/assets/pages/soon.js", group: "Настройки" }
+  { id: "settings_users", icon: "bi-people", label: tr("Настройки: Пользователи", "Sozlamalar: Foydalanuvchilar", "Settings: Users"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
+  { id: "settings_roles", icon: "bi-shield-check", label: tr("Настройки: Роли", "Sozlamalar: Rollar", "Settings: Roles"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
+  { id: "settings_filials", icon: "bi-diagram-3", label: tr("Настройки: Филиалы", "Sozlamalar: Filiallar", "Settings: Branches"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
+  { id: "settings_cash_accounts", icon: "bi-wallet", label: tr("Настройки: Кассы", "Sozlamalar: Kassalar", "Settings: Cash desks"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
+  { id: "settings_warehouses", icon: "bi-building", label: tr("Настройки: Склады", "Sozlamalar: Omborlar", "Settings: Warehouses"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
+  { id: "settings_units", icon: "bi-rulers", label: tr("Настройки: Ед.изм", "Sozlamalar: O'lchov birliklari", "Settings: Units"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
+  { id: "settings_product_types", icon: "bi-card-list", label: tr("Настройки: Типы товаров", "Sozlamalar: Tovar turlari", "Settings: Product types"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
+  { id: "settings_currency", icon: "bi-currency-exchange", label: tr("Настройки: Валюта", "Sozlamalar: Valyuta", "Settings: Currency"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS }
 ];
