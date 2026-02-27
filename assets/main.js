@@ -1,4 +1,5 @@
-import { API_BASE, I18N, sections } from "./config.js";
+﻿import { API_BASE, I18N } from "./config.js";
+import { BUSINESS_ROLES, GEKTO_ROLES, LEVEL1_SECTIONS, LEVEL2_SECTIONS } from "./sections.js";
 
 const token = localStorage.getItem("tech_token") || "";
 if (!token) location.href = "/auth/login.html";
@@ -11,8 +12,10 @@ html.setAttribute("data-bs-theme", theme);
 
 const state = {
   me: null,
-  activeSection: "dashboard",
-  renderSeq: 0
+  activeSection: "",
+  renderSeq: 0,
+  sections: [],
+  roleScope: ""
 };
 
 function t(k) {
@@ -33,14 +36,35 @@ function monthNow() {
   return new Date().toISOString().slice(0, 7);
 }
 
+function isWriteRole(role) {
+  return role === "super_admin" || role === "business_owner";
+}
+
+function getSectionsForRole(role) {
+  if (GEKTO_ROLES.includes(role)) return { scope: "gekto", sections: LEVEL1_SECTIONS };
+  if (BUSINESS_ROLES.includes(role)) return { scope: "business", sections: LEVEL2_SECTIONS };
+  return { scope: "", sections: [] };
+}
+
 function accessFor(role) {
-  const all = { read: true, write: role === "super_admin" };
-  if (role === "super_admin" || role === "gekto_viewer") {
-    return {
-      dashboard: all, businesses: all, reports: all, payments: all, calendar: all, users: all
+  const permissions = {};
+  for (const s of state.sections) {
+    permissions[s.id] = {
+      read: true,
+      write: isWriteRole(role)
     };
   }
-  return {};
+  return permissions;
+}
+
+function sectionLabel(section) {
+  if (!section) return "";
+  if (section.label && typeof section.label === "string") return section.label;
+  if (section.label && typeof section.label === "object") {
+    return section.label[lang] || section.label.ru || section.label.en || section.id;
+  }
+  if (section.key) return t(section.key);
+  return section.id;
 }
 
 async function api(path, opts = {}) {
@@ -56,9 +80,11 @@ async function api(path, opts = {}) {
   return data;
 }
 
-function page(titleKey, sub = "") {
-  document.getElementById("pageTitle").textContent = t(titleKey);
+function page(titleKey, sub = "", opts = {}) {
+  const title = opts.raw ? String(titleKey || "") : t(titleKey);
+  document.getElementById("pageTitle").textContent = title;
   document.getElementById("pageSub").textContent = sub;
+  document.title = `GEKTO Tech - ${title}`;
 }
 
 function openModal({ title, bodyHtml, saveText, onSave }) {
@@ -154,12 +180,23 @@ function renderMenu() {
   const perms = accessFor(state.me.role);
   const ul = document.getElementById("menu");
   ul.innerHTML = "";
-  for (const s of sections) {
+
+  let currentGroup = "";
+  for (const s of state.sections) {
     if (!perms[s.id]?.read) continue;
+
+    if (s.group && s.group !== currentGroup) {
+      const head = document.createElement("li");
+      head.className = "nav-header text-uppercase small";
+      head.textContent = s.group;
+      ul.appendChild(head);
+      currentGroup = s.group;
+    }
+
     const li = document.createElement("li");
     li.className = "nav-item";
     li.innerHTML = `<a href="#${s.id}" class="nav-link ${state.activeSection === s.id ? "active" : ""}">
-      <i class="nav-icon bi ${s.icon}"></i><p>${esc(t(s.key))}</p></a>`;
+      <i class="nav-icon bi ${s.icon}"></i><p>${esc(sectionLabel(s))}</p></a>`;
     ul.appendChild(li);
   }
 }
@@ -171,7 +208,7 @@ async function renderCurrent() {
     document.getElementById("view").innerHTML = `<div class="alert alert-danger">${t("noAccess")}</div>`;
     return;
   }
-  const section = sections.find(s => s.id === state.activeSection);
+  const section = state.sections.find(s => s.id === state.activeSection);
   if (!section) return;
 
   try {
@@ -180,6 +217,7 @@ async function renderCurrent() {
     if (seq !== state.renderSeq) return;
     await mod.render({
       state,
+      section,
       t,
       fmt,
       esc,
@@ -195,26 +233,46 @@ async function renderCurrent() {
   }
 }
 
+function getDefaultSectionId() {
+  return state.sections.length ? state.sections[0].id : "";
+}
+
+function resolveSectionByHash() {
+  const hash = (location.hash || "").replace("#", "");
+  const fallback = getDefaultSectionId();
+  return state.sections.find(s => s.id === hash) ? hash : fallback;
+}
+
 async function bootstrap() {
   state.me = (await api("/me")).user;
-  if (!["super_admin", "gekto_viewer"].includes(state.me.role)) {
+  const role = state.me.role;
+  const pick = getSectionsForRole(role);
+  state.roleScope = pick.scope;
+  state.sections = pick.sections;
+
+  if (!state.sections.length) {
     localStorage.removeItem("tech_token");
     location.href = "/auth/login.html";
     return;
   }
 
   document.getElementById("who").textContent = `${state.me.full_name} (${state.me.role})`;
-  const hash = (location.hash || "#dashboard").replace("#", "");
-  state.activeSection = sections.find(s => s.id === hash) ? hash : "dashboard";
+  state.activeSection = resolveSectionByHash();
+  if (!state.activeSection) {
+    localStorage.removeItem("tech_token");
+    location.href = "/auth/login.html";
+    return;
+  }
+
   renderMenu();
   paintControls();
-  for (const s of sections) import(s.module).catch(() => {});
+  for (const s of state.sections) import(s.module).catch(() => {});
   await renderCurrent();
 }
 
 window.addEventListener("hashchange", () => {
-  const next = (location.hash || "#dashboard").replace("#", "");
-  state.activeSection = sections.find(s => s.id === next) ? next : "dashboard";
+  if (!state.sections.length) return;
+  state.activeSection = resolveSectionByHash();
   renderMenu();
   renderCurrent();
 });
