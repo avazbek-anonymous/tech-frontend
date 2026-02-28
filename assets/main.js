@@ -213,6 +213,38 @@ function collapseAllParents() {
   state.openParents = next;
 }
 
+function openParentForSection(sectionId) {
+  const active = state.sections.find(section => section.id === sectionId);
+  if (!active?.groupId) return;
+
+  const siblings = state.sections.filter(section => section.groupId === active.groupId);
+  if (siblings.length <= 1) return;
+  state.openParents[active.groupId] = true;
+}
+
+function childLabel(section, parentLabel, fallbackGroupLabel = "") {
+  const label = String(sectionLabel(section) || "").trim();
+  const candidates = [parentLabel, fallbackGroupLabel]
+    .map(v => String(v || "").trim())
+    .filter(Boolean);
+
+  for (const base of candidates) {
+    const prefix = `${base}:`;
+    if (label.toLowerCase().startsWith(prefix.toLowerCase())) {
+      const trimmed = label.slice(prefix.length).trim();
+      return trimmed || label;
+    }
+  }
+
+  const direct = label.split(":");
+  if (direct.length > 1) {
+    const trimmed = direct.slice(1).join(":").trim();
+    if (trimmed) return trimmed;
+  }
+
+  return label;
+}
+
 function renderFlatMenu(ul, perms) {
   let currentGroupId = "";
   for (const s of state.sections) {
@@ -264,8 +296,9 @@ function renderBusinessTreeMenu(ul, perms) {
       continue;
     }
 
-    const parentLabel = root ? sectionLabel(root) : (item.label || sectionLabel(children[0]));
-    const parentIcon = root?.icon || "bi-folder";
+    const parentGroupLabel = item.label || groupLabel(children[0]) || "";
+    const parentLabel = root ? sectionLabel(root) : (parentGroupLabel || sectionLabel(children[0]));
+    const parentIcon = root?.icon || children[0]?.icon || "bi-folder";
     const childActive = children.some(s => s.id === state.activeSection);
     const parentActive = (root ? state.activeSection === root.id : false) || childActive;
     const open = Object.prototype.hasOwnProperty.call(state.openParents, groupId)
@@ -288,7 +321,7 @@ function renderBusinessTreeMenu(ul, perms) {
       const childLi = document.createElement("li");
       childLi.className = "nav-item";
       childLi.innerHTML = `<a href="#${child.id}" class="nav-link ${state.activeSection === child.id ? "active" : ""}">
-        <i class="nav-icon bi ${child.icon}"></i><p>${esc(sectionLabel(child))}</p></a>`;
+        <i class="nav-icon bi ${child.icon}"></i><p>${esc(childLabel(child, parentLabel, parentGroupLabel))}</p></a>`;
       tree.appendChild(childLi);
     }
 
@@ -374,6 +407,7 @@ async function bootstrap() {
   }
 
   collapseAllParents();
+  openParentForSection(state.activeSection);
   renderMenu();
   paintControls();
   for (const s of state.sections) import(s.module).catch(() => {});
@@ -386,6 +420,7 @@ window.addEventListener("hashchange", () => {
   state.skipAutoCollapse = false;
   if (doCollapse) collapseAllParents();
   state.activeSection = resolveSectionByHash();
+  if (doCollapse) openParentForSection(state.activeSection);
   renderMenu();
   renderCurrent();
 });
