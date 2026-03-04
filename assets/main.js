@@ -16,6 +16,7 @@ const state = {
   renderSeq: 0,
   sections: [],
   roleScope: "",
+  rolePermissions: null,
   openParents: {},
   skipAutoCollapse: false
 };
@@ -27,7 +28,14 @@ const SECTION_OVERRIDES = {
   stock_dbkd: { label: { ru: "Дт, Кт", uz: "Dt, Kt", en: "Dt, Kt" } },
   stock_inventory: { label: { ru: "Инвентаризация", uz: "Inventarizatsiya", en: "Inventory" } },
   hr_advances: { label: { ru: "HR: Авансы и Дт, Кт", uz: "HR: Avans va Dt, Kt", en: "HR: Advances and Dt, Kt" } },
-  settings_roles: { module: "/assets/pages/roles.js" }
+  settings_users: { module: "/assets/pages/settings-users.js" },
+  settings_roles: { module: "/assets/pages/roles.js" },
+  settings_filials: { module: "/assets/pages/settings-filials.js" },
+  settings_cash_accounts: { module: "/assets/pages/settings-cash-accounts.js" },
+  settings_warehouses: { module: "/assets/pages/settings-warehouses.js" },
+  settings_units: { module: "/assets/pages/settings-units.js" },
+  settings_product_types: { module: "/assets/pages/settings-product-types.js" },
+  settings_currency: { module: "/assets/pages/settings-currency.js" }
 };
 
 function applySectionOverrides(sections) {
@@ -60,6 +68,27 @@ function isWriteRole(role) {
   return role === "super_admin" || role === "business_owner";
 }
 
+function hasReadPermission(sectionId) {
+  if (!state.me) return false;
+  if (isWriteRole(state.me.role)) return true;
+  if (!state.rolePermissions) return false;
+
+  const readKey = `${sectionId}.read`;
+  if (state.rolePermissions.has(readKey)) return true;
+
+  const writeKeys = ["add", "change", "disable", "delete", "export"];
+  return writeKeys.some(action => state.rolePermissions.has(`${sectionId}.${action}`));
+}
+
+function hasWritePermission(sectionId) {
+  if (!state.me) return false;
+  if (isWriteRole(state.me.role)) return true;
+  if (!state.rolePermissions) return false;
+
+  const writeKeys = ["add", "change", "disable", "delete", "export"];
+  return writeKeys.some(action => state.rolePermissions.has(`${sectionId}.${action}`));
+}
+
 function getSectionsForRole(role) {
   if (GEKTO_ROLES.includes(role)) return { scope: "gekto", sections: LEVEL1_SECTIONS };
   if (BUSINESS_ROLES.includes(role)) return { scope: "business", sections: LEVEL2_SECTIONS };
@@ -69,9 +98,25 @@ function getSectionsForRole(role) {
 function accessFor(role) {
   const permissions = {};
   for (const s of state.sections) {
+    if (state.roleScope !== "business") {
+      permissions[s.id] = {
+        read: true,
+        write: isWriteRole(role)
+      };
+      continue;
+    }
+
+    if (!isWriteRole(role) && s.id.startsWith("settings_")) {
+      permissions[s.id] = {
+        read: false,
+        write: false
+      };
+      continue;
+    }
+
     permissions[s.id] = {
-      read: true,
-      write: isWriteRole(role)
+      read: isWriteRole(role) ? true : hasReadPermission(s.id),
+      write: isWriteRole(role) ? true : hasWritePermission(s.id)
     };
   }
   return permissions;
@@ -344,6 +389,10 @@ function renderMenu() {
 
 async function renderCurrent() {
   const seq = ++state.renderSeq;
+  if (!state.activeSection) {
+    document.getElementById("view").innerHTML = `<div class="alert alert-danger">${t("noAccess")}</div>`;
+    return;
+  }
   const perms = accessFor(state.me.role);
   if (!perms[state.activeSection]?.read) {
     document.getElementById("view").innerHTML = `<div class="alert alert-danger">${t("noAccess")}</div>`;
@@ -375,13 +424,16 @@ async function renderCurrent() {
 }
 
 function getDefaultSectionId() {
-  return state.sections.length ? state.sections[0].id : "";
+  const perms = state.me ? accessFor(state.me.role) : {};
+  const firstAllowed = state.sections.find(section => perms[section.id]?.read);
+  return firstAllowed ? firstAllowed.id : "";
 }
 
 function resolveSectionByHash() {
   const hash = (location.hash || "").replace("#", "");
+  const perms = state.me ? accessFor(state.me.role) : {};
   const fallback = getDefaultSectionId();
-  return state.sections.find(s => s.id === hash) ? hash : fallback;
+  return state.sections.find(s => s.id === hash) && perms[hash]?.read ? hash : fallback;
 }
 
 async function bootstrap() {
@@ -390,7 +442,21 @@ async function bootstrap() {
   const pick = getSectionsForRole(role);
   state.roleScope = pick.scope;
   state.sections = applySectionOverrides(pick.sections);
+  state.rolePermissions = null;
   state.openParents = {};
+
+  if (state.roleScope === "business" && !isWriteRole(role)) {
+    if (state.me.role_id) {
+      try {
+        const resp = await api(`/roles/${state.me.role_id}/permissions`);
+        state.rolePermissions = new Set(resp.permissions || []);
+      } catch {
+        state.rolePermissions = new Set();
+      }
+    } else {
+      state.rolePermissions = new Set();
+    }
+  }
 
   if (!state.sections.length) {
     localStorage.removeItem("tech_token");
@@ -401,8 +467,9 @@ async function bootstrap() {
   document.getElementById("who").textContent = `${state.me.full_name} (${state.me.role})`;
   state.activeSection = resolveSectionByHash();
   if (!state.activeSection) {
-    localStorage.removeItem("tech_token");
-    location.href = "/auth/login.html";
+    renderMenu();
+    paintControls();
+    document.getElementById("view").innerHTML = `<div class="alert alert-danger">${t("noAccess")}</div>`;
     return;
   }
 
@@ -420,6 +487,11 @@ window.addEventListener("hashchange", () => {
   state.skipAutoCollapse = false;
   if (doCollapse) collapseAllParents();
   state.activeSection = resolveSectionByHash();
+  if (!state.activeSection) {
+    renderMenu();
+    document.getElementById("view").innerHTML = `<div class="alert alert-danger">${t("noAccess")}</div>`;
+    return;
+  }
   if (doCollapse) openParentForSection(state.activeSection);
   renderMenu();
   renderCurrent();
