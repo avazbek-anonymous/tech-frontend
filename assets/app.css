@@ -9,6 +9,31 @@ body {
   min-height: 100vh;
 }
 
+.app-sidebar,
+.app-main,
+.app-header,
+.sidebar-wrapper,
+.brand-link {
+  transition:
+    width 0.3s ease-in-out,
+    margin-left 0.3s ease-in-out,
+    transform 0.3s ease-in-out;
+}
+
+.app-sidebar .nav-link p,
+.app-sidebar .brand-text,
+.app-sidebar .nav-arrow,
+.app-sidebar .nav-badge {
+  transition:
+    opacity 0.2s ease-in-out,
+    transform 0.2s ease-in-out,
+    margin 0.2s ease-in-out;
+}
+
+.app-sidebar .nav-treeview {
+  transition: opacity 0.2s ease-in-out;
+}
+
 .app-header .nav-link,
 .app-sidebar .nav-link {
   cursor: pointer;
@@ -85,6 +110,16 @@ body {
   z-index: 2;
 }
 
+@media (min-width: 992px) {
+  body.sidebar-mini.sidebar-collapse .app-sidebar .brand-text,
+  body.sidebar-mini.sidebar-collapse .app-sidebar .nav-link p,
+  body.sidebar-mini.sidebar-collapse .app-sidebar .nav-arrow,
+  body.sidebar-mini.sidebar-collapse .app-sidebar .nav-badge {
+    opacity: 0;
+    transform: translateX(-0.35rem);
+  }
+}
+
 @media (max-width: 991.98px) {
   .content-header {
     padding-top: 0.75rem;
@@ -93,5 +128,20 @@ body {
 
   .roles-perm-wrap {
     max-height: 46vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar,
+  .app-main,
+  .app-header,
+  .sidebar-wrapper,
+  .brand-link,
+  .app-sidebar .nav-link p,
+  .app-sidebar .brand-text,
+  .app-sidebar .nav-arrow,
+  .app-sidebar .nav-badge,
+  .app-sidebar .nav-treeview {
+    transition: none !important;
   }
 }
