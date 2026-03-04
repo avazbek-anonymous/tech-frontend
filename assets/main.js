@@ -17,6 +17,7 @@ const state = {
   sections: [],
   roleScope: "",
   rolePermissions: null,
+  menuSyncTimer: 0,
   openParents: {},
   skipAutoCollapse: false
 };
@@ -355,7 +356,7 @@ function renderBusinessTreeMenu(ul, perms) {
     li.className = `nav-item ${open ? "menu-open" : ""}`;
     li.innerHTML = `<a href="${root ? `#${root.id}` : "#"}" class="nav-link ${parentActive ? "active" : ""}" data-parent-id="${esc(groupId)}"${root ? ` data-parent-section="${esc(root.id)}"` : ""}>
       <i class="nav-icon bi ${parentIcon}"></i>
-      <p>${esc(parentLabel)}<i class="nav-arrow bi bi-chevron-right"></i></p>
+      <p><span class="menu-label">${esc(parentLabel)}</span><i class="nav-arrow bi bi-chevron-right"></i></p>
     </a>`;
 
     const tree = document.createElement("ul");
@@ -385,6 +386,15 @@ function renderMenu() {
     return;
   }
   renderFlatMenu(ul, perms);
+}
+
+function syncMenuAfterAnimation(runCurrent = false) {
+  clearTimeout(state.menuSyncTimer);
+  const delay = state.roleScope === "business" ? 320 : 0;
+  state.menuSyncTimer = setTimeout(() => {
+    renderMenu();
+    if (runCurrent) renderCurrent();
+  }, delay);
 }
 
 async function renderCurrent() {
@@ -483,7 +493,8 @@ async function bootstrap() {
 
 window.addEventListener("hashchange", () => {
   if (!state.sections.length) return;
-  const doCollapse = state.roleScope === "business" && !state.skipAutoCollapse;
+  const skipAutoCollapse = state.skipAutoCollapse;
+  const doCollapse = state.roleScope === "business" && !skipAutoCollapse;
   state.skipAutoCollapse = false;
   if (doCollapse) collapseAllParents();
   state.activeSection = resolveSectionByHash();
@@ -493,6 +504,10 @@ window.addEventListener("hashchange", () => {
     return;
   }
   if (doCollapse) openParentForSection(state.activeSection);
+  if (state.roleScope === "business" && skipAutoCollapse) {
+    syncMenuAfterAnimation(true);
+    return;
+  }
   renderMenu();
   renderCurrent();
 });
@@ -511,11 +526,11 @@ document.getElementById("menu").addEventListener("click", ev => {
     if (location.hash !== nextHash) {
       location.hash = sectionId;
     } else {
-      renderMenu();
-      renderCurrent();
+      state.activeSection = sectionId;
+      syncMenuAfterAnimation(true);
     }
   } else {
-    renderMenu();
+    syncMenuAfterAnimation(false);
   }
   ev.preventDefault();
 });

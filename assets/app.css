@@ -34,6 +34,41 @@ body {
   transition: opacity 0.2s ease-in-out;
 }
 
+.app-sidebar .sidebar-menu .nav-link > p {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin: 0;
+}
+
+.app-sidebar .sidebar-menu .nav-link > p .menu-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-sidebar .sidebar-menu .nav-arrow {
+  margin-left: auto;
+  font-size: 0.85rem;
+  opacity: 0.72;
+  transform: rotate(0deg);
+  transform-origin: center;
+  transition:
+    transform 0.24s ease-in-out,
+    opacity 0.24s ease-in-out;
+}
+
+.app-sidebar .sidebar-menu .menu-open > .nav-link .nav-arrow {
+  opacity: 1;
+  transform: rotate(90deg);
+}
+
+.app-sidebar .sidebar-menu .nav-treeview {
+  overflow: hidden;
+}
+
 .app-header .nav-link,
 .app-sidebar .nav-link {
   cursor: pointer;
