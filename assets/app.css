@@ -242,18 +242,24 @@ body {
   }
 
   body.sidebar-mini.sidebar-collapse .app-sidebar .sidebar-menu > .nav-item > .nav-treeview .nav-link {
-    width: 100%;
+    width: 100% !important;
+    justify-content: flex-start !important;
     margin-bottom: 0.15rem;
     border-radius: 0.45rem;
   }
 
   body.sidebar-mini.sidebar-collapse .app-sidebar .sidebar-menu > .nav-item > .nav-treeview .nav-link p {
-    display: inline-block;
-    width: auto;
-    visibility: visible;
-    opacity: 1;
-    transform: none;
-    margin: 0;
+    display: inline-block !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: none !important;
+    margin: 0 0 0 0.5rem !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
   }
 
   body.sidebar-mini.sidebar-collapse .app-sidebar .sidebar-menu > .nav-item > .nav-treeview .nav-arrow,
