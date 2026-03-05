@@ -314,7 +314,7 @@ function renderFlatMenu(ul, perms) {
 
     const li = document.createElement("li");
     li.className = "nav-item";
-    li.innerHTML = `<a href="#${s.id}" class="nav-link ${state.activeSection === s.id ? "active" : ""}">
+    li.innerHTML = `<a href="#${s.id}" class="nav-link ${state.activeSection === s.id ? "active" : ""}" title="${esc(sectionLabel(s))}" aria-label="${esc(sectionLabel(s))}">
       <i class="nav-icon bi ${s.icon}"></i><p>${esc(sectionLabel(s))}</p></a>`;
     ul.appendChild(li);
   }
@@ -343,7 +343,7 @@ function renderBusinessTreeMenu(ul, perms) {
       const single = root || children[0];
       const li = document.createElement("li");
       li.className = "nav-item";
-      li.innerHTML = `<a href="#${single.id}" class="nav-link ${state.activeSection === single.id ? "active" : ""}">
+      li.innerHTML = `<a href="#${single.id}" class="nav-link ${state.activeSection === single.id ? "active" : ""}" title="${esc(sectionLabel(single))}" aria-label="${esc(sectionLabel(single))}">
         <i class="nav-icon bi ${single.icon}"></i><p>${esc(sectionLabel(single))}</p></a>`;
       ul.appendChild(li);
       continue;
@@ -361,7 +361,7 @@ function renderBusinessTreeMenu(ul, perms) {
 
     const li = document.createElement("li");
     li.className = `nav-item ${open ? "menu-open" : ""}`;
-    li.innerHTML = `<a href="${root ? `#${root.id}` : "#"}" class="nav-link ${parentActive ? "active" : ""}" data-parent-id="${esc(groupId)}"${root ? ` data-parent-section="${esc(root.id)}"` : ""}>
+    li.innerHTML = `<a href="${root ? `#${root.id}` : "#"}" class="nav-link ${parentActive ? "active" : ""}" title="${esc(parentLabel)}" aria-label="${esc(parentLabel)}" data-parent-id="${esc(groupId)}"${root ? ` data-parent-section="${esc(root.id)}"` : ""}>
       <i class="nav-icon bi ${parentIcon}"></i>
       <p><span class="menu-label">${esc(parentLabel)}</span><i class="nav-arrow bi bi-chevron-right"></i></p>
     </a>`;
@@ -373,8 +373,9 @@ function renderBusinessTreeMenu(ul, perms) {
     for (const child of children) {
       const childLi = document.createElement("li");
       childLi.className = "nav-item";
-      childLi.innerHTML = `<a href="#${child.id}" class="nav-link ${state.activeSection === child.id ? "active" : ""}">
-        <i class="nav-icon bi ${child.icon}"></i><p>${esc(childLabel(child, parentLabel, parentGroupLabel))}</p></a>`;
+      const childText = childLabel(child, parentLabel, parentGroupLabel);
+      childLi.innerHTML = `<a href="#${child.id}" class="nav-link ${state.activeSection === child.id ? "active" : ""}" title="${esc(childText)}" aria-label="${esc(childText)}">
+        <i class="nav-icon bi ${child.icon}"></i><p>${esc(childText)}</p></a>`;
       tree.appendChild(childLi);
     }
 
@@ -523,11 +524,13 @@ document.getElementById("menu").addEventListener("click", ev => {
   const childLink = ev.target.closest(".nav-treeview .nav-link[href^='#']");
   if (childLink && isCollapsedMiniDesktop()) {
     state.skipAutoCollapse = true;
+    ev.stopPropagation();
     return;
   }
 
   const link = ev.target.closest("a[data-parent-id]");
   if (!link) return;
+  ev.stopPropagation();
 
   const collapsedMini = isCollapsedMiniDesktop();
   const parentId = link.dataset.parentId || "";
