@@ -518,7 +518,11 @@ document.getElementById("menu").addEventListener("click", ev => {
 
   const parentId = link.dataset.parentId || "";
   const sectionId = link.dataset.parentSection || "";
-  if (parentId) state.openParents[parentId] = !state.openParents[parentId];
+  if (parentId) {
+    const willOpen = !state.openParents[parentId];
+    collapseAllParents();
+    if (willOpen) state.openParents[parentId] = true;
+  }
 
   if (sectionId) {
     state.skipAutoCollapse = true;
