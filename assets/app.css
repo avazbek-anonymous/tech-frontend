@@ -184,9 +184,13 @@ body {
   }
 
   /* Collapsed mode flyout: keep children hidden inline and show at right on parent hover. */
+  body.sidebar-mini.sidebar-collapse .app-wrapper {
+    isolation: isolate;
+  }
+
   body.sidebar-mini.sidebar-collapse .app-sidebar {
     overflow: visible;
-    z-index: 1046;
+    z-index: 2000;
   }
 
   body.sidebar-mini.sidebar-collapse .app-sidebar .sidebar-wrapper {
@@ -201,15 +205,18 @@ body {
     display: block !important;
     position: absolute;
     top: -0.2rem;
-    left: calc(100% + 0.45rem);
-    z-index: 1050;
+    left: calc(100% + 0.55rem);
+    z-index: 2100;
+    width: max-content;
     min-width: 230px;
+    max-width: min(320px, calc(100vw - 5.5rem));
     padding: 0.35rem;
     margin: 0;
     border-radius: 0.55rem;
-    border: 1px solid rgba(var(--bs-body-color-rgb), 0.16);
+    border: 1px solid rgba(var(--bs-body-color-rgb), 0.2);
+    background: var(--bs-tertiary-bg);
     background: color-mix(in srgb, var(--bs-body-bg) 94%, #000 6%);
-    box-shadow: 0 0.45rem 1rem rgba(0, 0, 0, 0.26);
+    box-shadow: 0 0.55rem 1.2rem rgba(0, 0, 0, 0.35);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -238,6 +245,7 @@ body {
   }
 
   body.sidebar-mini.sidebar-collapse .app-sidebar .sidebar-menu > .nav-item > .nav-treeview .nav-link p {
+    display: inline-block;
     width: auto;
     visibility: visible;
     opacity: 1;
