@@ -203,13 +203,16 @@ body {
 
   body.sidebar-mini.sidebar-collapse .app-sidebar .sidebar-menu > .nav-item > .nav-treeview {
     display: block !important;
-    position: absolute;
-    top: -0.2rem;
-    left: calc(100% + 0.55rem);
+    position: fixed;
+    top: var(--flyout-top, 4rem);
+    left: var(--flyout-left, 5.2rem);
     z-index: 2100;
     width: max-content;
     min-width: 230px;
-    max-width: min(320px, calc(100vw - 5.5rem));
+    max-width: var(--flyout-max-width, 320px);
+    max-height: var(--flyout-max-height, 70vh);
+    overflow-x: hidden;
+    overflow-y: auto;
     padding: 0.35rem;
     margin: 0;
     border-radius: 0.55rem;

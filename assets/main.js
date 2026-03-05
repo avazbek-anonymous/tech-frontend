@@ -275,6 +275,30 @@ function isCollapsedMiniDesktop() {
     && document.body.classList.contains("sidebar-collapse");
 }
 
+function syncCollapsedFlyoutPosition() {
+  if (!isCollapsedMiniDesktop()) return;
+  const menu = document.getElementById("menu");
+  if (!menu) return;
+
+  const openItem = menu.querySelector(".nav-item.menu-open");
+  if (!openItem) return;
+
+  const parentLink = openItem.querySelector(":scope > .nav-link");
+  const tree = openItem.querySelector(":scope > .nav-treeview");
+  if (!parentLink || !tree) return;
+
+  const linkRect = parentLink.getBoundingClientRect();
+  const left = Math.round(linkRect.right + 10);
+  const top = Math.max(8, Math.round(linkRect.top - 4));
+  const maxWidth = Math.max(210, Math.min(320, window.innerWidth - left - 12));
+  const maxHeight = Math.max(180, window.innerHeight - top - 12);
+
+  tree.style.setProperty("--flyout-left", `${left}px`);
+  tree.style.setProperty("--flyout-top", `${top}px`);
+  tree.style.setProperty("--flyout-max-width", `${maxWidth}px`);
+  tree.style.setProperty("--flyout-max-height", `${maxHeight}px`);
+}
+
 function childLabel(section, parentLabel, fallbackGroupLabel = "") {
   const label = String(sectionLabel(section) || "").trim();
   const candidates = [parentLabel, fallbackGroupLabel]
@@ -391,6 +415,7 @@ function renderMenu() {
 
   if (state.roleScope === "business") {
     renderBusinessTreeMenu(ul, perms);
+    if (isCollapsedMiniDesktop()) requestAnimationFrame(syncCollapsedFlyoutPosition);
     return;
   }
   renderFlatMenu(ul, perms);
@@ -575,6 +600,14 @@ document.addEventListener("click", ev => {
   collapseAllParents();
   renderMenu();
 });
+
+window.addEventListener("resize", () => {
+  if (isCollapsedMiniDesktop()) syncCollapsedFlyoutPosition();
+});
+
+window.addEventListener("scroll", () => {
+  if (isCollapsedMiniDesktop()) syncCollapsedFlyoutPosition();
+}, true);
 
 document.querySelectorAll("[data-lang]").forEach(btn => btn.addEventListener("click", () => {
   lang = btn.dataset.lang;
