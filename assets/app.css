@@ -184,8 +184,13 @@ body {
   }
 
   /* Collapsed mode flyout: keep children hidden inline and show at right on parent hover. */
+  body.sidebar-mini.sidebar-collapse .app-sidebar {
+    overflow: visible;
+    z-index: 1046;
+  }
+
   body.sidebar-mini.sidebar-collapse .app-sidebar .sidebar-wrapper {
-    overflow-x: visible;
+    overflow-x: visible !important;
   }
 
   body.sidebar-mini.sidebar-collapse .app-sidebar .sidebar-menu > .nav-item {
@@ -197,7 +202,7 @@ body {
     position: absolute;
     top: -0.2rem;
     left: calc(100% + 0.45rem);
-    z-index: 1045;
+    z-index: 1050;
     min-width: 230px;
     padding: 0.35rem;
     margin: 0;
@@ -206,16 +211,18 @@ body {
     background: color-mix(in srgb, var(--bs-body-bg) 94%, #000 6%);
     box-shadow: 0 0.45rem 1rem rgba(0, 0, 0, 0.26);
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
     transform: translateX(0.35rem);
     transition:
       opacity 0.16s ease-in-out,
-      transform 0.16s ease-in-out;
+      transform 0.16s ease-in-out,
+      visibility 0.16s ease-in-out;
   }
 
-  body.sidebar-mini.sidebar-collapse .app-sidebar .sidebar-menu > .nav-item:hover > .nav-treeview,
-  body.sidebar-mini.sidebar-collapse .app-sidebar .sidebar-menu > .nav-item:focus-within > .nav-treeview {
+  body.sidebar-mini.sidebar-collapse .app-sidebar .sidebar-menu > .nav-item.menu-open > .nav-treeview {
     opacity: 1;
+    visibility: visible;
     pointer-events: auto;
     transform: translateX(0);
   }

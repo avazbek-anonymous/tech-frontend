@@ -268,6 +268,13 @@ function openParentForSection(sectionId) {
   state.openParents[active.groupId] = true;
 }
 
+function isCollapsedMiniDesktop() {
+  return state.roleScope === "business"
+    && window.innerWidth >= 992
+    && document.body.classList.contains("sidebar-mini")
+    && document.body.classList.contains("sidebar-collapse");
+}
+
 function childLabel(section, parentLabel, fallbackGroupLabel = "") {
   const label = String(sectionLabel(section) || "").trim();
   const candidates = [parentLabel, fallbackGroupLabel]
@@ -484,7 +491,7 @@ async function bootstrap() {
   }
 
   collapseAllParents();
-  openParentForSection(state.activeSection);
+  if (!isCollapsedMiniDesktop()) openParentForSection(state.activeSection);
   renderMenu();
   paintControls();
   for (const s of state.sections) import(s.module).catch(() => {});
@@ -503,7 +510,7 @@ window.addEventListener("hashchange", () => {
     document.getElementById("view").innerHTML = `<div class="alert alert-danger">${t("noAccess")}</div>`;
     return;
   }
-  if (doCollapse) openParentForSection(state.activeSection);
+  if (doCollapse && !isCollapsedMiniDesktop()) openParentForSection(state.activeSection);
   if (state.roleScope === "business" && skipAutoCollapse) {
     syncMenuAfterAnimation(true);
     return;
@@ -513,15 +520,28 @@ window.addEventListener("hashchange", () => {
 });
 
 document.getElementById("menu").addEventListener("click", ev => {
+  const childLink = ev.target.closest(".nav-treeview .nav-link[href^='#']");
+  if (childLink && isCollapsedMiniDesktop()) {
+    state.skipAutoCollapse = true;
+    return;
+  }
+
   const link = ev.target.closest("a[data-parent-id]");
   if (!link) return;
 
+  const collapsedMini = isCollapsedMiniDesktop();
   const parentId = link.dataset.parentId || "";
   const sectionId = link.dataset.parentSection || "";
   if (parentId) {
     const willOpen = !state.openParents[parentId];
     collapseAllParents();
     if (willOpen) state.openParents[parentId] = true;
+  }
+
+  if (collapsedMini) {
+    renderMenu();
+    ev.preventDefault();
+    return;
   }
 
   if (sectionId) {
@@ -537,6 +557,20 @@ document.getElementById("menu").addEventListener("click", ev => {
     syncMenuAfterAnimation(false);
   }
   ev.preventDefault();
+});
+
+document.addEventListener("click", ev => {
+  if (!isCollapsedMiniDesktop()) return;
+  const menu = document.getElementById("menu");
+  const target = ev.target;
+  if (!menu || !(target instanceof Node)) return;
+  if (menu.contains(target)) return;
+
+  const hasOpen = Object.values(state.openParents).some(Boolean);
+  if (!hasOpen) return;
+
+  collapseAllParents();
+  renderMenu();
 });
 
 document.querySelectorAll("[data-lang]").forEach(btn => btn.addEventListener("click", () => {
