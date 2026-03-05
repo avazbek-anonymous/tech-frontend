@@ -322,7 +322,7 @@ function childLabel(section, parentLabel, fallbackGroupLabel = "") {
   return label;
 }
 
-function initMenuTooltips() {
+function destroyMenuTooltips() {
   const TooltipCtor = window.bootstrap && window.bootstrap.Tooltip ? window.bootstrap.Tooltip : null;
   if (!TooltipCtor) return;
 
@@ -330,6 +330,31 @@ function initMenuTooltips() {
   if (!menu) return;
 
   const links = menu.querySelectorAll(".nav-link[data-menu-title]");
+  links.forEach(link => {
+    const existing = TooltipCtor.getInstance(link);
+    if (existing) {
+      existing.hide();
+      existing.dispose();
+    }
+    link.removeAttribute("data-bs-title");
+    link.removeAttribute("data-bs-original-title");
+  });
+}
+
+function initMenuTooltips() {
+  const TooltipCtor = window.bootstrap && window.bootstrap.Tooltip ? window.bootstrap.Tooltip : null;
+  if (!TooltipCtor) return;
+
+  const menu = document.getElementById("menu");
+  if (!menu) return;
+
+  const hasOpenParent = !!menu.querySelector(":scope > .nav-item.menu-open");
+  if (!isCollapsedMiniDesktop() || hasOpenParent) {
+    destroyMenuTooltips();
+    return;
+  }
+
+  const links = menu.querySelectorAll(":scope > .nav-item > .nav-link[data-menu-title]");
   links.forEach(link => {
     const title = String(link.getAttribute("data-menu-title") || "").trim();
     if (!title) return;
@@ -340,7 +365,7 @@ function initMenuTooltips() {
     link.setAttribute("data-bs-title", title);
     new TooltipCtor(link, {
       container: "body",
-      trigger: "hover focus",
+      trigger: "hover",
       placement: "right",
       boundary: "viewport",
       delay: { show: 0, hide: 0 },
@@ -425,7 +450,7 @@ function renderBusinessTreeMenu(ul, perms) {
       const childLi = document.createElement("li");
       childLi.className = "nav-item";
       const childText = childLabel(child, parentLabel, parentGroupLabel);
-      childLi.innerHTML = `<a href="#${child.id}" class="nav-link ${state.activeSection === child.id ? "active" : ""}" data-menu-title="${esc(childText)}" aria-label="${esc(childText)}">
+      childLi.innerHTML = `<a href="#${child.id}" class="nav-link ${state.activeSection === child.id ? "active" : ""}" aria-label="${esc(childText)}">
         <i class="nav-icon bi ${child.icon}"></i><p>${esc(childText)}</p></a>`;
       tree.appendChild(childLi);
     }
@@ -575,6 +600,8 @@ window.addEventListener("hashchange", () => {
 });
 
 document.getElementById("menu").addEventListener("click", ev => {
+  if (isCollapsedMiniDesktop()) destroyMenuTooltips();
+
   const childLink = ev.target.closest(".nav-treeview .nav-link[href^='#']");
   if (childLink && isCollapsedMiniDesktop()) {
     state.skipAutoCollapse = true;
