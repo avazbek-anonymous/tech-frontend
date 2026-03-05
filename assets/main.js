@@ -322,6 +322,33 @@ function childLabel(section, parentLabel, fallbackGroupLabel = "") {
   return label;
 }
 
+function initMenuTooltips() {
+  const TooltipCtor = window.bootstrap && window.bootstrap.Tooltip ? window.bootstrap.Tooltip : null;
+  if (!TooltipCtor) return;
+
+  const menu = document.getElementById("menu");
+  if (!menu) return;
+
+  const links = menu.querySelectorAll(".nav-link[data-menu-title]");
+  links.forEach(link => {
+    const title = String(link.getAttribute("data-menu-title") || "").trim();
+    if (!title) return;
+
+    const existing = TooltipCtor.getInstance(link);
+    if (existing) existing.dispose();
+
+    link.setAttribute("data-bs-title", title);
+    new TooltipCtor(link, {
+      container: "body",
+      trigger: "hover focus",
+      placement: "right",
+      boundary: "viewport",
+      delay: { show: 0, hide: 0 },
+      offset: [0, 8]
+    });
+  });
+}
+
 function renderFlatMenu(ul, perms) {
   let currentGroupId = "";
   for (const s of state.sections) {
@@ -338,7 +365,7 @@ function renderFlatMenu(ul, perms) {
 
     const li = document.createElement("li");
     li.className = "nav-item";
-    li.innerHTML = `<a href="#${s.id}" class="nav-link ${state.activeSection === s.id ? "active" : ""}" title="${esc(sectionLabel(s))}" aria-label="${esc(sectionLabel(s))}">
+    li.innerHTML = `<a href="#${s.id}" class="nav-link ${state.activeSection === s.id ? "active" : ""}" data-menu-title="${esc(sectionLabel(s))}" aria-label="${esc(sectionLabel(s))}">
       <i class="nav-icon bi ${s.icon}"></i><p>${esc(sectionLabel(s))}</p></a>`;
     ul.appendChild(li);
   }
@@ -367,7 +394,7 @@ function renderBusinessTreeMenu(ul, perms) {
       const single = root || children[0];
       const li = document.createElement("li");
       li.className = "nav-item";
-      li.innerHTML = `<a href="#${single.id}" class="nav-link ${state.activeSection === single.id ? "active" : ""}" title="${esc(sectionLabel(single))}" aria-label="${esc(sectionLabel(single))}">
+      li.innerHTML = `<a href="#${single.id}" class="nav-link ${state.activeSection === single.id ? "active" : ""}" data-menu-title="${esc(sectionLabel(single))}" aria-label="${esc(sectionLabel(single))}">
         <i class="nav-icon bi ${single.icon}"></i><p>${esc(sectionLabel(single))}</p></a>`;
       ul.appendChild(li);
       continue;
@@ -385,7 +412,7 @@ function renderBusinessTreeMenu(ul, perms) {
 
     const li = document.createElement("li");
     li.className = `nav-item ${open ? "menu-open" : ""}`;
-    li.innerHTML = `<a href="${root ? `#${root.id}` : "#"}" class="nav-link ${parentActive ? "active" : ""}" title="${esc(parentLabel)}" aria-label="${esc(parentLabel)}" data-parent-id="${esc(groupId)}"${root ? ` data-parent-section="${esc(root.id)}"` : ""}>
+    li.innerHTML = `<a href="${root ? `#${root.id}` : "#"}" class="nav-link ${parentActive ? "active" : ""}" data-menu-title="${esc(parentLabel)}" aria-label="${esc(parentLabel)}" data-parent-id="${esc(groupId)}"${root ? ` data-parent-section="${esc(root.id)}"` : ""}>
       <i class="nav-icon bi ${parentIcon}"></i>
       <p><span class="menu-label">${esc(parentLabel)}</span><i class="nav-arrow bi bi-chevron-right"></i></p>
     </a>`;
@@ -398,7 +425,7 @@ function renderBusinessTreeMenu(ul, perms) {
       const childLi = document.createElement("li");
       childLi.className = "nav-item";
       const childText = childLabel(child, parentLabel, parentGroupLabel);
-      childLi.innerHTML = `<a href="#${child.id}" class="nav-link ${state.activeSection === child.id ? "active" : ""}" title="${esc(childText)}" aria-label="${esc(childText)}">
+      childLi.innerHTML = `<a href="#${child.id}" class="nav-link ${state.activeSection === child.id ? "active" : ""}" data-menu-title="${esc(childText)}" aria-label="${esc(childText)}">
         <i class="nav-icon bi ${child.icon}"></i><p>${esc(childText)}</p></a>`;
       tree.appendChild(childLi);
     }
@@ -415,10 +442,12 @@ function renderMenu() {
 
   if (state.roleScope === "business") {
     renderBusinessTreeMenu(ul, perms);
+    initMenuTooltips();
     if (isCollapsedMiniDesktop()) requestAnimationFrame(syncCollapsedFlyoutPosition);
     return;
   }
   renderFlatMenu(ul, perms);
+  initMenuTooltips();
 }
 
 function syncMenuAfterAnimation(runCurrent = false) {
