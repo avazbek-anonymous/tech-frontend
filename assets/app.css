@@ -153,6 +153,35 @@ body {
     opacity: 0;
     transform: translateX(-0.35rem);
   }
+
+  /* Disable AdminLTE hover-expand in collapsed mini mode.
+     Sidebar should open/close only via burger toggle. */
+  body.sidebar-mini.sidebar-collapse .app-sidebar:hover {
+    min-width: 4.6rem;
+    max-width: 4.6rem;
+  }
+
+  body.sidebar-mini.sidebar-collapse .app-sidebar:hover .sidebar-menu .nav-header {
+    display: none;
+  }
+
+  body.sidebar-mini.sidebar-collapse .app-sidebar:hover .sidebar-menu .nav-link {
+    width: 3.6rem;
+  }
+
+  body.sidebar-mini.sidebar-collapse .app-sidebar:hover .sidebar-menu .nav-link p,
+  body.sidebar-mini.sidebar-collapse .app-sidebar:hover .brand-text,
+  body.sidebar-mini.sidebar-collapse .app-sidebar:hover .logo-xl,
+  body.sidebar-mini.sidebar-collapse .app-sidebar:hover .nav-arrow,
+  body.sidebar-mini.sidebar-collapse .app-sidebar:hover .nav-badge {
+    visibility: hidden;
+    opacity: 0;
+  }
+
+  body.sidebar-mini.sidebar-collapse .app-sidebar:hover .logo-xs {
+    visibility: visible;
+    opacity: 1;
+  }
 }
 
 @media (max-width: 991.98px) {

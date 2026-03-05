@@ -86,6 +86,36 @@ function text(lang, key) {
   return pick(UI, lang, key);
 }
 
+function extraText(lang, key) {
+  const dict = {
+    ru: {
+      codeHint: "3-6 \u043b\u0430\u0442\u0438\u043d\u0441\u043a\u0438\u0445 \u0431\u0443\u043a\u0432, \u043d\u0430\u043f\u0440\u0438\u043c\u0435\u0440 USD",
+      nameHint: "\u041f\u043e\u043b\u043d\u043e\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435, \u043d\u0430\u043f\u0440\u0438\u043c\u0435\u0440 \u0414\u043e\u043b\u043b\u0430\u0440 \u0421\u0428\u0410",
+      codePlaceholder: "USD",
+      namePlaceholder: "\u0414\u043e\u043b\u043b\u0430\u0440 \u0421\u0428\u0410",
+      invalidCode: "\u041a\u043e\u0434 \u0432\u0430\u043b\u044e\u0442\u044b \u0434\u043e\u043b\u0436\u0435\u043d \u0441\u043e\u0434\u0435\u0440\u0436\u0430\u0442\u044c 3-6 \u043b\u0430\u0442\u0438\u043d\u0441\u043a\u0438\u0445 \u0431\u0443\u043a\u0432, \u043d\u0430\u043f\u0440\u0438\u043c\u0435\u0440 USD",
+      duplicateCode: "\u0412\u0430\u043b\u044e\u0442\u0430 \u0441 \u0442\u0430\u043a\u0438\u043c \u043a\u043e\u0434\u043e\u043c \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442"
+    },
+    uz: {
+      codeHint: "3-6 ta lotin harfi, masalan USD",
+      nameHint: "To'liq nomi, masalan AQSH dollari",
+      codePlaceholder: "USD",
+      namePlaceholder: "AQSH dollari",
+      invalidCode: "Valyuta kodi 3-6 ta lotin harfidan iborat bo'lishi kerak, masalan USD",
+      duplicateCode: "Bunday kodli valyuta allaqachon mavjud"
+    },
+    en: {
+      codeHint: "3-6 latin letters, for example USD",
+      nameHint: "Full name, for example US Dollar",
+      codePlaceholder: "USD",
+      namePlaceholder: "US Dollar",
+      invalidCode: "Currency code must contain 3-6 latin letters, for example USD",
+      duplicateCode: "A currency with this code already exists"
+    }
+  };
+  return pick(dict, lang, key);
+}
+
 function normalizeItem(item) {
   return {
     id: Number(item?.id || 0),
@@ -103,16 +133,40 @@ function filterItems(items, q) {
   return items.filter(item => [item.code, item.name].some(v => String(v || "").toLowerCase().includes(needle)));
 }
 
+function isValidCode(code) {
+  return /^[A-Z]{3,6}$/.test(String(code || "").trim().toUpperCase());
+}
+
+function mapSaveError(lang, error) {
+  const msg = String(error?.message || error || "");
+  if (msg === "code must be 3-6 latin letters") return extraText(lang, "invalidCode");
+  if (msg === "Required: code" || msg === "code cannot be empty") return text(lang, "requiredCode");
+  if (msg === "rate must be > 0") return text(lang, "requiredRate");
+  if (msg === "Code already exists") return extraText(lang, "duplicateCode");
+  return msg;
+}
+
 function modalHtml(lang, item) {
   return `
     <div class="row g-3">
       <div class="col-md-4">
         <label class="form-label">${esc(text(lang, "code"))}</label>
-        <input class="form-control text-uppercase" name="code" value="${esc(item?.code || "")}" maxlength="6">
+        <input
+          class="form-control text-uppercase"
+          name="code"
+          value="${esc(item?.code || "")}"
+          maxlength="6"
+          placeholder="${esc(extraText(lang, "codePlaceholder"))}"
+          inputmode="text"
+          autocomplete="off"
+          autocapitalize="characters"
+          spellcheck="false">
+        <div class="form-text">${esc(extraText(lang, "codeHint"))}</div>
       </div>
       <div class="col-md-8">
         <label class="form-label">${esc(text(lang, "name"))}</label>
-        <input class="form-control" name="name" value="${esc(item?.name || "")}">
+        <input class="form-control" name="name" value="${esc(item?.name || "")}" placeholder="${esc(extraText(lang, "namePlaceholder"))}">
+        <div class="form-text">${esc(extraText(lang, "nameHint"))}</div>
       </div>
       <div class="col-md-6">
         <label class="form-label">${esc(text(lang, "rate"))}</label>
@@ -224,21 +278,26 @@ async function openEntityModal(ctx, item) {
     onSave: async (modalEl) => {
       const payload = readForm(modalEl);
       if (!payload.code) throw new Error(text(lang, "requiredCode"));
+      if (!isValidCode(payload.code)) throw new Error(extraText(lang, "invalidCode"));
       if (!(payload.rate > 0)) throw new Error(text(lang, "requiredRate"));
       if (!payload.name) payload.name = payload.code;
 
-      if (isCreate) {
-        await api("/currencies", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-      } else {
-        await api(`/currencies/${item.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
+      try {
+        if (isCreate) {
+          await api("/currencies", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+        } else {
+          await api(`/currencies/${item.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+        }
+      } catch (e) {
+        throw new Error(mapSaveError(lang, e));
       }
 
       await render(ctx);
