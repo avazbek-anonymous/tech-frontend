@@ -248,7 +248,11 @@ function paintControls() {
     b.classList.toggle("btn-secondary", b.dataset.theme === theme);
     b.classList.toggle("btn-outline-secondary", b.dataset.theme !== theme);
   });
-  document.getElementById("logoutBtn").title = t("logout");
+  const logoutLabel = t("logout");
+  document.querySelectorAll("[data-logout-btn]").forEach(btn => {
+    btn.title = logoutLabel;
+    btn.setAttribute("aria-label", logoutLabel);
+  });
 }
 
 function collapseAllParents() {
@@ -570,7 +574,10 @@ async function bootstrap() {
     return;
   }
 
-  document.getElementById("who").textContent = `${state.me.full_name} (${state.me.role})`;
+  const whoText = `${state.me.full_name} (${state.me.role})`;
+  document.querySelectorAll("[data-who-badge]").forEach(badge => {
+    badge.textContent = whoText;
+  });
   state.activeSection = resolveSectionByHash();
   if (!state.activeSection) {
     renderMenu();
@@ -695,9 +702,10 @@ document.querySelectorAll("[data-theme]").forEach(btn => btn.addEventListener("c
   paintControls();
 }));
 
-document.getElementById("logoutBtn").addEventListener("click", () => {
+document.querySelectorAll("[data-logout-btn]").forEach(btn => btn.addEventListener("click", () => {
   localStorage.removeItem("tech_token");
   location.href = "/auth/login.html";
-});
+}));
 
 bootstrap();
+

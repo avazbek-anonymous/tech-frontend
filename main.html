@@ -19,7 +19,7 @@
           </li>
           <li class="nav-item d-none d-md-block"><span class="nav-link fw-semibold" id="appTitle">GEKTO Tech</span></li>
         </ul>
-        <ul class="navbar-nav ms-auto align-items-center">
+        <ul class="navbar-nav ms-auto align-items-center header-controls">
           <li class="nav-item me-2 lang-group">
             <div class="btn-group btn-group-sm" role="group">
               <button class="btn btn-outline-secondary" data-lang="ru">RU</button>
@@ -33,8 +33,8 @@
               <button class="btn btn-outline-secondary" data-theme="dark"><i class="bi bi-moon"></i></button>
             </div>
           </li>
-          <li class="nav-item me-2"><span class="badge text-bg-secondary" id="who"></span></li>
-          <li class="nav-item"><button class="btn btn-sm btn-outline-danger" id="logoutBtn"><i class="bi bi-box-arrow-right"></i></button></li>
+          <li class="nav-item me-2"><span class="badge text-bg-secondary" id="who" data-who-badge></span></li>
+          <li class="nav-item"><button class="btn btn-sm btn-outline-danger" id="logoutBtn" data-logout-btn><i class="bi bi-box-arrow-right"></i></button></li>
         </ul>
       </div>
     </nav>
@@ -49,6 +49,26 @@
         <nav class="mt-2">
           <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" id="menu"></ul>
         </nav>
+        <div class="mobile-sidebar-controls d-lg-none">
+          <div class="mobile-controls-title">Control Panel</div>
+          <div class="mobile-controls-section">
+            <div class="btn-group btn-group-sm w-100" role="group" aria-label="Language">
+              <button class="btn btn-outline-secondary" data-lang="ru">RU</button>
+              <button class="btn btn-outline-secondary" data-lang="uz">UZ</button>
+              <button class="btn btn-outline-secondary" data-lang="en">EN</button>
+            </div>
+          </div>
+          <div class="mobile-controls-section">
+            <div class="btn-group btn-group-sm w-100" role="group" aria-label="Theme">
+              <button class="btn btn-outline-secondary" data-theme="light"><i class="bi bi-sun"></i></button>
+              <button class="btn btn-outline-secondary" data-theme="dark"><i class="bi bi-moon"></i></button>
+            </div>
+          </div>
+          <div class="mobile-controls-user d-flex align-items-center gap-2">
+            <span class="badge text-bg-secondary flex-grow-1 text-truncate" id="whoMobile" data-who-badge></span>
+            <button class="btn btn-sm btn-outline-danger" id="logoutBtnMobile" data-logout-btn><i class="bi bi-box-arrow-right"></i></button>
+          </div>
+        </div>
       </div>
     </aside>
 
