@@ -22,6 +22,7 @@ const GROUPS = {
 export const LEVEL1_SECTIONS = [
   { id: "dashboard", icon: "bi-speedometer2", key: "dashboard", module: "/assets/pages/dashboard.js", groupId: "gekto", group: GROUPS.GEKTO },
   { id: "businesses", icon: "bi-buildings", key: "businesses", module: "/assets/pages/businesses.js", groupId: "gekto", group: GROUPS.GEKTO },
+  { id: "business_settings", icon: "bi-sliders2", label: tr("Настройки бизнесов", "Biznes sozlamalari", "Business settings"), module: "/assets/pages/settings-business.js", groupId: "gekto", group: GROUPS.GEKTO, allowedRoles: ["super_admin"] },
   { id: "reports", icon: "bi-bar-chart", key: "reportsAccess", module: "/assets/pages/reports.js", groupId: "gekto", group: GROUPS.GEKTO },
   { id: "payments", icon: "bi-cash-stack", key: "payments", module: "/assets/pages/payments.js", groupId: "gekto", group: GROUPS.GEKTO },
   { id: "calendar", icon: "bi-calendar3", key: "calendar", module: "/assets/pages/calendar.js", groupId: "gekto", group: GROUPS.GEKTO },
@@ -65,7 +66,6 @@ export const LEVEL2_SECTIONS = [
 
   { id: "settings_users", icon: "bi-people", label: tr("Настройки: Пользователи", "Sozlamalar: Foydalanuvchilar", "Settings: Users"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
   { id: "settings_roles", icon: "bi-shield-check", label: tr("Настройки: Роли", "Sozlamalar: Rollar", "Settings: Roles"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
-  { id: "settings_business", icon: "bi-sliders2", label: tr("Настройки: Бизнес", "Sozlamalar: Biznes", "Settings: Business"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
   { id: "settings_filials", icon: "bi-diagram-3", label: tr("Настройки: Филиалы", "Sozlamalar: Filiallar", "Settings: Branches"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
   { id: "settings_cash_accounts", icon: "bi-wallet", label: tr("Настройки: Кассы", "Sozlamalar: Kassalar", "Settings: Cash desks"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
   { id: "settings_warehouses", icon: "bi-building", label: tr("Настройки: Склады", "Sozlamalar: Omborlar", "Settings: Warehouses"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },

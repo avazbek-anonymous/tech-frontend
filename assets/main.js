@@ -33,9 +33,9 @@ const SECTION_OVERRIDES = {
   counterparties_clients: { module: "/assets/pages/counterparties.js" },
   nomenclature_categories: { module: "/assets/pages/nomenclature-categories.js" },
   nomenclature_products: { module: "/assets/pages/nomenclature-products.js" },
+  business_settings: { module: "/assets/pages/settings-business.js" },
   settings_users: { module: "/assets/pages/settings-users.js" },
   settings_roles: { module: "/assets/pages/roles.js" },
-  settings_business: { module: "/assets/pages/settings-business.js" },
   settings_filials: { module: "/assets/pages/settings-filials.js" },
   settings_cash_accounts: { module: "/assets/pages/settings-cash-accounts.js" },
   settings_warehouses: { module: "/assets/pages/settings-warehouses.js" },
@@ -104,6 +104,11 @@ function getSectionsForRole(role) {
 function accessFor(role) {
   const permissions = {};
   for (const s of state.sections) {
+    if (Array.isArray(s.allowedRoles) && !s.allowedRoles.includes(role)) {
+      permissions[s.id] = { read: false, write: false };
+      continue;
+    }
+
     if (state.roleScope !== "business") {
       permissions[s.id] = {
         read: true,

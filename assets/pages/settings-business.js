@@ -3,14 +3,18 @@ import {
   errorHtml,
   langOf,
   noAccessHtml,
-  pick
+  pick,
+  queueRerender
 } from "./settings-utils.js";
 
 const UI = {
   ru: {
-    title: "Настройки: Бизнес",
-    subtitle: "Включение разделов, сущностей и реквизитов для конкретного бизнеса",
-    noAccess: "Раздел доступен только владельцу бизнеса",
+    title: "Настройки бизнесов",
+    subtitle: "Выберите бизнес и настройте разделы, сущности и реквизиты",
+    noAccess: "Раздел доступен только super_admin",
+    business: "Бизнес",
+    businessRequired: "Сначала выберите бизнес",
+    reload: "Обновить",
     sections: "Разделы и подразделы",
     entities: "Справочники и документы",
     fields: "Реквизиты",
@@ -25,19 +29,23 @@ const UI = {
     list: "Список",
     filters: "Фильтры",
     card: "Карточка",
-    comments: "Комментарии (RU / UZ / EN)",
+    comment: "Комментарий",
     dictionary: "Справочник",
     document: "Документ",
     saveSections: "Сохранить разделы",
     saveEntities: "Сохранить сущности",
     saveFields: "Сохранить реквизиты",
     selectEntity: "Выберите сущность",
+    all: "Все",
     allSaved: "Изменения сохранены"
   },
   uz: {
-    title: "Sozlamalar: Biznes",
-    subtitle: "Muayyan biznes uchun bo'limlar, obyektlar va rekvizitlarni boshqarish",
-    noAccess: "Bo'lim faqat biznes egasi uchun ochiq",
+    title: "Biznes sozlamalari",
+    subtitle: "Biznesni tanlang va bo'limlar, obyektlar hamda rekvizitlarni sozlang",
+    noAccess: "Bo'lim faqat super_admin uchun ochiq",
+    business: "Biznes",
+    businessRequired: "Avval biznesni tanlang",
+    reload: "Yangilash",
     sections: "Bo'limlar va ichki bo'limlar",
     entities: "Ma'lumotnomalar va hujjatlar",
     fields: "Rekvizitlar",
@@ -52,19 +60,23 @@ const UI = {
     list: "Ro'yxat",
     filters: "Filtrlar",
     card: "Karta",
-    comments: "Izohlar (RU / UZ / EN)",
+    comment: "Izoh",
     dictionary: "Ma'lumotnoma",
     document: "Hujjat",
     saveSections: "Bo'limlarni saqlash",
     saveEntities: "Obyektlarni saqlash",
     saveFields: "Rekvizitlarni saqlash",
     selectEntity: "Obyektni tanlang",
+    all: "Barchasi",
     allSaved: "O'zgarishlar saqlandi"
   },
   en: {
-    title: "Settings: Business",
-    subtitle: "Configure sections, entities, and fields for a specific business",
-    noAccess: "Section is available only to business owner",
+    title: "Business settings",
+    subtitle: "Select business and configure sections, entities, and fields",
+    noAccess: "Section is available only to super_admin",
+    business: "Business",
+    businessRequired: "Select a business first",
+    reload: "Reload",
     sections: "Sections and subsections",
     entities: "Dictionaries and documents",
     fields: "Fields",
@@ -79,15 +91,22 @@ const UI = {
     list: "List",
     filters: "Filters",
     card: "Card",
-    comments: "Comments (RU / UZ / EN)",
+    comment: "Comment",
     dictionary: "Dictionary",
     document: "Document",
     saveSections: "Save sections",
     saveEntities: "Save entities",
     saveFields: "Save fields",
     selectEntity: "Select entity",
+    all: "All",
     allSaved: "Changes saved"
   }
+};
+
+const LANG_KEY_BY_CODE = {
+  ru: "comment_ru",
+  uz: "comment_uz",
+  en: "comment_en"
 };
 
 function text(lang, key) {
@@ -100,52 +119,180 @@ function trLabel(value, lang) {
   return value[lang] || value.ru || value.en || "";
 }
 
-function sectionRowsHtml(sections, lang) {
-  return sections.map(item => `
-    <tr>
-      <td class="small text-muted">${esc(trLabel(item.group_label, lang) || "-")}</td>
-      <td>${esc(trLabel(item.label, lang) || item.section_id)}</td>
-      <td class="text-center">
-        <input class="form-check-input" type="checkbox" data-section-enabled="${esc(item.section_id)}" ${Number(item.is_enabled) === 1 ? "checked" : ""} ${Number(item.locked) === 1 ? "disabled" : ""}>
-      </td>
-    </tr>
-  `).join("");
+function sortSections(items, lang) {
+  return (items || []).slice().sort((a, b) => {
+    const ga = trLabel(a.group_label, lang);
+    const gb = trLabel(b.group_label, lang);
+    if (ga !== gb) return ga.localeCompare(gb);
+    return trLabel(a.label, lang).localeCompare(trLabel(b.label, lang));
+  });
 }
 
-function entityRowsHtml(entities, lang) {
-  return entities.map(item => `
-    <tr>
-      <td>${esc(trLabel(item.label, lang) || item.entity_key)}</td>
-      <td class="small text-muted">${esc(item.entity_type === "document" ? text(lang, "document") : text(lang, "dictionary"))}</td>
-      <td class="text-center">
-        <input class="form-check-input" type="checkbox" data-entity-enabled="${esc(item.entity_key)}" ${Number(item.is_enabled) === 1 ? "checked" : ""}>
-      </td>
-    </tr>
-  `).join("");
+function sortEntities(items, lang) {
+  return (items || []).slice().sort((a, b) => {
+    if (a.entity_type !== b.entity_type) return a.entity_type.localeCompare(b.entity_type);
+    return trLabel(a.label, lang).localeCompare(trLabel(b.label, lang));
+  });
 }
 
-function fieldRowsHtml(fields, lang) {
-  return fields.map(item => `
-    <tr data-field-row="${esc(item.field_key)}">
-      <td>
-        <div class="fw-semibold">${esc(trLabel(item.label, lang) || item.field_key)}</div>
-        <div class="small text-muted">${esc(item.field_key)}</div>
-      </td>
-      <td class="text-center"><input class="form-check-input" type="checkbox" data-field-enabled ${Number(item.is_enabled) === 1 ? "checked" : ""}></td>
-      <td class="text-center"><input class="form-check-input" type="checkbox" data-field-required ${Number(item.is_required) === 1 ? "checked" : ""}></td>
-      <td class="text-center"><input class="form-check-input" type="checkbox" data-field-form ${Number(item.show_in_form) === 1 ? "checked" : ""}></td>
-      <td class="text-center"><input class="form-check-input" type="checkbox" data-field-list ${Number(item.show_in_list) === 1 ? "checked" : ""}></td>
-      <td class="text-center"><input class="form-check-input" type="checkbox" data-field-filters ${Number(item.show_in_filters) === 1 ? "checked" : ""}></td>
-      <td class="text-center"><input class="form-check-input" type="checkbox" data-field-card ${Number(item.show_in_card) === 1 ? "checked" : ""}></td>
-      <td style="min-width:340px">
-        <div class="d-grid gap-1">
-          <input class="form-control form-control-sm" data-comment-ru value="${esc(item.comment_ru || "")}" placeholder="RU">
-          <input class="form-control form-control-sm" data-comment-uz value="${esc(item.comment_uz || "")}" placeholder="UZ">
-          <input class="form-control form-control-sm" data-comment-en value="${esc(item.comment_en || "")}" placeholder="EN">
-        </div>
-      </td>
-    </tr>
-  `).join("");
+function sectionsTableHtml(sections, lang) {
+  return `
+    <table class="table table-sm align-middle mb-0 biz-settings-table">
+      <thead>
+        <tr>
+          <th>${esc(text(lang, "group"))}</th>
+          <th>${esc(text(lang, "section"))}</th>
+          <th class="text-center biz-check-col">
+            <div class="biz-master-head">
+              <span>${esc(text(lang, "enabled"))}</span>
+              <label class="biz-master-toggle">
+                <input class="form-check-input" type="checkbox" data-master="section-enabled">
+                <span>${esc(text(lang, "all"))}</span>
+              </label>
+            </div>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sections.map(item => `
+          <tr>
+            <td class="small text-muted">${esc(trLabel(item.group_label, lang) || "-")}</td>
+            <td>${esc(trLabel(item.label, lang) || item.section_id)}</td>
+            <td class="text-center">
+              <input class="form-check-input" type="checkbox" data-section-enabled="${esc(item.section_id)}" ${Number(item.is_enabled) === 1 ? "checked" : ""} ${Number(item.locked) === 1 ? "disabled" : ""}>
+            </td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function entitiesTableHtml(entities, lang) {
+  return `
+    <table class="table table-sm align-middle mb-0 biz-settings-table">
+      <thead>
+        <tr>
+          <th>${esc(text(lang, "object"))}</th>
+          <th class="biz-type-col">${esc(text(lang, "objectType"))}</th>
+          <th class="text-center biz-check-col">
+            <div class="biz-master-head">
+              <span>${esc(text(lang, "enabled"))}</span>
+              <label class="biz-master-toggle">
+                <input class="form-check-input" type="checkbox" data-master="entity-enabled">
+                <span>${esc(text(lang, "all"))}</span>
+              </label>
+            </div>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        ${entities.map(item => `
+          <tr>
+            <td>${esc(trLabel(item.label, lang) || item.entity_key)}</td>
+            <td class="small text-muted">${esc(item.entity_type === "document" ? text(lang, "document") : text(lang, "dictionary"))}</td>
+            <td class="text-center">
+              <input class="form-check-input" type="checkbox" data-entity-enabled="${esc(item.entity_key)}" ${Number(item.is_enabled) === 1 ? "checked" : ""}>
+            </td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function fieldsTableHtml(fields, lang) {
+  return `
+    <table class="table table-sm align-middle mb-0 biz-settings-table">
+      <thead>
+        <tr>
+          <th>${esc(text(lang, "field"))}</th>
+          ${masterHead(lang, "enabled", "field-enabled")}
+          ${masterHead(lang, "required", "field-required")}
+          ${masterHead(lang, "form", "field-form")}
+          ${masterHead(lang, "list", "field-list")}
+          ${masterHead(lang, "filters", "field-filters")}
+          ${masterHead(lang, "card", "field-card")}
+          <th class="biz-comment-col">${esc(text(lang, "comment"))}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${fields.map(item => `
+          <tr data-field-row="${esc(item.field_key)}">
+            <td class="biz-field-name">
+              <div class="fw-semibold">${esc(trLabel(item.label, lang) || item.field_key)}</div>
+              <div class="small text-muted">${esc(item.field_key)}</div>
+            </td>
+            <td class="text-center"><input class="form-check-input" type="checkbox" data-field-enabled ${Number(item.is_enabled) === 1 ? "checked" : ""}></td>
+            <td class="text-center"><input class="form-check-input" type="checkbox" data-field-required ${Number(item.is_required) === 1 ? "checked" : ""}></td>
+            <td class="text-center"><input class="form-check-input" type="checkbox" data-field-form ${Number(item.show_in_form) === 1 ? "checked" : ""}></td>
+            <td class="text-center"><input class="form-check-input" type="checkbox" data-field-list ${Number(item.show_in_list) === 1 ? "checked" : ""}></td>
+            <td class="text-center"><input class="form-check-input" type="checkbox" data-field-filters ${Number(item.show_in_filters) === 1 ? "checked" : ""}></td>
+            <td class="text-center"><input class="form-check-input" type="checkbox" data-field-card ${Number(item.show_in_card) === 1 ? "checked" : ""}></td>
+            <td>
+              <input class="form-control form-control-sm" data-field-comment value="${esc(commentValue(item, lang))}">
+            </td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function masterHead(lang, titleKey, masterKey) {
+  return `
+    <th class="text-center biz-check-col">
+      <div class="biz-master-head">
+        <span>${esc(text(lang, titleKey))}</span>
+        <label class="biz-master-toggle">
+          <input class="form-check-input" type="checkbox" data-master="${esc(masterKey)}">
+          <span>${esc(text(lang, "all"))}</span>
+        </label>
+      </div>
+    </th>
+  `;
+}
+
+function commentValue(item, lang) {
+  const key = LANG_KEY_BY_CODE[lang] || "comment_ru";
+  return item?.[key] || "";
+}
+
+function bindMaster(viewEl, masterKey, itemSelector) {
+  const master = viewEl.querySelector(`[data-master="${masterKey}"]`);
+  if (!master) return;
+
+  const getItems = () => Array.from(viewEl.querySelectorAll(itemSelector)).filter(item => !item.disabled);
+
+  const sync = () => {
+    const items = getItems();
+    if (!items.length) {
+      master.checked = false;
+      master.indeterminate = false;
+      master.disabled = true;
+      return;
+    }
+
+    const checked = items.filter(item => item.checked).length;
+    master.disabled = false;
+    master.checked = checked === items.length;
+    master.indeterminate = checked > 0 && checked < items.length;
+  };
+
+  master.addEventListener("change", () => {
+    const items = getItems();
+    const checked = master.checked;
+    items.forEach(item => {
+      item.checked = checked;
+    });
+    sync();
+  });
+
+  getItems().forEach(item => {
+    item.addEventListener("change", sync);
+  });
+
+  sync();
 }
 
 function collectSectionPayload(viewEl) {
@@ -162,20 +309,63 @@ function collectEntityPayload(viewEl) {
   }));
 }
 
-function collectFieldPayload(viewEl, entityKey) {
-  return Array.from(viewEl.querySelectorAll("[data-field-row]")).map(row => ({
-    entity_key: entityKey,
-    field_key: String(row.dataset.fieldRow || ""),
-    is_enabled: row.querySelector("[data-field-enabled]")?.checked ? 1 : 0,
-    is_required: row.querySelector("[data-field-required]")?.checked ? 1 : 0,
-    show_in_form: row.querySelector("[data-field-form]")?.checked ? 1 : 0,
-    show_in_list: row.querySelector("[data-field-list]")?.checked ? 1 : 0,
-    show_in_filters: row.querySelector("[data-field-filters]")?.checked ? 1 : 0,
-    show_in_card: row.querySelector("[data-field-card]")?.checked ? 1 : 0,
-    comment_ru: row.querySelector("[data-comment-ru]")?.value || "",
-    comment_uz: row.querySelector("[data-comment-uz]")?.value || "",
-    comment_en: row.querySelector("[data-comment-en]")?.value || ""
-  }));
+function collectFieldPayload(viewEl, entityKey, fieldsByKey, lang) {
+  return Array.from(viewEl.querySelectorAll("[data-field-row]")).map(row => {
+    const fieldKey = String(row.dataset.fieldRow || "");
+    const current = fieldsByKey.get(fieldKey) || {};
+    const comment = String(row.querySelector("[data-field-comment]")?.value || "").trim();
+
+    const item = {
+      entity_key: entityKey,
+      field_key: fieldKey,
+      is_enabled: row.querySelector("[data-field-enabled]")?.checked ? 1 : 0,
+      is_required: row.querySelector("[data-field-required]")?.checked ? 1 : 0,
+      show_in_form: row.querySelector("[data-field-form]")?.checked ? 1 : 0,
+      show_in_list: row.querySelector("[data-field-list]")?.checked ? 1 : 0,
+      show_in_filters: row.querySelector("[data-field-filters]")?.checked ? 1 : 0,
+      show_in_card: row.querySelector("[data-field-card]")?.checked ? 1 : 0,
+      comment_ru: current.comment_ru || "",
+      comment_uz: current.comment_uz || "",
+      comment_en: current.comment_en || ""
+    };
+
+    const commentKey = LANG_KEY_BY_CODE[lang] || "comment_ru";
+    item[commentKey] = comment;
+    return item;
+  });
+}
+
+function chooseBusinessId(viewEl, businesses) {
+  const fromView = Number(viewEl.getAttribute("data-business-id") || 0);
+  const fromStore = Number(localStorage.getItem("settings_business_target_id") || 0);
+  const ids = new Set((businesses || []).map(item => Number(item.id)));
+
+  if (ids.has(fromView)) return fromView;
+  if (ids.has(fromStore)) return fromStore;
+  return Number((businesses && businesses[0] && businesses[0].id) || 0);
+}
+
+async function loadBusinessSettings(api, businessId) {
+  return api(`/business-settings?business_id=${businessId}`);
+}
+
+function setupMasters(viewEl) {
+  bindMaster(viewEl, "section-enabled", "[data-section-enabled]");
+  bindMaster(viewEl, "entity-enabled", "[data-entity-enabled]");
+  bindMaster(viewEl, "field-enabled", "[data-field-enabled]");
+  bindMaster(viewEl, "field-required", "[data-field-required]");
+  bindMaster(viewEl, "field-form", "[data-field-form]");
+  bindMaster(viewEl, "field-list", "[data-field-list]");
+  bindMaster(viewEl, "field-filters", "[data-field-filters]");
+  bindMaster(viewEl, "field-card", "[data-field-card]");
+}
+
+function saveState(viewEl, businessId, entityKey) {
+  viewEl.setAttribute("data-business-id", String(businessId || ""));
+  viewEl.setAttribute("data-entity", String(entityKey || ""));
+  if (businessId) {
+    localStorage.setItem("settings_business_target_id", String(businessId));
+  }
 }
 
 export async function render(ctx) {
@@ -184,112 +374,106 @@ export async function render(ctx) {
 
   page(text(lang, "title"), text(lang, "subtitle"), { raw: true });
 
-  if (String(state?.me?.role || "") !== "business_owner") {
+  if (String(state?.me?.role || "") !== "super_admin") {
     viewEl.innerHTML = noAccessHtml(text(lang, "noAccess"));
     return;
   }
 
-  let resp;
+  let businesses;
   try {
-    resp = await api("/business-settings");
+    const resp = await api("/gekto/businesses");
+    businesses = resp.items || [];
   } catch (e) {
     viewEl.innerHTML = errorHtml(String(e?.message || e));
     return;
   }
 
-  const sections = (resp.sections || []).slice().sort((a, b) => {
-    const ga = trLabel(a.group_label, lang);
-    const gb = trLabel(b.group_label, lang);
-    if (ga !== gb) return ga.localeCompare(gb);
-    return trLabel(a.label, lang).localeCompare(trLabel(b.label, lang));
-  });
+  const businessId = chooseBusinessId(viewEl, businesses);
+  const selectedBusiness = businesses.find(item => Number(item.id) === Number(businessId)) || null;
 
-  const entities = (resp.entities || []).slice().sort((a, b) => {
-    if (a.entity_type !== b.entity_type) return a.entity_type.localeCompare(b.entity_type);
-    return trLabel(a.label, lang).localeCompare(trLabel(b.label, lang));
-  });
+  if (!selectedBusiness) {
+    viewEl.innerHTML = errorHtml(text(lang, "businessRequired"));
+    return;
+  }
 
-  const allFields = resp.fields || [];
+  let settingsResp;
+  try {
+    settingsResp = await loadBusinessSettings(api, businessId);
+  } catch (e) {
+    viewEl.innerHTML = errorHtml(String(e?.message || e));
+    return;
+  }
+
+  const sections = sortSections(settingsResp.sections || [], lang);
+  const entities = sortEntities(settingsResp.entities || [], lang);
+  const allFields = settingsResp.fields || [];
+
   const selectedEntity = viewEl.getAttribute("data-entity") || entities[0]?.entity_key || "";
-  const entityFields = allFields.filter(item => item.entity_key === selectedEntity);
+  const fields = allFields.filter(item => item.entity_key === selectedEntity);
+  const fieldsByKey = new Map(fields.map(item => [String(item.field_key), item]));
+
+  saveState(viewEl, businessId, selectedEntity);
 
   viewEl.innerHTML = `
-    <div id="settings_business_msg" class="small text-success mb-2"></div>
+    <div class="biz-settings-page">
+      <div id="settings_business_msg" class="small text-success mb-2"></div>
 
-    <div class="card mb-3">
-      <div class="card-header d-flex align-items-center justify-content-between gap-2">
-        <div class="fw-semibold">${esc(text(lang, "sections"))}</div>
-        <button class="btn btn-sm btn-primary" id="settings_business_save_sections">${esc(text(lang, "saveSections"))}</button>
-      </div>
-      <div class="card-body table-wrap">
-        <table class="table table-sm align-middle mb-0">
-          <thead>
-            <tr>
-              <th>${esc(text(lang, "group"))}</th>
-              <th>${esc(text(lang, "section"))}</th>
-              <th class="text-center" style="width:120px">${esc(text(lang, "enabled"))}</th>
-            </tr>
-          </thead>
-          <tbody>${sectionRowsHtml(sections, lang)}</tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="card mb-3">
-      <div class="card-header d-flex align-items-center justify-content-between gap-2">
-        <div class="fw-semibold">${esc(text(lang, "entities"))}</div>
-        <button class="btn btn-sm btn-primary" id="settings_business_save_entities">${esc(text(lang, "saveEntities"))}</button>
-      </div>
-      <div class="card-body table-wrap">
-        <table class="table table-sm align-middle mb-0">
-          <thead>
-            <tr>
-              <th>${esc(text(lang, "object"))}</th>
-              <th style="width:160px">${esc(text(lang, "objectType"))}</th>
-              <th class="text-center" style="width:120px">${esc(text(lang, "enabled"))}</th>
-            </tr>
-          </thead>
-          <tbody>${entityRowsHtml(entities, lang)}</tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
-        <div class="fw-semibold">${esc(text(lang, "fields"))}</div>
-        <div class="d-flex align-items-center gap-2">
-          <select class="form-select form-select-sm" id="settings_business_entity_select">
-            ${entities.map(item => `
-              <option value="${esc(item.entity_key)}" ${item.entity_key === selectedEntity ? "selected" : ""}>
-                ${esc(trLabel(item.label, lang) || item.entity_key)}
-              </option>
-            `).join("")}
-          </select>
-          <button class="btn btn-sm btn-primary" id="settings_business_save_fields">${esc(text(lang, "saveFields"))}</button>
+      <div class="card biz-settings-hero mb-3">
+        <div class="card-body">
+          <div class="biz-settings-hero-row">
+            <div class="biz-settings-business-block">
+              <label class="form-label mb-1">${esc(text(lang, "business"))}</label>
+              <select id="settings_business_select" class="form-select">
+                ${businesses.map(item => `
+                  <option value="${item.id}" ${Number(item.id) === Number(businessId) ? "selected" : ""}>
+                    #${item.id} - ${esc(item.name || "")}
+                  </option>
+                `).join("")}
+              </select>
+            </div>
+            <button class="btn btn-outline-secondary" id="settings_business_reload">${esc(text(lang, "reload"))}</button>
+          </div>
         </div>
       </div>
-      <div class="card-body table-wrap">
-        <table class="table table-sm align-middle mb-0">
-          <thead>
-            <tr>
-              <th>${esc(text(lang, "field"))}</th>
-              <th class="text-center">${esc(text(lang, "enabled"))}</th>
-              <th class="text-center">${esc(text(lang, "required"))}</th>
-              <th class="text-center">${esc(text(lang, "form"))}</th>
-              <th class="text-center">${esc(text(lang, "list"))}</th>
-              <th class="text-center">${esc(text(lang, "filters"))}</th>
-              <th class="text-center">${esc(text(lang, "card"))}</th>
-              <th>${esc(text(lang, "comments"))}</th>
-            </tr>
-          </thead>
-          <tbody>${fieldRowsHtml(entityFields, lang)}</tbody>
-        </table>
+
+      <div class="card mb-3">
+        <div class="card-header biz-settings-card-head">
+          <div class="fw-semibold">${esc(text(lang, "sections"))}</div>
+          <button class="btn btn-sm btn-primary" id="settings_business_save_sections">${esc(text(lang, "saveSections"))}</button>
+        </div>
+        <div class="card-body table-wrap">${sectionsTableHtml(sections, lang)}</div>
+      </div>
+
+      <div class="card mb-3">
+        <div class="card-header biz-settings-card-head">
+          <div class="fw-semibold">${esc(text(lang, "entities"))}</div>
+          <button class="btn btn-sm btn-primary" id="settings_business_save_entities">${esc(text(lang, "saveEntities"))}</button>
+        </div>
+        <div class="card-body table-wrap">${entitiesTableHtml(entities, lang)}</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header biz-settings-card-head biz-settings-fields-head">
+          <div class="fw-semibold">${esc(text(lang, "fields"))}</div>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <select class="form-select form-select-sm biz-entity-select" id="settings_business_entity_select">
+              ${entities.map(item => `
+                <option value="${esc(item.entity_key)}" ${item.entity_key === selectedEntity ? "selected" : ""}>
+                  ${esc(trLabel(item.label, lang) || item.entity_key)}
+                </option>
+              `).join("")}
+            </select>
+            <button class="btn btn-sm btn-primary" id="settings_business_save_fields">${esc(text(lang, "saveFields"))}</button>
+          </div>
+        </div>
+        <div class="card-body table-wrap">${fieldsTableHtml(fields, lang)}</div>
       </div>
     </div>
   `;
 
-  const msgEl = document.getElementById("settings_business_msg");
+  setupMasters(viewEl);
 
+  const msgEl = document.getElementById("settings_business_msg");
   const showSaved = () => {
     msgEl.textContent = text(lang, "allSaved");
     clearTimeout(viewEl.__settingsBizMsgTimer);
@@ -298,9 +482,19 @@ export async function render(ctx) {
     }, 1800);
   };
 
+  document.getElementById("settings_business_select").addEventListener("change", (ev) => {
+    const nextBusinessId = Number(ev.target.value || 0);
+    saveState(viewEl, nextBusinessId, "");
+    queueRerender(viewEl, "__settingsBizRenderTimer", () => render(ctx), 0);
+  });
+
+  document.getElementById("settings_business_reload").addEventListener("click", () => {
+    queueRerender(viewEl, "__settingsBizRenderTimer", () => render(ctx), 0);
+  });
+
   document.getElementById("settings_business_entity_select").addEventListener("change", (ev) => {
-    viewEl.setAttribute("data-entity", ev.target.value);
-    render(ctx);
+    saveState(viewEl, businessId, ev.target.value || "");
+    queueRerender(viewEl, "__settingsBizRenderTimer", () => render(ctx), 0);
   });
 
   document.getElementById("settings_business_save_sections").addEventListener("click", async () => {
@@ -308,7 +502,7 @@ export async function render(ctx) {
     await api("/business-settings/sections", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items })
+      body: JSON.stringify({ business_id: businessId, items })
     });
     showSaved();
   });
@@ -318,18 +512,18 @@ export async function render(ctx) {
     await api("/business-settings/entities", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items })
+      body: JSON.stringify({ business_id: businessId, items })
     });
     showSaved();
   });
 
   document.getElementById("settings_business_save_fields").addEventListener("click", async () => {
     if (!selectedEntity) return;
-    const items = collectFieldPayload(viewEl, selectedEntity);
+    const items = collectFieldPayload(viewEl, selectedEntity, fieldsByKey, lang);
     await api("/business-settings/fields", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items })
+      body: JSON.stringify({ business_id: businessId, items })
     });
     showSaved();
   });

@@ -480,3 +480,98 @@ body {
     flex: 1 1 100%;
   }
 }
+
+.biz-settings-page .card {
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 74%, var(--gekto-brand) 26%);
+  border-radius: 0.8rem;
+}
+
+.biz-settings-hero {
+  background:
+    radial-gradient(1200px 240px at 92% -140px, color-mix(in srgb, var(--gekto-brand) 34%, transparent 66%), transparent),
+    linear-gradient(130deg, color-mix(in srgb, var(--bs-body-bg) 82%, var(--gekto-brand) 18%), var(--bs-body-bg));
+}
+
+.biz-settings-hero .card-body {
+  padding: 1rem;
+}
+
+.biz-settings-hero-row {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.biz-settings-business-block {
+  min-width: min(100%, 420px);
+}
+
+.biz-settings-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.biz-settings-fields-head .biz-entity-select {
+  min-width: min(100%, 280px);
+}
+
+.biz-settings-table th {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.biz-settings-table .biz-check-col {
+  width: 110px;
+}
+
+.biz-settings-table .biz-type-col {
+  width: 150px;
+}
+
+.biz-settings-table .biz-field-name {
+  min-width: 150px;
+}
+
+.biz-settings-table .biz-comment-col {
+  min-width: 220px;
+}
+
+.biz-master-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.biz-master-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: var(--bs-secondary-color);
+}
+
+@media (max-width: 991.98px) {
+  .biz-settings-page .card-body {
+    padding: 0.72rem;
+  }
+
+  .biz-settings-hero .card-body {
+    padding: 0.78rem;
+  }
+
+  .biz-settings-hero-row {
+    align-items: stretch;
+  }
+
+  .biz-settings-business-block,
+  .biz-settings-fields-head .biz-entity-select {
+    min-width: 100%;
+  }
+}
