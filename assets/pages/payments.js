@@ -1,6 +1,6 @@
 const TARIFFS = ["monthly", "3m", "6m", "12m", "24m"];
 const STATUSES = ["draft", "posted"];
-const PAYMENT_METHODS = ["На карту", "Наличные", "Перечисление", "Visa (списание)"];
+const PAYMENT_METHODS = ["\u041d\u0430 \u043a\u0430\u0440\u0442\u0443", "\u041d\u0430\u043b\u0438\u0447\u043d\u044b\u0435", "\u041f\u0435\u0440\u0435\u0447\u0438\u0441\u043b\u0435\u043d\u0438\u0435", "Visa (\u0441\u043f\u0438\u0441\u0430\u043d\u0438\u0435)"];
 
 function e(v) {
   return String(v ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
@@ -8,6 +8,17 @@ function e(v) {
 
 function fg(label, control) {
   return `<div class="mb-3"><label class="form-label">${label}</label>${control}</div>`;
+}
+
+function paymentStatusBadge(status) {
+  const value = String(status || "").toLowerCase();
+  if (value === "posted") {
+    return `<span class="badge text-bg-success-subtle border border-success-subtle">posted</span>`;
+  }
+  if (value === "draft") {
+    return `<span class="badge text-bg-secondary">draft</span>`;
+  }
+  return `<span class="badge text-bg-light border">${e(status || "-")}</span>`;
 }
 
 function paymentFormHtml(businesses, item = {}) {
@@ -36,6 +47,43 @@ function readForm(root) {
   };
 }
 
+function desktopTableHtml(items, canWrite, t, fmt, esc) {
+  return `
+    <div class="card d-none d-lg-block"><div class="card-body table-wrap">
+      <table class="table table-sm table-bordered">
+        <thead><tr><th>${t("business")}</th><th>Date</th><th>${t("amount")}</th><th>${t("tariff")}</th><th>${t("status")}</th><th>Payment method</th><th>Comment</th>${canWrite ? `<th>${t("action")}</th>` : ""}</tr></thead>
+        <tbody>
+        ${items.map(x => `<tr>
+          <td>${esc(x.business_name)}</td><td>${esc(x.payment_date)}</td><td>${fmt(x.amount)}</td><td>${esc(x.tariff_plan)}</td><td>${paymentStatusBadge(x.status)}</td><td>${esc(x.payment_method || "")}</td><td>${esc(x.comment || "")}</td>
+          ${canWrite ? `<td><div class="d-flex gap-2 flex-wrap"><button class="btn btn-sm btn-outline-primary" data-edit="${x.id}">${t("edit")}</button>${x.status !== "posted" ? `<button class="btn btn-sm btn-outline-success" data-post="${x.id}">${t("posted")}</button>` : ""}</div></td>` : ""}
+        </tr>`).join("")}
+        </tbody>
+      </table>
+    </div></div>`;
+}
+
+function mobileCardsHtml(items, canWrite, t, fmt, esc) {
+  return `
+    <div class="d-lg-none">
+      ${items.map(x => `
+        <div class="card mb-2 shadow-sm">
+          <div class="card-body p-3">
+            <div class="d-flex justify-content-between gap-2 align-items-start">
+              <div class="fw-semibold">${esc(x.business_name)}</div>
+              ${paymentStatusBadge(x.status)}
+            </div>
+            <div class="small text-muted mt-2">Date: ${esc(x.payment_date || "-")}</div>
+            <div class="small text-muted">${t("amount")}: ${fmt(x.amount)}</div>
+            <div class="small text-muted">${t("tariff")}: ${esc(x.tariff_plan || "-")}</div>
+            <div class="small text-muted">Payment method: ${esc(x.payment_method || "-")}</div>
+            <div class="small text-muted">Comment: ${esc(x.comment || "-")}</div>
+            ${canWrite ? `<div class="d-flex gap-2 flex-wrap mt-3"><button class="btn btn-sm btn-outline-primary" data-edit="${x.id}">${t("edit")}</button>${x.status !== "posted" ? `<button class="btn btn-sm btn-outline-success" data-post="${x.id}">${t("posted")}</button>` : ""}</div>` : ""}
+          </div>
+        </div>
+      `).join("")}
+    </div>`;
+}
+
 export async function render(ctx) {
   const { page, t, api, fmt, esc, viewEl, state, accessFor, openModal } = ctx;
   page("payments");
@@ -60,24 +108,15 @@ export async function render(ctx) {
   viewEl.innerHTML = `
     <div class="card mb-3"><div class="card-body">
       <div class="row g-2 align-items-end">
-        <div class="col-md-3"><label class="form-label">${t("business")}</label><select id="f_business" class="form-select"><option value="">All</option>${(businesses.items || []).map(b => `<option value="${b.id}" ${String(b.id) === fBusiness ? "selected" : ""}>${esc(b.name)}</option>`).join("")}</select></div>
-        <div class="col-md-2"><label class="form-label">${t("status")}</label><select id="f_status" class="form-select"><option value="">All</option>${STATUSES.map(v => `<option value="${v}" ${fStatus === v ? "selected" : ""}>${v}</option>`).join("")}</select></div>
-        <div class="col-md-2"><label class="form-label">Date from</label><input id="f_from" type="date" class="form-control" value="${fFrom}"></div>
-        <div class="col-md-2"><label class="form-label">Date to</label><input id="f_to" type="date" class="form-control" value="${fTo}"></div>
-        ${canWrite ? `<div class="col-md-2 d-grid"><button id="p_create" class="btn btn-primary">${t("create")}</button></div>` : `<div class="col-md-2"></div>`}
+        <div class="col-12 col-md-3"><label class="form-label">${t("business")}</label><select id="f_business" class="form-select"><option value="">All</option>${(businesses.items || []).map(b => `<option value="${b.id}" ${String(b.id) === fBusiness ? "selected" : ""}>${esc(b.name)}</option>`).join("")}</select></div>
+        <div class="col-6 col-md-2"><label class="form-label">${t("status")}</label><select id="f_status" class="form-select"><option value="">All</option>${STATUSES.map(v => `<option value="${v}" ${fStatus === v ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+        <div class="col-6 col-md-2"><label class="form-label">Date from</label><input id="f_from" type="date" class="form-control" value="${fFrom}"></div>
+        <div class="col-6 col-md-2"><label class="form-label">Date to</label><input id="f_to" type="date" class="form-control" value="${fTo}"></div>
+        ${canWrite ? `<div class="col-6 col-md-2 d-grid"><button id="p_create" class="btn btn-primary">${t("create")}</button></div>` : `<div class="col-6 col-md-2"></div>`}
       </div>
     </div></div>
-    <div class="card"><div class="card-body table-wrap">
-      <table class="table table-sm table-bordered">
-        <thead><tr><th>${t("business")}</th><th>Date</th><th>${t("amount")}</th><th>${t("tariff")}</th><th>${t("status")}</th><th>Payment method</th><th>Comment</th>${canWrite ? `<th>${t("action")}</th>` : ""}</tr></thead>
-        <tbody>
-        ${items.map(x => `<tr>
-          <td>${esc(x.business_name)}</td><td>${esc(x.payment_date)}</td><td>${fmt(x.amount)}</td><td>${esc(x.tariff_plan)}</td><td>${esc(x.status)}</td><td>${esc(x.payment_method || "")}</td><td>${esc(x.comment || "")}</td>
-          ${canWrite ? `<td><button class="btn btn-xs btn-outline-primary me-1" data-edit="${x.id}">${t("edit")}</button>${x.status !== "posted" ? `<button class="btn btn-xs btn-outline-success" data-post="${x.id}">${t("posted")}</button>` : ""}</td>` : ""}
-        </tr>`).join("")}
-        </tbody>
-      </table>
-    </div></div>`;
+    ${desktopTableHtml(items, canWrite, t, fmt, esc)}
+    ${mobileCardsHtml(items, canWrite, t, fmt, esc)}`;
 
   const queueRender = () => {
     clearTimeout(viewEl.__fltTimer);

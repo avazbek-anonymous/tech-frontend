@@ -41,6 +41,60 @@ function readForm(root, scope) {
   };
 }
 
+function statusBadge(isActive, t) {
+  if (Number(isActive) === 1) {
+    return `<span class="badge text-bg-success-subtle border border-success-subtle">${e(t("active"))}</span>`;
+  }
+  return `<span class="badge text-bg-secondary">${e(t("blocked"))}</span>`;
+}
+
+function formatLastLogin(ts) {
+  return ts ? new Date(ts * 1000).toLocaleString() : "-";
+}
+
+function desktopTableHtml(items, scope, canWrite, t, esc) {
+  return `
+    <div class="card d-none d-lg-block"><div class="card-body table-wrap">
+      <table class="table table-sm table-bordered">
+        <thead><tr>
+          <th>${t("fullName")}</th><th>${t("email")}</th><th>${t("phone")}</th><th>${t("role")}</th>
+          ${scope === "businesses" ? `<th>${t("business")}</th><th>${t("lastLogin")}</th>` : ""}
+          <th>${t("status")}</th>${canWrite ? `<th>${t("action")}</th>` : ""}
+        </tr></thead>
+        <tbody>${items.map(u => `<tr>
+          <td>${esc(u.full_name)}</td><td>${esc(u.email)}</td><td>${esc(u.phone || "")}</td><td>${esc(u.role)}</td>
+          ${scope === "businesses" ? `<td>${esc(u.business_name || "")}</td><td>${esc(formatLastLogin(u.last_login_at))}</td>` : ""}
+          <td>${statusBadge(u.is_active, t)}</td>
+          ${canWrite ? `<td><button class="btn btn-sm btn-outline-primary" data-edit="${u.id}">${t("edit")}</button></td>` : ""}
+        </tr>`).join("")}</tbody>
+      </table>
+    </div></div>`;
+}
+
+function mobileCardsHtml(items, scope, canWrite, t, esc) {
+  return `
+    <div class="d-lg-none">
+      ${items.map(u => `
+        <div class="card mb-2 shadow-sm">
+          <div class="card-body p-3">
+            <div class="d-flex justify-content-between gap-2 align-items-start">
+              <div>
+                <div class="fw-semibold">${esc(u.full_name)}</div>
+                <div class="text-muted small">${esc(u.email)}</div>
+              </div>
+              ${statusBadge(u.is_active, t)}
+            </div>
+            <div class="small text-muted mt-2">${t("phone")}: ${esc(u.phone || "-")}</div>
+            <div class="small text-muted">${t("role")}: ${esc(u.role)}</div>
+            ${scope === "businesses" ? `<div class="small text-muted">${t("business")}: ${esc(u.business_name || "-")}</div>` : ""}
+            ${scope === "businesses" ? `<div class="small text-muted">${t("lastLogin")}: ${esc(formatLastLogin(u.last_login_at))}</div>` : ""}
+            ${canWrite ? `<div class="d-flex gap-2 flex-wrap mt-3"><button class="btn btn-sm btn-outline-primary" data-edit="${u.id}">${t("edit")}</button></div>` : ""}
+          </div>
+        </div>
+      `).join("")}
+    </div>`;
+}
+
 export async function render(ctx) {
   const { page, t, api, esc, viewEl, state, accessFor, openModal } = ctx;
   page("users");
@@ -57,27 +111,14 @@ export async function render(ctx) {
   viewEl.innerHTML = `
     <div class="card mb-3"><div class="card-body">
       <div class="row g-2 align-items-end">
-        <div class="col-md-2 d-grid"><button id="tab_gekto" class="btn ${scope === "gekto" ? "btn-secondary" : "btn-outline-secondary"}">Gekto</button></div>
-        <div class="col-md-2 d-grid"><button id="tab_biz" class="btn ${scope === "businesses" ? "btn-secondary" : "btn-outline-secondary"}">Businesses</button></div>
-        <div class="col-md-5"><label class="form-label">Search</label><input id="u_q" class="form-control" value="${esc(q)}"></div>
-        ${canWrite ? `<div class="col-md-2 d-grid"><button id="u_create" class="btn btn-primary">${t("create")}</button></div>` : ""}
+        <div class="col-6 col-md-2 d-grid"><button id="tab_gekto" class="btn ${scope === "gekto" ? "btn-secondary" : "btn-outline-secondary"}">Gekto</button></div>
+        <div class="col-6 col-md-2 d-grid"><button id="tab_biz" class="btn ${scope === "businesses" ? "btn-secondary" : "btn-outline-secondary"}">Businesses</button></div>
+        <div class="col-12 col-md-5"><label class="form-label">Search</label><input id="u_q" class="form-control" value="${esc(q)}"></div>
+        ${canWrite ? `<div class="col-12 col-md-2 d-grid"><button id="u_create" class="btn btn-primary">${t("create")}</button></div>` : ""}
       </div>
     </div></div>
-    <div class="card"><div class="card-body table-wrap">
-      <table class="table table-sm table-bordered">
-        <thead><tr>
-          <th>${t("fullName")}</th><th>${t("email")}</th><th>${t("phone")}</th><th>${t("role")}</th>
-          ${scope === "businesses" ? `<th>${t("business")}</th><th>${t("lastLogin")}</th>` : ""}
-          <th>${t("status")}</th>${canWrite ? `<th>${t("action")}</th>` : ""}
-        </tr></thead>
-        <tbody>${items.map(u => `<tr>
-          <td>${esc(u.full_name)}</td><td>${esc(u.email)}</td><td>${esc(u.phone || "")}</td><td>${esc(u.role)}</td>
-          ${scope === "businesses" ? `<td>${esc(u.business_name || "")}</td><td>${u.last_login_at ? new Date(u.last_login_at * 1000).toLocaleString() : "-"}</td>` : ""}
-          <td>${u.is_active ? t("active") : t("blocked")}</td>
-          ${canWrite ? `<td><button class="btn btn-xs btn-outline-primary" data-edit="${u.id}">${t("edit")}</button></td>` : ""}
-        </tr>`).join("")}</tbody>
-      </table>
-    </div></div>`;
+    ${desktopTableHtml(items, scope, canWrite, t, esc)}
+    ${mobileCardsHtml(items, scope, canWrite, t, esc)}`;
 
   document.getElementById("tab_gekto").onclick = () => {
     viewEl.setAttribute("data-scope", "gekto");

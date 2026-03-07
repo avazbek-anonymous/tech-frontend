@@ -1,6 +1,6 @@
 const TARIFFS = ["monthly", "3m", "6m", "12m", "24m"];
 const STATUSES = ["active", "blocked"];
-const PAYMENT_METHODS = ["На карту", "Наличные", "Перечисление", "Visa (списание)"];
+const PAYMENT_METHODS = ["\u041d\u0430 \u043a\u0430\u0440\u0442\u0443", "\u041d\u0430\u043b\u0438\u0447\u043d\u044b\u0435", "\u041f\u0435\u0440\u0435\u0447\u0438\u0441\u043b\u0435\u043d\u0438\u0435", "Visa (\u0441\u043f\u0438\u0441\u0430\u043d\u0438\u0435)"];
 
 function e(v) {
   return String(v ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
@@ -8,6 +8,17 @@ function e(v) {
 
 function formGroup(label, control) {
   return `<div class="mb-3"><label class="form-label">${label}</label>${control}</div>`;
+}
+
+function businessStatusBadge(status, t) {
+  const value = String(status || "").toLowerCase();
+  if (value === "active") {
+    return `<span class="badge text-bg-success-subtle border border-success-subtle">${e(t("active"))}</span>`;
+  }
+  if (value === "blocked") {
+    return `<span class="badge text-bg-secondary">${e(t("blocked"))}</span>`;
+  }
+  return `<span class="badge text-bg-light border">${e(status || "-")}</span>`;
 }
 
 function businessFormHtml(item = {}) {
@@ -66,6 +77,55 @@ function readTariffForm(root) {
   };
 }
 
+function desktopTableHtml(items, canWrite, t, fmt, esc) {
+  return `
+    <div class="card d-none d-lg-block"><div class="card-body table-wrap">
+      <table class="table table-sm table-bordered">
+        <thead><tr>
+          <th>${t("name")}</th><th>${t("owner")}</th><th>Owner phone</th><th>${t("admin")}</th><th>Admin phone</th>
+          <th>${t("filials")}</th><th>${t("tariff")}</th><th>${t("tariffPrice")}</th><th>${t("startDate")}</th><th>Payment method</th><th>INN</th><th>${t("status")}</th>
+          ${canWrite ? `<th>${t("action")}</th>` : ""}
+        </tr></thead>
+        <tbody>
+        ${items.map(x => `<tr>
+          <td>${esc(x.name)}</td><td>${esc(x.owner_full_name || "")}</td><td>${esc(x.owner_phone || "")}</td><td>${esc(x.admin_full_name || "")}</td><td>${esc(x.admin_phone || "")}</td>
+          <td>${fmt(x.filials_count)}</td><td>${esc(x.tariff_plan)}</td><td>${fmt(x.tariff_price_per_filial)}</td><td>${esc(x.subscription_start_date || "")}</td><td>${esc(x.payment_method || "")}</td><td>${esc(x.inn || "")}</td><td>${businessStatusBadge(x.status, t)}</td>
+          ${canWrite ? `<td><div class="d-flex gap-2 flex-wrap"><button class="btn btn-sm btn-outline-primary" data-edit="${x.id}">${t("edit")}</button><button class="btn btn-sm btn-outline-secondary" data-tariff="${x.id}">Tariff</button></div></td>` : ""}
+        </tr>`).join("")}
+        </tbody>
+      </table>
+    </div></div>`;
+}
+
+function mobileCardsHtml(items, canWrite, t, fmt, esc) {
+  return `
+    <div class="d-lg-none">
+      ${items.map(x => `
+        <div class="card mb-2 shadow-sm">
+          <div class="card-body p-3">
+            <div class="d-flex justify-content-between gap-2 align-items-start">
+              <div>
+                <div class="fw-semibold">${esc(x.name)}</div>
+                <div class="text-muted small">${t("owner")}: ${esc(x.owner_full_name || "-")}</div>
+              </div>
+              ${businessStatusBadge(x.status, t)}
+            </div>
+            <div class="small text-muted mt-2">Owner phone: ${esc(x.owner_phone || "-")}</div>
+            <div class="small text-muted">${t("admin")}: ${esc(x.admin_full_name || "-")}</div>
+            <div class="small text-muted">Admin phone: ${esc(x.admin_phone || "-")}</div>
+            <div class="small text-muted">${t("filials")}: ${fmt(x.filials_count)}</div>
+            <div class="small text-muted">${t("tariff")}: ${esc(x.tariff_plan || "-")}</div>
+            <div class="small text-muted">${t("tariffPrice")}: ${fmt(x.tariff_price_per_filial)}</div>
+            <div class="small text-muted">${t("startDate")}: ${esc(x.subscription_start_date || "-")}</div>
+            <div class="small text-muted">Payment method: ${esc(x.payment_method || "-")}</div>
+            <div class="small text-muted">INN: ${esc(x.inn || "-")}</div>
+            ${canWrite ? `<div class="d-flex gap-2 flex-wrap mt-3"><button class="btn btn-sm btn-outline-primary" data-edit="${x.id}">${t("edit")}</button><button class="btn btn-sm btn-outline-secondary" data-tariff="${x.id}">Tariff</button></div>` : ""}
+          </div>
+        </div>
+      `).join("")}
+    </div>`;
+}
+
 export async function render(ctx) {
   const { page, t, api, fmt, esc, viewEl, state, accessFor, openModal } = ctx;
   page("businesses");
@@ -85,28 +145,14 @@ export async function render(ctx) {
   viewEl.innerHTML = `
     <div class="card mb-3"><div class="card-body">
       <div class="row g-2 align-items-end">
-        <div class="col-md-4"><label class="form-label">Search</label><input id="f_q" class="form-control" value="${esc(q)}"></div>
-        <div class="col-md-2"><label class="form-label">${t("status")}</label><select id="f_status" class="form-select"><option value="">All</option>${STATUSES.map(v => `<option value="${v}" ${status === v ? "selected" : ""}>${v}</option>`).join("")}</select></div>
-        <div class="col-md-2"><label class="form-label">${t("tariff")}</label><select id="f_tariff" class="form-select"><option value="">All</option>${TARIFFS.map(v => `<option value="${v}" ${tariff === v ? "selected" : ""}>${v}</option>`).join("")}</select></div>
-        ${canWrite ? `<div class="col-md-2 d-grid"><button id="b_create" class="btn btn-primary">${t("create")}</button></div>` : `<div class="col-md-2"></div>`}
+        <div class="col-12 col-md-4"><label class="form-label">Search</label><input id="f_q" class="form-control" value="${esc(q)}"></div>
+        <div class="col-6 col-md-2"><label class="form-label">${t("status")}</label><select id="f_status" class="form-select"><option value="">All</option>${STATUSES.map(v => `<option value="${v}" ${status === v ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+        <div class="col-6 col-md-2"><label class="form-label">${t("tariff")}</label><select id="f_tariff" class="form-select"><option value="">All</option>${TARIFFS.map(v => `<option value="${v}" ${tariff === v ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+        ${canWrite ? `<div class="col-12 col-md-2 d-grid"><button id="b_create" class="btn btn-primary">${t("create")}</button></div>` : `<div class="col-12 col-md-2"></div>`}
       </div>
     </div></div>
-    <div class="card"><div class="card-body table-wrap">
-      <table class="table table-sm table-bordered">
-        <thead><tr>
-          <th>${t("name")}</th><th>${t("owner")}</th><th>Owner phone</th><th>${t("admin")}</th><th>Admin phone</th>
-          <th>${t("filials")}</th><th>${t("tariff")}</th><th>${t("tariffPrice")}</th><th>${t("startDate")}</th><th>Payment method</th><th>INN</th><th>${t("status")}</th>
-          ${canWrite ? `<th>${t("action")}</th>` : ""}
-        </tr></thead>
-        <tbody>
-        ${items.map(x => `<tr>
-          <td>${esc(x.name)}</td><td>${esc(x.owner_full_name || "")}</td><td>${esc(x.owner_phone || "")}</td><td>${esc(x.admin_full_name || "")}</td><td>${esc(x.admin_phone || "")}</td>
-          <td>${fmt(x.filials_count)}</td><td>${esc(x.tariff_plan)}</td><td>${fmt(x.tariff_price_per_filial)}</td><td>${esc(x.subscription_start_date || "")}</td><td>${esc(x.payment_method || "")}</td><td>${esc(x.inn || "")}</td><td>${esc(x.status)}</td>
-          ${canWrite ? `<td><button class="btn btn-xs btn-outline-primary me-1" data-edit="${x.id}">${t("edit")}</button><button class="btn btn-xs btn-outline-secondary" data-tariff="${x.id}">Tariff</button></td>` : ""}
-        </tr>`).join("")}
-        </tbody>
-      </table>
-    </div></div>`;
+    ${desktopTableHtml(items, canWrite, t, fmt, esc)}
+    ${mobileCardsHtml(items, canWrite, t, fmt, esc)}`;
 
   const queueRender = () => {
     clearTimeout(viewEl.__fltTimer);

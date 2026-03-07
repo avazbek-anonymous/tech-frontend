@@ -130,7 +130,6 @@ body {
 }
 
 .roles-perm-wrap {
-  max-height: 52vh;
   background: var(--bs-body-bg);
 }
 
@@ -273,10 +272,6 @@ body {
   .content-header {
     padding-top: 0.75rem;
     padding-bottom: 0.75rem;
-  }
-
-  .roles-perm-wrap {
-    max-height: 46vh;
   }
 }
 
