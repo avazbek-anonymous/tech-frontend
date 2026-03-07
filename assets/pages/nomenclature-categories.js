@@ -1,4 +1,4 @@
-import {
+﻿import {
   activeBadge,
   emptyHtml,
   errorHtml,
@@ -426,3 +426,4 @@ export async function render(ctx) {
     }
   }
 }
+
