@@ -1,4 +1,4 @@
-﻿import { API_BASE, I18N } from "./config.js";
+import { API_BASE, I18N } from "./config.js";
 import { BUSINESS_ROLES, GEKTO_ROLES, LEVEL1_SECTIONS, LEVEL2_SECTIONS } from "./sections.js";
 
 const token = localStorage.getItem("tech_token") || "";
@@ -374,6 +374,15 @@ function initMenuTooltips() {
   });
 }
 
+function refreshMenuTooltipsBySidebarState() {
+  if (isCollapsedMiniDesktop()) {
+    initMenuTooltips();
+    syncCollapsedFlyoutPosition();
+    return;
+  }
+  destroyMenuTooltips();
+}
+
 function renderFlatMenu(ul, perms) {
   let currentGroupId = "";
   for (const s of state.sections) {
@@ -658,12 +667,17 @@ document.addEventListener("click", ev => {
 });
 
 window.addEventListener("resize", () => {
-  if (isCollapsedMiniDesktop()) syncCollapsedFlyoutPosition();
+  refreshMenuTooltipsBySidebarState();
 });
 
 window.addEventListener("scroll", () => {
   if (isCollapsedMiniDesktop()) syncCollapsedFlyoutPosition();
 }, true);
+
+const sidebarClassObserver = new MutationObserver(() => {
+  refreshMenuTooltipsBySidebarState();
+});
+sidebarClassObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
 
 document.querySelectorAll("[data-lang]").forEach(btn => btn.addEventListener("click", () => {
   lang = btn.dataset.lang;
