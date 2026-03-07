@@ -144,6 +144,32 @@ const BOOL_KEYS = [
   "track_serial", "track_imei", "track_imei2", "track_batches", "is_commission", "esim_support", "nfc"
 ];
 
+const TECHNICAL_KEYS = [
+  "color",
+  "memory_capacity",
+  "ram",
+  "cpu",
+  "gpu",
+  "screen_size",
+  "screen_resolution",
+  "screen_type",
+  "refresh_rate",
+  "battery_capacity",
+  "operating_system",
+  "sim_count",
+  "esim_support",
+  "network_standard",
+  "wifi",
+  "bluetooth",
+  "nfc",
+  "main_camera",
+  "front_camera",
+  "ports",
+  "package_contents",
+  "weight",
+  "dimensions"
+];
+
 function text(lang, key) {
   return pick(UI, lang, key);
 }
