@@ -3,10 +3,13 @@ import {
   emptyHtml,
   errorHtml,
   esc,
+  isEmptyFieldValue,
   langOf,
+  loadEntityFieldAccess,
   noAccessHtml,
   pick,
   queueRerender,
+  stripDisabledFields,
   ynBadge
 } from "./settings-utils.js";
 
@@ -122,19 +125,21 @@ function normalizeItem(item) {
     name: String(item?.name || ""),
     kind: String(item?.kind || "cash"),
     currency: String(item?.currency || "UZS"),
+    code: String(item?.code || ""),
     comment: String(item?.comment || ""),
     is_default: Number(item?.is_default || 0),
     is_active: Number(item?.is_active || 0)
   };
 }
 
-function filterItems(items, q, filialId, kind) {
+function filterItems(items, q, filialId, kind, filterableFields) {
   const needle = String(q || "").trim().toLowerCase();
+  const keys = (filterableFields || []).length ? filterableFields : ["name"];
   return items.filter(item => {
     if (filialId && Number(item.filial_id) !== Number(filialId)) return false;
     if (kind && item.kind !== kind) return false;
     if (!needle) return true;
-    return [item.name, item.currency, item.comment].some(v => String(v || "").toLowerCase().includes(needle));
+    return keys.some(key => String(item?.[key] || "").toLowerCase().includes(needle));
   });
 }
 
@@ -142,67 +147,90 @@ function kindLabel(lang, kind) {
   return text(lang, kind) || kind;
 }
 
-function modalHtml(lang, item, filials, currencyCodes) {
+function modalHtml(lang, item, filials, currencyCodes, fields) {
   const values = new Set(["UZS", item?.currency || "UZS", ...(currencyCodes || [])].filter(Boolean));
   return `
     <div class="row g-3">
-      <div class="col-md-6">
-        <label class="form-label">${esc(text(lang, "filial"))}</label>
-        <select class="form-select" name="filial_id">
-          <option value="">-</option>
-          ${filials.map(filial => `<option value="${filial.id}" ${Number(item?.filial_id || 0) === Number(filial.id) ? "selected" : ""}>${esc(filial.name)}</option>`).join("")}
-        </select>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">${esc(text(lang, "kind"))}</label>
-        <select class="form-select" name="kind">
-          ${KINDS.map(kind => `<option value="${kind}" ${String(item?.kind || "cash") === kind ? "selected" : ""}>${esc(kindLabel(lang, kind))}</option>`).join("")}
-        </select>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">${esc(text(lang, "name"))}</label>
-        <input class="form-control" name="name" value="${esc(item?.name || "")}">
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">${esc(text(lang, "currency"))}</label>
-        <input class="form-control" name="currency" list="cash_currency_list" value="${esc(item?.currency || "UZS")}">
-        <datalist id="cash_currency_list">
-          ${Array.from(values).map(code => `<option value="${esc(code)}"></option>`).join("")}
-        </datalist>
-      </div>
-      <div class="col-md-6">
-        <div class="form-check form-switch mt-4">
-          <input class="form-check-input" type="checkbox" role="switch" name="is_default" ${Number(item?.is_default || 0) === 1 ? "checked" : ""}>
-          <label class="form-check-label">${esc(text(lang, "isDefault"))}</label>
+      ${fields.showInForm("filial_id") ? `
+        <div class="col-md-6">
+          <label class="form-label">${esc(text(lang, "filial"))}</label>
+          <select class="form-select" name="filial_id">
+            <option value="">-</option>
+            ${filials.map(filial => `<option value="${filial.id}" ${Number(item?.filial_id || 0) === Number(filial.id) ? "selected" : ""}>${esc(filial.name)}</option>`).join("")}
+          </select>
         </div>
-      </div>
-      <div class="col-12">
-        <label class="form-label">${esc(text(lang, "comment"))}</label>
-        <textarea class="form-control" name="comment" rows="2">${esc(item?.comment || "")}</textarea>
-      </div>
-      <div class="col-12">
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" role="switch" name="is_active" ${Number(item?.is_active ?? 1) === 1 ? "checked" : ""}>
-          <label class="form-check-label">${esc(text(lang, "active"))}</label>
+      ` : ""}
+      ${fields.showInForm("kind") ? `
+        <div class="col-md-6">
+          <label class="form-label">${esc(text(lang, "kind"))}</label>
+          <select class="form-select" name="kind">
+            ${KINDS.map(kind => `<option value="${kind}" ${String(item?.kind || "cash") === kind ? "selected" : ""}>${esc(kindLabel(lang, kind))}</option>`).join("")}
+          </select>
         </div>
-      </div>
+      ` : ""}
+      ${fields.showInForm("name") ? `
+        <div class="col-md-6">
+          <label class="form-label">${esc(text(lang, "name"))}</label>
+          <input class="form-control" name="name" value="${esc(item?.name || "")}">
+        </div>
+      ` : ""}
+      ${fields.showInForm("code") ? `
+        <div class="col-md-6">
+          <label class="form-label">${esc(text(lang, "code"))}</label>
+          <input class="form-control" name="code" value="${esc(item?.code || "")}">
+        </div>
+      ` : ""}
+      ${fields.showInForm("currency") ? `
+        <div class="col-md-6">
+          <label class="form-label">${esc(text(lang, "currency"))}</label>
+          <input class="form-control" name="currency" list="cash_currency_list" value="${esc(item?.currency || "UZS")}">
+          <datalist id="cash_currency_list">
+            ${Array.from(values).map(code => `<option value="${esc(code)}"></option>`).join("")}
+          </datalist>
+        </div>
+      ` : ""}
+      ${fields.showInForm("is_default") ? `
+        <div class="col-md-6">
+          <div class="form-check form-switch mt-4">
+            <input class="form-check-input" type="checkbox" role="switch" name="is_default" ${Number(item?.is_default || 0) === 1 ? "checked" : ""}>
+            <label class="form-check-label">${esc(text(lang, "isDefault"))}</label>
+          </div>
+        </div>
+      ` : ""}
+      ${fields.showInForm("comment") ? `
+        <div class="col-12">
+          <label class="form-label">${esc(text(lang, "comment"))}</label>
+          <textarea class="form-control" name="comment" rows="2">${esc(item?.comment || "")}</textarea>
+        </div>
+      ` : ""}
+      ${fields.showInForm("is_active") ? `
+        <div class="col-12">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" role="switch" name="is_active" ${Number(item?.is_active ?? 1) === 1 ? "checked" : ""}>
+            <label class="form-check-label">${esc(text(lang, "active"))}</label>
+          </div>
+        </div>
+      ` : ""}
     </div>
   `;
 }
 
 function readForm(modalEl) {
+  const byName = (name) => modalEl.querySelector(`[name='${name}']`);
+  const readText = (name) => String(byName(name)?.value || "").trim();
   return {
-    filial_id: Number(modalEl.querySelector("[name='filial_id']").value || 0),
-    kind: modalEl.querySelector("[name='kind']").value,
-    name: modalEl.querySelector("[name='name']").value.trim(),
-    currency: modalEl.querySelector("[name='currency']").value.trim() || "UZS",
-    comment: modalEl.querySelector("[name='comment']").value.trim() || null,
-    is_default: modalEl.querySelector("[name='is_default']").checked ? 1 : 0,
-    is_active: modalEl.querySelector("[name='is_active']").checked ? 1 : 0
+    filial_id: Number(byName("filial_id")?.value || 0),
+    kind: readText("kind") || "cash",
+    name: readText("name"),
+    code: readText("code") || null,
+    currency: readText("currency") || "UZS",
+    comment: readText("comment") || null,
+    is_default: byName("is_default")?.checked ? 1 : 0,
+    is_active: byName("is_active")?.checked ? 1 : 0
   };
 }
 
-function tableHtml(items, filials, lang) {
+function tableHtml(items, filials, lang, fields) {
   const filialById = new Map(filials.map(item => [Number(item.id), item.name]));
   const labels = {
     active: text(lang, "active"),
@@ -216,31 +244,35 @@ function tableHtml(items, filials, lang) {
         <table class="table table-sm table-hover align-middle mb-0">
           <thead>
             <tr>
-              <th style="width:170px">${esc(text(lang, "filial"))}</th>
-              <th>${esc(text(lang, "name"))}</th>
-              <th style="width:150px">${esc(text(lang, "kind"))}</th>
-              <th style="width:100px">${esc(text(lang, "currency"))}</th>
-              <th style="width:110px">${esc(text(lang, "isDefault"))}</th>
-              <th style="width:110px">${esc(text(lang, "status"))}</th>
+              ${fields.showInList("filial_id") ? `<th style="width:170px">${esc(text(lang, "filial"))}</th>` : ""}
+              ${fields.showInList("name") ? `<th>${esc(text(lang, "name"))}</th>` : ""}
+              ${fields.showInList("kind") ? `<th style="width:150px">${esc(text(lang, "kind"))}</th>` : ""}
+              ${fields.showInList("code") ? `<th style="width:110px">${esc(text(lang, "code"))}</th>` : ""}
+              ${fields.showInList("currency") ? `<th style="width:100px">${esc(text(lang, "currency"))}</th>` : ""}
+              ${fields.showInList("is_default") ? `<th style="width:110px">${esc(text(lang, "isDefault"))}</th>` : ""}
+              ${fields.showInList("is_active") ? `<th style="width:110px">${esc(text(lang, "status"))}</th>` : ""}
               <th style="width:160px">${esc(text(lang, "actions"))}</th>
             </tr>
           </thead>
           <tbody>
             ${items.map(item => `
               <tr>
-                <td>${esc(filialById.get(Number(item.filial_id)) || "-")}</td>
-                <td>
-                  <div class="fw-semibold">${esc(item.name)}</div>
-                  <div class="text-muted small">${esc(item.comment || "-")}</div>
-                </td>
-                <td>${esc(kindLabel(lang, item.kind))}</td>
-                <td>${esc(item.currency)}</td>
-                <td>${ynBadge(item.is_default, labels)}</td>
-                <td>${activeBadge(item.is_active, labels)}</td>
+                ${fields.showInList("filial_id") ? `<td>${esc(filialById.get(Number(item.filial_id)) || "-")}</td>` : ""}
+                ${fields.showInList("name") ? `
+                  <td>
+                    <div class="fw-semibold">${esc(item.name)}</div>
+                    ${fields.showInCard("comment") ? `<div class="text-muted small">${esc(item.comment || "-")}</div>` : ""}
+                  </td>
+                ` : ""}
+                ${fields.showInList("kind") ? `<td>${esc(kindLabel(lang, item.kind))}</td>` : ""}
+                ${fields.showInList("code") ? `<td>${esc(item.code || "-")}</td>` : ""}
+                ${fields.showInList("currency") ? `<td>${esc(item.currency)}</td>` : ""}
+                ${fields.showInList("is_default") ? `<td>${ynBadge(item.is_default, labels)}</td>` : ""}
+                ${fields.showInList("is_active") ? `<td>${activeBadge(item.is_active, labels)}</td>` : ""}
                 <td>
                   <div class="d-flex gap-2 flex-wrap">
                     <button class="btn btn-sm btn-outline-primary" data-edit-cash="${item.id}">${esc(text(lang, "update"))}</button>
-                    <button class="btn btn-sm btn-outline-secondary" data-toggle-cash="${item.id}" data-next="${item.is_active ? 0 : 1}">${item.is_active ? esc(text(lang, "inactive")) : esc(text(lang, "active"))}</button>
+                    ${fields.isEnabled("is_active") ? `<button class="btn btn-sm btn-outline-secondary" data-toggle-cash="${item.id}" data-next="${item.is_active ? 0 : 1}">${item.is_active ? esc(text(lang, "inactive")) : esc(text(lang, "active"))}</button>` : ""}
                   </div>
                 </td>
               </tr>
@@ -255,17 +287,19 @@ function tableHtml(items, filials, lang) {
           <div class="card-body p-3">
             <div class="d-flex justify-content-between gap-2 align-items-start">
               <div>
-                <div class="fw-semibold">${esc(item.name)}</div>
-                <div class="text-muted small">${esc(filialById.get(Number(item.filial_id)) || "-")}</div>
+                ${fields.showInCard("name") ? `<div class="fw-semibold">${esc(item.name)}</div>` : ""}
+                ${fields.showInCard("filial_id") ? `<div class="text-muted small">${esc(filialById.get(Number(item.filial_id)) || "-")}</div>` : ""}
               </div>
-              ${activeBadge(item.is_active, labels)}
+              ${fields.showInCard("is_active") ? activeBadge(item.is_active, labels) : ""}
             </div>
-            <div class="small text-muted mt-2">${esc(text(lang, "kind"))}: ${esc(kindLabel(lang, item.kind))}</div>
-            <div class="small text-muted">${esc(text(lang, "currency"))}: ${esc(item.currency)}</div>
-            <div class="small text-muted">${esc(text(lang, "isDefault"))}: ${item.is_default ? esc(text(lang, "yes")) : esc(text(lang, "no"))}</div>
+            ${fields.showInCard("kind") ? `<div class="small text-muted mt-2">${esc(text(lang, "kind"))}: ${esc(kindLabel(lang, item.kind))}</div>` : ""}
+            ${fields.showInCard("code") ? `<div class="small text-muted">${esc(text(lang, "code"))}: ${esc(item.code || "-")}</div>` : ""}
+            ${fields.showInCard("currency") ? `<div class="small text-muted">${esc(text(lang, "currency"))}: ${esc(item.currency)}</div>` : ""}
+            ${fields.showInCard("comment") ? `<div class="small text-muted">${esc(text(lang, "comment"))}: ${esc(item.comment || "-")}</div>` : ""}
+            ${fields.showInCard("is_default") ? `<div class="small text-muted">${esc(text(lang, "isDefault"))}: ${item.is_default ? esc(text(lang, "yes")) : esc(text(lang, "no"))}</div>` : ""}
             <div class="d-flex gap-2 flex-wrap mt-3">
               <button class="btn btn-sm btn-outline-primary" data-edit-cash="${item.id}">${esc(text(lang, "update"))}</button>
-              <button class="btn btn-sm btn-outline-secondary" data-toggle-cash="${item.id}" data-next="${item.is_active ? 0 : 1}">${item.is_active ? esc(text(lang, "inactive")) : esc(text(lang, "active"))}</button>
+              ${fields.isEnabled("is_active") ? `<button class="btn btn-sm btn-outline-secondary" data-toggle-cash="${item.id}" data-next="${item.is_active ? 0 : 1}">${item.is_active ? esc(text(lang, "inactive")) : esc(text(lang, "active"))}</button>` : ""}
             </div>
           </div>
         </div>
@@ -274,7 +308,7 @@ function tableHtml(items, filials, lang) {
   `;
 }
 
-async function openEntityModal(ctx, item, filials, currencyCodes) {
+async function openEntityModal(ctx, item, filials, currencyCodes, fields) {
   const { api, openModal } = ctx;
   const lang = langOf();
   const isCreate = !item?.id;
@@ -282,11 +316,11 @@ async function openEntityModal(ctx, item, filials, currencyCodes) {
   openModal({
     title: isCreate ? text(lang, "create") : text(lang, "edit"),
     saveText: text(lang, "save"),
-    bodyHtml: modalHtml(lang, item, filials, currencyCodes),
+    bodyHtml: modalHtml(lang, item, filials, currencyCodes, fields),
     onSave: async (modalEl) => {
-      const payload = readForm(modalEl);
-      if (!payload.filial_id) throw new Error(text(lang, "requiredFilial"));
-      if (!payload.name) throw new Error(text(lang, "requiredName"));
+      const payload = stripDisabledFields(readForm(modalEl), fields);
+      if (fields.isRequired("filial_id") && !payload.filial_id) throw new Error(text(lang, "requiredFilial"));
+      if (fields.isRequired("name") && isEmptyFieldValue(payload.name)) throw new Error(text(lang, "requiredName"));
 
       if (isCreate) {
         await api("/cash-accounts", {
@@ -325,11 +359,13 @@ export async function render(ctx) {
   let cashResp;
   let filialsResp;
   let currenciesResp;
+  let fields;
   try {
-    [cashResp, filialsResp, currenciesResp] = await Promise.all([
+    [cashResp, filialsResp, currenciesResp, fields] = await Promise.all([
       api("/cash-accounts"),
       api("/filials"),
-      api("/currencies").catch(() => ({ items: [] }))
+      api("/currencies").catch(() => ({ items: [] })),
+      loadEntityFieldAccess(api, "cash_accounts")
     ]);
   } catch (e) {
     viewEl.innerHTML = errorHtml(String(e?.message || e));
@@ -338,31 +374,41 @@ export async function render(ctx) {
 
   const filials = (filialsResp.items || []).filter(item => Number(item.is_active) === 1);
   const currencyCodes = (currenciesResp.items || []).map(item => String(item.name || "")).filter(Boolean);
+  const showFilialFilter = fields.showInFilters("filial_id");
+  const showKindFilter = fields.showInFilters("kind");
+  const showSearch = ["name", "code", "currency", "comment"].some((key) => fields.showInFilters(key));
+  const filterableFields = ["name", "code", "currency", "comment"].filter((key) => fields.showInFilters(key));
   const allItems = (cashResp.items || []).map(normalizeItem);
-  const items = filterItems(allItems, q, filialFilter, kindFilter);
+  const items = filterItems(allItems, q, showFilialFilter ? filialFilter : "", showKindFilter ? kindFilter : "", filterableFields);
 
   viewEl.innerHTML = `
     <div class="card mb-3">
       <div class="card-body">
         <div class="row g-2 align-items-end">
-          <div class="col-12 col-md-3">
-            <label class="form-label">${esc(text(lang, "filial"))}</label>
-            <select id="settings_cash_filial" class="form-select">
-              <option value="">${esc(text(lang, "allFilials"))}</option>
-              ${filials.map(filial => `<option value="${filial.id}" ${String(filial.id) === String(filialFilter) ? "selected" : ""}>${esc(filial.name)}</option>`).join("")}
-            </select>
-          </div>
-          <div class="col-12 col-md-3">
-            <label class="form-label">${esc(text(lang, "kind"))}</label>
-            <select id="settings_cash_kind" class="form-select">
-              <option value="">${esc(text(lang, "allKinds"))}</option>
-              ${KINDS.map(kind => `<option value="${kind}" ${kind === kindFilter ? "selected" : ""}>${esc(kindLabel(lang, kind))}</option>`).join("")}
-            </select>
-          </div>
-          <div class="col-12 col-md-4">
-            <label class="form-label">${esc(text(lang, "search"))}</label>
-            <input id="settings_cash_q" class="form-control" value="${esc(q)}">
-          </div>
+          ${showFilialFilter ? `
+            <div class="col-12 col-md-3">
+              <label class="form-label">${esc(text(lang, "filial"))}</label>
+              <select id="settings_cash_filial" class="form-select">
+                <option value="">${esc(text(lang, "allFilials"))}</option>
+                ${filials.map(filial => `<option value="${filial.id}" ${String(filial.id) === String(filialFilter) ? "selected" : ""}>${esc(filial.name)}</option>`).join("")}
+              </select>
+            </div>
+          ` : ""}
+          ${showKindFilter ? `
+            <div class="col-12 col-md-3">
+              <label class="form-label">${esc(text(lang, "kind"))}</label>
+              <select id="settings_cash_kind" class="form-select">
+                <option value="">${esc(text(lang, "allKinds"))}</option>
+                ${KINDS.map(kind => `<option value="${kind}" ${kind === kindFilter ? "selected" : ""}>${esc(kindLabel(lang, kind))}</option>`).join("")}
+              </select>
+            </div>
+          ` : ""}
+          ${showSearch ? `
+            <div class="col-12 col-md-4">
+              <label class="form-label">${esc(text(lang, "search"))}</label>
+              <input id="settings_cash_q" class="form-control" value="${esc(q)}">
+            </div>
+          ` : ""}
           <div class="col-12 col-md-2 d-grid">
             <button id="settings_cash_create" class="btn btn-primary" ${filials.length ? "" : "disabled"}>${esc(text(lang, "create"))}</button>
           </div>
@@ -371,50 +417,64 @@ export async function render(ctx) {
       </div>
     </div>
 
-    ${items.length ? tableHtml(items, filials, lang) : emptyHtml(text(lang, "noItems"))}
+    ${items.length ? tableHtml(items, filials, lang, fields) : emptyHtml(text(lang, "noItems"))}
   `;
 
-  document.getElementById("settings_cash_filial").addEventListener("change", (event) => {
-    viewEl.setAttribute("data-filial", event.target.value);
-    render(ctx);
-  });
+  if (showFilialFilter) {
+    document.getElementById("settings_cash_filial").addEventListener("change", (event) => {
+      viewEl.setAttribute("data-filial", event.target.value);
+      render(ctx);
+    });
+  } else {
+    viewEl.setAttribute("data-filial", "");
+  }
 
-  document.getElementById("settings_cash_kind").addEventListener("change", (event) => {
-    viewEl.setAttribute("data-kind", event.target.value);
-    render(ctx);
-  });
+  if (showKindFilter) {
+    document.getElementById("settings_cash_kind").addEventListener("change", (event) => {
+      viewEl.setAttribute("data-kind", event.target.value);
+      render(ctx);
+    });
+  } else {
+    viewEl.setAttribute("data-kind", "");
+  }
 
-  const qEl = document.getElementById("settings_cash_q");
-  qEl.addEventListener("input", () => {
-    viewEl.setAttribute("data-q", qEl.value.trim());
-    queueRerender(viewEl, "__settingsCashTimer", () => render(ctx), 180);
-  });
+  if (showSearch) {
+    const qEl = document.getElementById("settings_cash_q");
+    qEl.addEventListener("input", () => {
+      viewEl.setAttribute("data-q", qEl.value.trim());
+      queueRerender(viewEl, "__settingsCashTimer", () => render(ctx), 180);
+    });
+  } else {
+    viewEl.setAttribute("data-q", "");
+  }
 
   document.getElementById("settings_cash_create").addEventListener("click", () => {
     const preset = {};
     if (filialFilter) preset.filial_id = Number(filialFilter);
     if (kindFilter) preset.kind = kindFilter;
-    openEntityModal(ctx, preset, filials, currencyCodes);
+    openEntityModal(ctx, preset, filials, currencyCodes, fields);
   });
 
   document.querySelectorAll("[data-edit-cash]").forEach(btn => {
     btn.addEventListener("click", () => {
       const id = Number(btn.dataset.editCash);
       const item = allItems.find(entry => entry.id === id);
-      if (item) openEntityModal(ctx, item, filials, currencyCodes);
+      if (item) openEntityModal(ctx, item, filials, currencyCodes, fields);
     });
   });
 
-  document.querySelectorAll("[data-toggle-cash]").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const id = Number(btn.dataset.toggleCash);
-      const next = Number(btn.dataset.next);
-      await api(`/cash-accounts/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_active: next })
+  if (fields.isEnabled("is_active")) {
+    document.querySelectorAll("[data-toggle-cash]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = Number(btn.dataset.toggleCash);
+        const next = Number(btn.dataset.next);
+        await api(`/cash-accounts/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ is_active: next })
+        });
+        await render(ctx);
       });
-      await render(ctx);
     });
-  });
+  }
 }

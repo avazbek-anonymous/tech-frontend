@@ -4,10 +4,13 @@ import {
   errorHtml,
   esc,
   formatTs,
+  isEmptyFieldValue,
   langOf,
+  loadEntityFieldAccess,
   noAccessHtml,
   pick,
-  queueRerender
+  queueRerender,
+  stripDisabledFields
 } from "./settings-utils.js";
 
 const UI = {
@@ -175,67 +178,83 @@ function filialChecksHtml(filials, selectedIds) {
   )).join("");
 }
 
-function userModalHtml(lang, user, roles, filials, selectedFilials, isCreate) {
+function userModalHtml(lang, user, roles, filials, selectedFilials, isCreate, fields) {
   const currentRole = user?.role || "branch_manager";
   return `
     <div class="row g-3">
-      <div class="col-md-6">
-        <label class="form-label">${esc(text(lang, "fullName"))}</label>
-        <input class="form-control" name="full_name" value="${esc(user?.full_name || "")}">
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">${esc(text(lang, "email"))}</label>
-        <input class="form-control" name="email" value="${esc(user?.email || "")}" ${isCreate ? "" : "disabled"}>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">${esc(text(lang, "systemRole"))}</label>
-        <select class="form-select" name="role">
-          ${roleOptionsHtml(lang, currentRole)}
-        </select>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">${esc(text(lang, "permissionRole"))}</label>
-        <select class="form-select" name="role_id">
-          ${permissionRoleOptionsHtml(lang, roles, user?.role_id)}
-        </select>
-      </div>
+      ${fields.showInForm("full_name") ? `
+        <div class="col-md-6">
+          <label class="form-label">${esc(text(lang, "fullName"))}</label>
+          <input class="form-control" name="full_name" value="${esc(user?.full_name || "")}">
+        </div>
+      ` : ""}
+      ${fields.showInForm("email") ? `
+        <div class="col-md-6">
+          <label class="form-label">${esc(text(lang, "email"))}</label>
+          <input class="form-control" name="email" value="${esc(user?.email || "")}" ${isCreate ? "" : "disabled"}>
+        </div>
+      ` : ""}
+      ${fields.showInForm("role") ? `
+        <div class="col-md-6">
+          <label class="form-label">${esc(text(lang, "systemRole"))}</label>
+          <select class="form-select" name="role">
+            ${roleOptionsHtml(lang, currentRole)}
+          </select>
+        </div>
+      ` : ""}
+      ${fields.showInForm("role_id") ? `
+        <div class="col-md-6">
+          <label class="form-label">${esc(text(lang, "permissionRole"))}</label>
+          <select class="form-select" name="role_id">
+            ${permissionRoleOptionsHtml(lang, roles, user?.role_id)}
+          </select>
+        </div>
+      ` : ""}
       <div class="col-md-6">
         <label class="form-label">${esc(isCreate ? text(lang, "password") : text(lang, "passwordNew"))}</label>
         <input class="form-control" name="password" type="password" placeholder="${isCreate ? "" : "Optional"}">
       </div>
-      <div class="col-md-6">
-        <label class="form-label">${esc(text(lang, "status"))}</label>
-        <select class="form-select" name="is_active">
-          <option value="1" ${Number(user?.is_active ?? 1) === 1 ? "selected" : ""}>${esc(text(lang, "active"))}</option>
-          <option value="0" ${Number(user?.is_active ?? 1) === 0 ? "selected" : ""}>${esc(text(lang, "inactive"))}</option>
-        </select>
-      </div>
-      <div class="col-12">
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" role="switch" name="can_all_filials" ${Number(user?.can_all_filials || 0) === 1 ? "checked" : ""}>
-          <label class="form-check-label">${esc(text(lang, "allFilials"))}</label>
+      ${fields.showInForm("is_active") ? `
+        <div class="col-md-6">
+          <label class="form-label">${esc(text(lang, "status"))}</label>
+          <select class="form-select" name="is_active">
+            <option value="1" ${Number(user?.is_active ?? 1) === 1 ? "selected" : ""}>${esc(text(lang, "active"))}</option>
+            <option value="0" ${Number(user?.is_active ?? 1) === 0 ? "selected" : ""}>${esc(text(lang, "inactive"))}</option>
+          </select>
         </div>
-      </div>
-      <div class="col-12" data-filials-wrap>
-        <label class="form-label">${esc(text(lang, "filials"))}</label>
-        <div class="border rounded-3 p-3">
-          ${filials.length ? filialChecksHtml(filials, selectedFilials) : `<div class="text-muted small mb-0">-</div>`}
+      ` : ""}
+      ${fields.showInForm("can_all_filials") ? `
+        <div class="col-12">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" role="switch" name="can_all_filials" ${Number(user?.can_all_filials || 0) === 1 ? "checked" : ""}>
+            <label class="form-check-label">${esc(text(lang, "allFilials"))}</label>
+          </div>
         </div>
-      </div>
+      ` : ""}
+      ${fields.showInForm("can_all_filials") ? `
+        <div class="col-12" data-filials-wrap>
+          <label class="form-label">${esc(text(lang, "filials"))}</label>
+          <div class="border rounded-3 p-3">
+            ${filials.length ? filialChecksHtml(filials, selectedFilials) : `<div class="text-muted small mb-0">-</div>`}
+          </div>
+        </div>
+      ` : ""}
     </div>
   `;
 }
 
 function readUserForm(modalEl) {
   const checked = Array.from(modalEl.querySelectorAll("[data-filial]:checked")).map(el => Number(el.value));
+  const byName = (name) => modalEl.querySelector(`[name='${name}']`);
+  const readText = (name) => String(byName(name)?.value || "").trim();
   return {
-    full_name: modalEl.querySelector("[name='full_name']").value.trim(),
-    email: modalEl.querySelector("[name='email']").value.trim(),
-    role: modalEl.querySelector("[name='role']").value,
-    role_id: modalEl.querySelector("[name='role_id']").value ? Number(modalEl.querySelector("[name='role_id']").value) : null,
-    password: modalEl.querySelector("[name='password']").value,
-    is_active: Number(modalEl.querySelector("[name='is_active']").value || 1),
-    can_all_filials: modalEl.querySelector("[name='can_all_filials']").checked ? 1 : 0,
+    full_name: readText("full_name"),
+    email: readText("email"),
+    role: readText("role") || "branch_manager",
+    role_id: readText("role_id") ? Number(readText("role_id")) : null,
+    password: String(byName("password")?.value || ""),
+    is_active: Number(byName("is_active")?.value || 1),
+    can_all_filials: byName("can_all_filials")?.checked ? 1 : 0,
     filial_ids: checked
   };
 }
@@ -252,16 +271,23 @@ function syncFilialsState(modalEl, role) {
   });
 }
 
-function filteredItems(items, roles, q) {
+function filteredItems(items, roles, q, filterableFields) {
   const needle = String(q || "").trim().toLowerCase();
   if (!needle) return items;
+  const keys = (filterableFields || []).length ? filterableFields : ["email", "full_name", "role", "role_name"];
   return items.filter(item => {
     const roleName = roles.find(role => Number(role.id) === Number(item.role_id))?.name || "";
-    return [item.email, item.full_name, item.role, roleName].some(v => String(v || "").toLowerCase().includes(needle));
+    const probe = {
+      email: item.email,
+      full_name: item.full_name,
+      role: item.role,
+      role_name: roleName
+    };
+    return keys.some((key) => String(probe[key] || "").toLowerCase().includes(needle));
   });
 }
 
-function desktopTableHtml(items, roles, filials, lang) {
+function desktopTableHtml(items, roles, filials, lang, fields) {
   const filialById = new Map(filials.map(item => [Number(item.id), item.name]));
   return `
     <div class="card d-none d-lg-block">
@@ -269,13 +295,13 @@ function desktopTableHtml(items, roles, filials, lang) {
         <table class="table table-sm table-hover align-middle mb-0">
           <thead>
             <tr>
-              <th>${esc(text(lang, "fullName"))}</th>
-              <th>${esc(text(lang, "email"))}</th>
-              <th style="width:160px">${esc(text(lang, "systemRole"))}</th>
-              <th style="width:190px">${esc(text(lang, "permissionRole"))}</th>
-              <th style="width:150px">${esc(text(lang, "filials"))}</th>
+              ${fields.showInList("full_name") ? `<th>${esc(text(lang, "fullName"))}</th>` : ""}
+              ${fields.showInList("email") ? `<th>${esc(text(lang, "email"))}</th>` : ""}
+              ${fields.showInList("role") ? `<th style="width:160px">${esc(text(lang, "systemRole"))}</th>` : ""}
+              ${fields.showInList("role_id") ? `<th style="width:190px">${esc(text(lang, "permissionRole"))}</th>` : ""}
+              ${fields.showInList("can_all_filials") ? `<th style="width:150px">${esc(text(lang, "filials"))}</th>` : ""}
               <th style="width:170px">${esc(text(lang, "lastLogin"))}</th>
-              <th style="width:110px">${esc(text(lang, "status"))}</th>
+              ${fields.showInList("is_active") ? `<th style="width:110px">${esc(text(lang, "status"))}</th>` : ""}
               <th style="width:190px">${esc(text(lang, "actions"))}</th>
             </tr>
           </thead>
@@ -287,13 +313,13 @@ function desktopTableHtml(items, roles, filials, lang) {
               const permissionRole = roles.find(role => Number(role.id) === Number(item.role_id))?.name || text(lang, "noRole");
               return `
                 <tr>
-                  <td class="fw-semibold">${esc(item.full_name)}</td>
-                  <td>${esc(item.email)}</td>
-                  <td>${esc(roleLabel(lang, item.role))}</td>
-                  <td>${esc(permissionRole)}</td>
-                  <td class="small">${esc(assignedFilials || "-")}</td>
+                  ${fields.showInList("full_name") ? `<td class="fw-semibold">${esc(item.full_name)}</td>` : ""}
+                  ${fields.showInList("email") ? `<td>${esc(item.email)}</td>` : ""}
+                  ${fields.showInList("role") ? `<td>${esc(roleLabel(lang, item.role))}</td>` : ""}
+                  ${fields.showInList("role_id") ? `<td>${esc(permissionRole)}</td>` : ""}
+                  ${fields.showInList("can_all_filials") ? `<td class="small">${esc(assignedFilials || "-")}</td>` : ""}
                   <td>${esc(formatTs(item.last_login_at, lang))}</td>
-                  <td>${activeBadge(item.is_active, { active: text(lang, "active"), inactive: text(lang, "inactive") })}</td>
+                  ${fields.showInList("is_active") ? `<td>${activeBadge(item.is_active, { active: text(lang, "active"), inactive: text(lang, "inactive") })}</td>` : ""}
                   <td>
                     <div class="d-flex gap-2 flex-wrap">
                       <button class="btn btn-sm btn-outline-primary" data-edit-user="${item.id}">${esc(text(lang, "update"))}</button>
@@ -310,7 +336,7 @@ function desktopTableHtml(items, roles, filials, lang) {
   `;
 }
 
-function mobileCardsHtml(items, roles, filials, lang) {
+function mobileCardsHtml(items, roles, filials, lang, fields) {
   const filialById = new Map(filials.map(item => [Number(item.id), item.name]));
   return `
     <div class="d-lg-none">
@@ -322,19 +348,19 @@ function mobileCardsHtml(items, roles, filials, lang) {
         return `
           <div class="card mb-2 shadow-sm">
             <div class="card-body p-3">
-              <div class="d-flex justify-content-between gap-2 align-items-start">
-                <div>
-                  <div class="fw-semibold">${esc(item.full_name)}</div>
-                  <div class="text-muted small">${esc(item.email)}</div>
-                </div>
-                ${activeBadge(item.is_active, { active: text(lang, "active"), inactive: text(lang, "inactive") })}
+            <div class="d-flex justify-content-between gap-2 align-items-start">
+              <div>
+                ${fields.showInCard("full_name") ? `<div class="fw-semibold">${esc(item.full_name)}</div>` : ""}
+                ${fields.showInCard("email") ? `<div class="text-muted small">${esc(item.email)}</div>` : ""}
               </div>
-              <div class="small text-muted mt-2">${esc(text(lang, "systemRole"))}: ${esc(roleLabel(lang, item.role))}</div>
-              <div class="small text-muted">${esc(text(lang, "permissionRole"))}: ${esc(permissionRole)}</div>
-              <div class="small text-muted">${esc(text(lang, "filials"))}: ${esc(assignedFilials || "-")}</div>
-              <div class="small text-muted">${esc(text(lang, "lastLogin"))}: ${esc(formatTs(item.last_login_at, lang))}</div>
-              <div class="d-flex gap-2 flex-wrap mt-3">
-                <button class="btn btn-sm btn-outline-primary" data-edit-user="${item.id}">${esc(text(lang, "update"))}</button>
+              ${fields.showInCard("is_active") ? activeBadge(item.is_active, { active: text(lang, "active"), inactive: text(lang, "inactive") }) : ""}
+            </div>
+            ${fields.showInCard("role") ? `<div class="small text-muted mt-2">${esc(text(lang, "systemRole"))}: ${esc(roleLabel(lang, item.role))}</div>` : ""}
+            ${fields.showInCard("role_id") ? `<div class="small text-muted">${esc(text(lang, "permissionRole"))}: ${esc(permissionRole)}</div>` : ""}
+            ${fields.showInCard("can_all_filials") ? `<div class="small text-muted">${esc(text(lang, "filials"))}: ${esc(assignedFilials || "-")}</div>` : ""}
+            <div class="small text-muted">${esc(text(lang, "lastLogin"))}: ${esc(formatTs(item.last_login_at, lang))}</div>
+            <div class="d-flex gap-2 flex-wrap mt-3">
+              <button class="btn btn-sm btn-outline-primary" data-edit-user="${item.id}">${esc(text(lang, "update"))}</button>
                 <button class="btn btn-sm btn-outline-secondary" data-pwd-user="${item.id}">${esc(text(lang, "resetPassword"))}</button>
               </div>
             </div>
@@ -370,7 +396,7 @@ async function openPasswordModal(ctx, user) {
   });
 }
 
-async function openUserModal(ctx, user, roles, filials) {
+async function openUserModal(ctx, user, roles, filials, fields) {
   const { api, openModal } = ctx;
   const lang = langOf();
   const isCreate = !user?.id;
@@ -386,32 +412,47 @@ async function openUserModal(ctx, user, roles, filials) {
   openModal({
     title: isCreate ? text(lang, "createUser") : text(lang, "editUser"),
     saveText: text(lang, "save"),
-    bodyHtml: userModalHtml(lang, user, roles, filials, selectedFilials, isCreate),
+    bodyHtml: userModalHtml(lang, user, roles, filials, selectedFilials, isCreate, fields),
     onSave: async (modalEl) => {
       const payload = readUserForm(modalEl);
-
-      if (!payload.full_name) throw new Error(text(lang, "fullNameRequired"));
-      if (isCreate && !payload.email) throw new Error(text(lang, "emailRequired"));
-      if (isCreate && String(payload.password).length < 8) throw new Error(text(lang, "passwordMin"));
-      if (!isCreate && payload.password && String(payload.password).length < 8) throw new Error(text(lang, "passwordMin"));
-
-      if (payload.role === "business_owner") {
-        payload.role_id = null;
-        payload.can_all_filials = 1;
-      } else {
-        if (!payload.role_id) throw new Error(text(lang, "roleRequired"));
-        if (payload.can_all_filials === 0 && payload.filial_ids.length === 0) {
-          throw new Error(text(lang, "filialRequired"));
-        }
-      }
-
-      const userBody = {
+      const userFieldsOnly = stripDisabledFields({
         full_name: payload.full_name,
+        email: payload.email,
         role: payload.role,
         role_id: payload.role_id,
         can_all_filials: payload.can_all_filials,
         is_active: payload.is_active
-      };
+      }, fields);
+
+      if (fields.isRequired("full_name") && isEmptyFieldValue(userFieldsOnly.full_name)) {
+        throw new Error(text(lang, "fullNameRequired"));
+      }
+      if (isCreate && fields.isRequired("email") && isEmptyFieldValue(userFieldsOnly.email)) {
+        throw new Error(text(lang, "emailRequired"));
+      }
+      if (isCreate && String(payload.password).length < 8) throw new Error(text(lang, "passwordMin"));
+      if (!isCreate && payload.password && String(payload.password).length < 8) throw new Error(text(lang, "passwordMin"));
+
+      const roleValue = String(userFieldsOnly.role || payload.role || user?.role || "branch_manager");
+      const roleIdValue = Object.prototype.hasOwnProperty.call(userFieldsOnly, "role_id")
+        ? userFieldsOnly.role_id
+        : payload.role_id;
+      const canAllFilialsValue = Object.prototype.hasOwnProperty.call(userFieldsOnly, "can_all_filials")
+        ? Number(userFieldsOnly.can_all_filials || 0)
+        : Number(payload.can_all_filials || 0);
+
+      if (roleValue === "business_owner") {
+        userFieldsOnly.role = roleValue;
+        userFieldsOnly.role_id = null;
+        userFieldsOnly.can_all_filials = 1;
+      } else {
+        if (fields.isRequired("role_id") && !roleIdValue) throw new Error(text(lang, "roleRequired"));
+        if (fields.showInForm("can_all_filials") && canAllFilialsValue === 0 && payload.filial_ids.length === 0) {
+          throw new Error(text(lang, "filialRequired"));
+        }
+      }
+
+      const userBody = { ...userFieldsOnly };
 
       let userId = user?.id || null;
       if (isCreate) {
@@ -420,7 +461,7 @@ async function openUserModal(ctx, user, roles, filials) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             ...userBody,
-            email: payload.email,
+            email: userFieldsOnly.email ?? payload.email,
             password: payload.password
           })
         });
@@ -441,7 +482,7 @@ async function openUserModal(ctx, user, roles, filials) {
         });
       }
 
-      const filial_ids = (payload.role === "business_owner" || payload.can_all_filials === 1) ? [] : payload.filial_ids;
+      const filial_ids = (roleValue === "business_owner" || canAllFilialsValue === 1) ? [] : payload.filial_ids;
       await api(`/users/${userId}/filials`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -457,7 +498,7 @@ async function openUserModal(ctx, user, roles, filials) {
 
   const roleEl = modalEl.querySelector("[name='role']");
   const allEl = modalEl.querySelector("[name='can_all_filials']");
-  const onSync = () => syncFilialsState(modalEl, roleEl.value);
+  const onSync = () => syncFilialsState(modalEl, roleEl?.value || user?.role || "branch_manager");
 
   roleEl?.addEventListener("change", onSync);
   allEl?.addEventListener("change", onSync);
@@ -480,11 +521,13 @@ export async function render(ctx) {
   let usersResp;
   let rolesResp;
   let filialsResp;
+  let fields;
   try {
-    [usersResp, rolesResp, filialsResp] = await Promise.all([
+    [usersResp, rolesResp, filialsResp, fields] = await Promise.all([
       api("/users"),
       api("/roles"),
-      api("/filials")
+      api("/filials"),
+      loadEntityFieldAccess(api, "users")
     ]);
   } catch (e) {
     viewEl.innerHTML = errorHtml(String(e?.message || e));
@@ -508,16 +551,20 @@ export async function render(ctx) {
     }
   }));
 
-  const items = filteredItems(rawItems, roles, q);
+  const showSearch = ["full_name", "email", "role", "role_name"].some((key) => fields.showInFilters(key === "role_name" ? "role" : key));
+  const filterableFields = ["full_name", "email", "role", "role_name"].filter((key) => fields.showInFilters(key === "role_name" ? "role" : key));
+  const items = filteredItems(rawItems, roles, q, filterableFields);
 
   viewEl.innerHTML = `
     <div class="card mb-3">
       <div class="card-body">
         <div class="row g-2 align-items-end">
-          <div class="col-12 col-md-8 col-lg-9">
-            <label class="form-label">${esc(text(lang, "search"))}</label>
-            <input id="settings_users_q" class="form-control" value="${esc(q)}">
-          </div>
+          ${showSearch ? `
+            <div class="col-12 col-md-8 col-lg-9">
+              <label class="form-label">${esc(text(lang, "search"))}</label>
+              <input id="settings_users_q" class="form-control" value="${esc(q)}">
+            </div>
+          ` : ""}
           <div class="col-12 col-md-4 col-lg-3 d-grid">
             <button id="settings_users_create" class="btn btn-primary">${esc(text(lang, "createUser"))}</button>
           </div>
@@ -525,25 +572,29 @@ export async function render(ctx) {
       </div>
     </div>
 
-    ${items.length ? desktopTableHtml(items, roles, filials, lang) : emptyHtml(text(lang, "noItems"))}
-    ${items.length ? mobileCardsHtml(items, roles, filials, lang) : ""}
+    ${items.length ? desktopTableHtml(items, roles, filials, lang, fields) : emptyHtml(text(lang, "noItems"))}
+    ${items.length ? mobileCardsHtml(items, roles, filials, lang, fields) : ""}
   `;
 
-  const qEl = document.getElementById("settings_users_q");
-  qEl.addEventListener("input", () => {
-    viewEl.setAttribute("data-q", qEl.value.trim());
-    queueRerender(viewEl, "__settingsUsersTimer", () => render(ctx), 180);
-  });
+  if (showSearch) {
+    const qEl = document.getElementById("settings_users_q");
+    qEl.addEventListener("input", () => {
+      viewEl.setAttribute("data-q", qEl.value.trim());
+      queueRerender(viewEl, "__settingsUsersTimer", () => render(ctx), 180);
+    });
+  } else {
+    viewEl.setAttribute("data-q", "");
+  }
 
   document.getElementById("settings_users_create").addEventListener("click", () => {
-    openUserModal(ctx, null, roles, filials);
+    openUserModal(ctx, null, roles, filials, fields);
   });
 
   document.querySelectorAll("[data-edit-user]").forEach(btn => {
     btn.addEventListener("click", () => {
       const id = Number(btn.dataset.editUser);
       const user = rawItems.find(item => item.id === id);
-      if (user) openUserModal(ctx, user, roles, filials);
+      if (user) openUserModal(ctx, user, roles, filials, fields);
     });
   });
 

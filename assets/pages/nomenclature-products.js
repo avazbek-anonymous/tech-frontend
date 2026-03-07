@@ -3,9 +3,12 @@ import {
   emptyHtml,
   errorHtml,
   esc,
+  isEmptyFieldValue,
   langOf,
+  loadEntityFieldAccess,
   pick,
   queueRerender,
+  stripDisabledFields,
   ynBadge
 } from "./settings-utils.js";
 
@@ -113,6 +116,8 @@ function normalizeItem(item) {
     name: String(item?.name || ""),
     category_name: String(item?.category_name || ""),
     unit_name: String(item?.unit_name || ""),
+    sku: String(item?.sku || ""),
+    barcode: String(item?.barcode || ""),
     vat_rate: Number(item?.vat_rate || 0),
     price_retail: Number(item?.price_retail || 0),
     price_wholesale: Number(item?.price_wholesale || 0),
@@ -136,14 +141,13 @@ function normalizeUnit(item) {
   };
 }
 
-function filterItems(items, q) {
+function filterItems(items, q, filterableFields) {
   const needle = String(q || "").trim().toLowerCase();
   if (!needle) return items;
-  return items.filter(item => (
-    String(item.name || "").toLowerCase().includes(needle)
-    || String(item.category_name || "").toLowerCase().includes(needle)
-    || String(item.unit_name || "").toLowerCase().includes(needle)
-  ));
+  const fields = (filterableFields || []).length
+    ? filterableFields
+    : ["name", "category_name", "unit_name", "sku", "barcode"];
+  return items.filter(item => fields.some((key) => String(item?.[key] || "").toLowerCase().includes(needle)));
 }
 
 function mapSaveError(lang, error) {
@@ -168,77 +172,111 @@ function unitOptionsHtml(units, selectedId) {
   `;
 }
 
-function modalHtml(lang, item, categories, units) {
+function modalHtml(lang, item, categories, units, fields) {
   return `
     <div class="row g-3">
-      <div class="col-md-8">
-        <label class="form-label">${esc(text(lang, "name"))}</label>
-        <input class="form-control" name="name" value="${esc(item?.name || "")}">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">${esc(text(lang, "unit"))}</label>
-        <select class="form-select" name="unit_id">
-          ${unitOptionsHtml(units, item?.unit_id || null)}
-        </select>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">${esc(text(lang, "category"))}</label>
-        <select class="form-select" name="category_id">
-          ${categoryOptionsHtml(lang, categories, item?.category_id || null)}
-        </select>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">${esc(text(lang, "vatRate"))}</label>
-        <input class="form-control" name="vat_rate" type="number" min="0" step="0.01" value="${esc(item?.vat_rate ?? 0)}">
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">${esc(text(lang, "priceRetail"))}</label>
-        <input class="form-control" name="price_retail" type="number" min="0" step="0.01" value="${esc(item?.price_retail ?? 0)}">
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">${esc(text(lang, "priceWholesale"))}</label>
-        <input class="form-control" name="price_wholesale" type="number" min="0" step="0.01" value="${esc(item?.price_wholesale ?? 0)}">
-      </div>
-      <div class="col-md-6">
-        <div class="form-check form-switch mt-md-4 pt-md-2">
-          <input class="form-check-input" type="checkbox" role="switch" name="track_serial" ${Number(item?.track_serial || 0) === 1 ? "checked" : ""}>
-          <label class="form-check-label">${esc(text(lang, "serial"))}</label>
+      ${fields.showInForm("name") ? `
+        <div class="col-md-8">
+          <label class="form-label">${esc(text(lang, "name"))}</label>
+          <input class="form-control" name="name" value="${esc(item?.name || "")}">
         </div>
-      </div>
-      <div class="col-md-6">
-        <div class="form-check form-switch mt-md-4 pt-md-2">
-          <input class="form-check-input" type="checkbox" role="switch" name="track_imei" ${Number(item?.track_imei || 0) === 1 ? "checked" : ""}>
-          <label class="form-check-label">${esc(text(lang, "imei"))}</label>
+      ` : ""}
+      ${fields.showInForm("unit_id") ? `
+        <div class="col-md-4">
+          <label class="form-label">${esc(text(lang, "unit"))}</label>
+          <select class="form-select" name="unit_id">
+            ${unitOptionsHtml(units, item?.unit_id || null)}
+          </select>
         </div>
-      </div>
-      <div class="col-12">
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" role="switch" name="is_active" ${Number(item?.is_active ?? 1) === 1 ? "checked" : ""}>
-          <label class="form-check-label">${esc(text(lang, "active"))}</label>
+      ` : ""}
+      ${fields.showInForm("category_id") ? `
+        <div class="col-md-6">
+          <label class="form-label">${esc(text(lang, "category"))}</label>
+          <select class="form-select" name="category_id">
+            ${categoryOptionsHtml(lang, categories, item?.category_id || null)}
+          </select>
         </div>
-      </div>
+      ` : ""}
+      ${fields.showInForm("sku") ? `
+        <div class="col-md-3">
+          <label class="form-label">SKU</label>
+          <input class="form-control" name="sku" value="${esc(item?.sku || "")}">
+        </div>
+      ` : ""}
+      ${fields.showInForm("barcode") ? `
+        <div class="col-md-3">
+          <label class="form-label">Barcode</label>
+          <input class="form-control" name="barcode" value="${esc(item?.barcode || "")}">
+        </div>
+      ` : ""}
+      ${fields.showInForm("vat_rate") ? `
+        <div class="col-md-6">
+          <label class="form-label">${esc(text(lang, "vatRate"))}</label>
+          <input class="form-control" name="vat_rate" type="number" min="0" step="0.01" value="${esc(item?.vat_rate ?? 0)}">
+        </div>
+      ` : ""}
+      ${fields.showInForm("price_retail") ? `
+        <div class="col-md-6">
+          <label class="form-label">${esc(text(lang, "priceRetail"))}</label>
+          <input class="form-control" name="price_retail" type="number" min="0" step="0.01" value="${esc(item?.price_retail ?? 0)}">
+        </div>
+      ` : ""}
+      ${fields.showInForm("price_wholesale") ? `
+        <div class="col-md-6">
+          <label class="form-label">${esc(text(lang, "priceWholesale"))}</label>
+          <input class="form-control" name="price_wholesale" type="number" min="0" step="0.01" value="${esc(item?.price_wholesale ?? 0)}">
+        </div>
+      ` : ""}
+      ${fields.showInForm("track_serial") ? `
+        <div class="col-md-6">
+          <div class="form-check form-switch mt-md-4 pt-md-2">
+            <input class="form-check-input" type="checkbox" role="switch" name="track_serial" ${Number(item?.track_serial || 0) === 1 ? "checked" : ""}>
+            <label class="form-check-label">${esc(text(lang, "serial"))}</label>
+          </div>
+        </div>
+      ` : ""}
+      ${fields.showInForm("track_imei") ? `
+        <div class="col-md-6">
+          <div class="form-check form-switch mt-md-4 pt-md-2">
+            <input class="form-check-input" type="checkbox" role="switch" name="track_imei" ${Number(item?.track_imei || 0) === 1 ? "checked" : ""}>
+            <label class="form-check-label">${esc(text(lang, "imei"))}</label>
+          </div>
+        </div>
+      ` : ""}
+      ${fields.showInForm("is_active") ? `
+        <div class="col-12">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" role="switch" name="is_active" ${Number(item?.is_active ?? 1) === 1 ? "checked" : ""}>
+            <label class="form-check-label">${esc(text(lang, "active"))}</label>
+          </div>
+        </div>
+      ` : ""}
     </div>
   `;
 }
 
 function readForm(modalEl) {
-  const categoryRaw = modalEl.querySelector("[name='category_id']").value;
-  const unitRaw = modalEl.querySelector("[name='unit_id']").value;
+  const byName = (name) => modalEl.querySelector(`[name='${name}']`);
+  const readText = (name) => String(byName(name)?.value || "").trim();
+  const categoryRaw = readText("category_id");
+  const unitRaw = readText("unit_id");
 
   return {
-    name: modalEl.querySelector("[name='name']").value.trim(),
+    name: readText("name"),
     category_id: categoryRaw ? Number(categoryRaw) : null,
     unit_id: unitRaw ? Number(unitRaw) : null,
-    vat_rate: Number(modalEl.querySelector("[name='vat_rate']").value || 0),
-    price_retail: Number(modalEl.querySelector("[name='price_retail']").value || 0),
-    price_wholesale: Number(modalEl.querySelector("[name='price_wholesale']").value || 0),
-    track_serial: modalEl.querySelector("[name='track_serial']").checked ? 1 : 0,
-    track_imei: modalEl.querySelector("[name='track_imei']").checked ? 1 : 0,
-    is_active: modalEl.querySelector("[name='is_active']").checked ? 1 : 0
+    sku: readText("sku") || null,
+    barcode: readText("barcode") || null,
+    vat_rate: Number(byName("vat_rate")?.value || 0),
+    price_retail: Number(byName("price_retail")?.value || 0),
+    price_wholesale: Number(byName("price_wholesale")?.value || 0),
+    track_serial: byName("track_serial")?.checked ? 1 : 0,
+    track_imei: byName("track_imei")?.checked ? 1 : 0,
+    is_active: byName("is_active")?.checked ? 1 : 0
   };
 }
 
-function desktopTableHtml(items, lang, canWrite) {
+function desktopTableHtml(items, lang, canWrite, fields) {
   const labels = {
     active: text(lang, "active"),
     inactive: text(lang, "inactive"),
@@ -252,35 +290,39 @@ function desktopTableHtml(items, lang, canWrite) {
         <table class="table table-sm table-hover align-middle mb-0">
           <thead>
             <tr>
-              <th>${esc(text(lang, "name"))}</th>
-              <th style="width:180px">${esc(text(lang, "category"))}</th>
-              <th style="width:100px">${esc(text(lang, "unit"))}</th>
-              <th style="width:95px">${esc(text(lang, "vatRate"))}</th>
-              <th style="width:120px">${esc(text(lang, "priceRetail"))}</th>
-              <th style="width:120px">${esc(text(lang, "priceWholesale"))}</th>
-              <th style="width:100px">${esc(text(lang, "serial"))}</th>
-              <th style="width:95px">${esc(text(lang, "imei"))}</th>
-              <th style="width:110px">${esc(text(lang, "status"))}</th>
+              ${fields.showInList("name") ? `<th>${esc(text(lang, "name"))}</th>` : ""}
+              ${fields.showInList("category_id") ? `<th style="width:180px">${esc(text(lang, "category"))}</th>` : ""}
+              ${fields.showInList("unit_id") ? `<th style="width:100px">${esc(text(lang, "unit"))}</th>` : ""}
+              ${fields.showInList("sku") ? `<th style="width:120px">SKU</th>` : ""}
+              ${fields.showInList("barcode") ? `<th style="width:130px">Barcode</th>` : ""}
+              ${fields.showInList("vat_rate") ? `<th style="width:95px">${esc(text(lang, "vatRate"))}</th>` : ""}
+              ${fields.showInList("price_retail") ? `<th style="width:120px">${esc(text(lang, "priceRetail"))}</th>` : ""}
+              ${fields.showInList("price_wholesale") ? `<th style="width:120px">${esc(text(lang, "priceWholesale"))}</th>` : ""}
+              ${fields.showInList("track_serial") ? `<th style="width:100px">${esc(text(lang, "serial"))}</th>` : ""}
+              ${fields.showInList("track_imei") ? `<th style="width:95px">${esc(text(lang, "imei"))}</th>` : ""}
+              ${fields.showInList("is_active") ? `<th style="width:110px">${esc(text(lang, "status"))}</th>` : ""}
               ${canWrite ? `<th style="width:160px">${esc(text(lang, "actions"))}</th>` : ""}
             </tr>
           </thead>
           <tbody>
             ${items.map(item => `
               <tr>
-                <td class="fw-semibold">${esc(item.name)}</td>
-                <td>${esc(item.category_name || text(lang, "topLevel"))}</td>
-                <td>${esc(item.unit_name || "-")}</td>
-                <td>${esc(formatNumber(lang, item.vat_rate))}</td>
-                <td>${esc(formatNumber(lang, item.price_retail))}</td>
-                <td>${esc(formatNumber(lang, item.price_wholesale))}</td>
-                <td>${ynBadge(item.track_serial, labels)}</td>
-                <td>${ynBadge(item.track_imei, labels)}</td>
-                <td>${activeBadge(item.is_active, labels)}</td>
+                ${fields.showInList("name") ? `<td class="fw-semibold">${esc(item.name)}</td>` : ""}
+                ${fields.showInList("category_id") ? `<td>${esc(item.category_name || text(lang, "topLevel"))}</td>` : ""}
+                ${fields.showInList("unit_id") ? `<td>${esc(item.unit_name || "-")}</td>` : ""}
+                ${fields.showInList("sku") ? `<td>${esc(item.sku || "-")}</td>` : ""}
+                ${fields.showInList("barcode") ? `<td>${esc(item.barcode || "-")}</td>` : ""}
+                ${fields.showInList("vat_rate") ? `<td>${esc(formatNumber(lang, item.vat_rate))}</td>` : ""}
+                ${fields.showInList("price_retail") ? `<td>${esc(formatNumber(lang, item.price_retail))}</td>` : ""}
+                ${fields.showInList("price_wholesale") ? `<td>${esc(formatNumber(lang, item.price_wholesale))}</td>` : ""}
+                ${fields.showInList("track_serial") ? `<td>${ynBadge(item.track_serial, labels)}</td>` : ""}
+                ${fields.showInList("track_imei") ? `<td>${ynBadge(item.track_imei, labels)}</td>` : ""}
+                ${fields.showInList("is_active") ? `<td>${activeBadge(item.is_active, labels)}</td>` : ""}
                 ${canWrite ? `
                   <td>
                     <div class="d-flex gap-2 flex-wrap">
                       <button class="btn btn-sm btn-outline-primary" data-edit-product="${item.id}">${esc(text(lang, "update"))}</button>
-                      <button class="btn btn-sm btn-outline-secondary" data-toggle-product="${item.id}" data-next="${item.is_active ? 0 : 1}">${item.is_active ? esc(text(lang, "inactive")) : esc(text(lang, "active"))}</button>
+                      ${fields.isEnabled("is_active") ? `<button class="btn btn-sm btn-outline-secondary" data-toggle-product="${item.id}" data-next="${item.is_active ? 0 : 1}">${item.is_active ? esc(text(lang, "inactive")) : esc(text(lang, "active"))}</button>` : ""}
                     </div>
                   </td>
                 ` : ""}
@@ -293,7 +335,7 @@ function desktopTableHtml(items, lang, canWrite) {
   `;
 }
 
-function mobileCardsHtml(items, lang, canWrite) {
+function mobileCardsHtml(items, lang, canWrite, fields) {
   const labels = {
     active: text(lang, "active"),
     inactive: text(lang, "inactive"),
@@ -308,21 +350,23 @@ function mobileCardsHtml(items, lang, canWrite) {
           <div class="card-body p-3">
             <div class="d-flex justify-content-between gap-2 align-items-start">
               <div>
-                <div class="fw-semibold">${esc(item.name)}</div>
-                <div class="small text-muted mt-1">${esc(text(lang, "category"))}: ${esc(item.category_name || text(lang, "topLevel"))}</div>
+                ${fields.showInCard("name") ? `<div class="fw-semibold">${esc(item.name)}</div>` : ""}
+                ${fields.showInCard("category_id") ? `<div class="small text-muted mt-1">${esc(text(lang, "category"))}: ${esc(item.category_name || text(lang, "topLevel"))}</div>` : ""}
               </div>
-              ${activeBadge(item.is_active, labels)}
+              ${fields.showInCard("is_active") ? activeBadge(item.is_active, labels) : ""}
             </div>
-            <div class="small text-muted mt-2">${esc(text(lang, "unit"))}: ${esc(item.unit_name || "-")}</div>
-            <div class="small text-muted">${esc(text(lang, "vatRate"))}: ${esc(formatNumber(lang, item.vat_rate))}</div>
-            <div class="small text-muted">${esc(text(lang, "priceRetail"))}: ${esc(formatNumber(lang, item.price_retail))}</div>
-            <div class="small text-muted">${esc(text(lang, "priceWholesale"))}: ${esc(formatNumber(lang, item.price_wholesale))}</div>
-            <div class="small text-muted">${esc(text(lang, "serial"))}: ${item.track_serial ? esc(text(lang, "yes")) : esc(text(lang, "no"))}</div>
-            <div class="small text-muted">${esc(text(lang, "imei"))}: ${item.track_imei ? esc(text(lang, "yes")) : esc(text(lang, "no"))}</div>
+            ${fields.showInCard("unit_id") ? `<div class="small text-muted mt-2">${esc(text(lang, "unit"))}: ${esc(item.unit_name || "-")}</div>` : ""}
+            ${fields.showInCard("sku") ? `<div class="small text-muted">SKU: ${esc(item.sku || "-")}</div>` : ""}
+            ${fields.showInCard("barcode") ? `<div class="small text-muted">Barcode: ${esc(item.barcode || "-")}</div>` : ""}
+            ${fields.showInCard("vat_rate") ? `<div class="small text-muted">${esc(text(lang, "vatRate"))}: ${esc(formatNumber(lang, item.vat_rate))}</div>` : ""}
+            ${fields.showInCard("price_retail") ? `<div class="small text-muted">${esc(text(lang, "priceRetail"))}: ${esc(formatNumber(lang, item.price_retail))}</div>` : ""}
+            ${fields.showInCard("price_wholesale") ? `<div class="small text-muted">${esc(text(lang, "priceWholesale"))}: ${esc(formatNumber(lang, item.price_wholesale))}</div>` : ""}
+            ${fields.showInCard("track_serial") ? `<div class="small text-muted">${esc(text(lang, "serial"))}: ${item.track_serial ? esc(text(lang, "yes")) : esc(text(lang, "no"))}</div>` : ""}
+            ${fields.showInCard("track_imei") ? `<div class="small text-muted">${esc(text(lang, "imei"))}: ${item.track_imei ? esc(text(lang, "yes")) : esc(text(lang, "no"))}</div>` : ""}
             ${canWrite ? `
               <div class="entity-mobile-actions d-flex gap-2 flex-wrap mt-3">
                 <button class="btn btn-sm btn-outline-primary" data-edit-product="${item.id}">${esc(text(lang, "update"))}</button>
-                <button class="btn btn-sm btn-outline-secondary" data-toggle-product="${item.id}" data-next="${item.is_active ? 0 : 1}">${item.is_active ? esc(text(lang, "inactive")) : esc(text(lang, "active"))}</button>
+                ${fields.isEnabled("is_active") ? `<button class="btn btn-sm btn-outline-secondary" data-toggle-product="${item.id}" data-next="${item.is_active ? 0 : 1}">${item.is_active ? esc(text(lang, "inactive")) : esc(text(lang, "active"))}</button>` : ""}
               </div>
             ` : ""}
           </div>
@@ -332,11 +376,11 @@ function mobileCardsHtml(items, lang, canWrite) {
   `;
 }
 
-function tableHtml(items, lang, canWrite) {
-  return `${desktopTableHtml(items, lang, canWrite)}${mobileCardsHtml(items, lang, canWrite)}`;
+function tableHtml(items, lang, canWrite, fields) {
+  return `${desktopTableHtml(items, lang, canWrite, fields)}${mobileCardsHtml(items, lang, canWrite, fields)}`;
 }
 
-async function openEntityModal(ctx, item, categories, units) {
+async function openEntityModal(ctx, item, categories, units, fields) {
   const { api, openModal } = ctx;
   const lang = langOf();
   const isCreate = !item?.id;
@@ -344,10 +388,10 @@ async function openEntityModal(ctx, item, categories, units) {
   openModal({
     title: isCreate ? text(lang, "create") : text(lang, "edit"),
     saveText: text(lang, "save"),
-    bodyHtml: modalHtml(lang, item, categories, units),
+    bodyHtml: modalHtml(lang, item, categories, units, fields),
     onSave: async (modalEl) => {
-      const payload = readForm(modalEl);
-      if (!payload.name) throw new Error(text(lang, "requiredName"));
+      const payload = stripDisabledFields(readForm(modalEl), fields);
+      if (fields.isRequired("name") && isEmptyFieldValue(payload.name)) throw new Error(text(lang, "requiredName"));
 
       try {
         if (isCreate) {
@@ -385,11 +429,13 @@ export async function render(ctx) {
   let respProducts;
   let respCategories;
   let respUnits;
+  let fields;
   try {
-    [respProducts, respCategories, respUnits] = await Promise.all([
+    [respProducts, respCategories, respUnits, fields] = await Promise.all([
       api("/products"),
       api("/product_categories"),
-      api("/units")
+      api("/units"),
+      loadEntityFieldAccess(api, "products")
     ]);
   } catch (e) {
     viewEl.innerHTML = errorHtml(String(e?.message || e));
@@ -399,16 +445,20 @@ export async function render(ctx) {
   const allItems = (respProducts.items || []).map(normalizeItem);
   const categories = (respCategories.items || []).map(normalizeCategory);
   const units = (respUnits.items || []).map(normalizeUnit);
-  const items = filterItems(allItems, q);
+  const showSearch = ["name", "category_name", "unit_name", "sku", "barcode"].some((key) => fields.showInFilters(key));
+  const filterableFields = ["name", "category_name", "unit_name", "sku", "barcode"].filter((key) => fields.showInFilters(key));
+  const items = filterItems(allItems, q, filterableFields);
 
   viewEl.innerHTML = `
     <div class="card mb-3 entity-toolbar-card">
       <div class="card-body">
         <div class="row g-2 align-items-end">
-          <div class="col-12 ${canWrite ? "col-md-8 col-lg-9" : "col-md-12"}">
-            <label class="form-label">${esc(text(lang, "search"))}</label>
-            <input id="nomenclature_products_q" class="form-control" value="${esc(q)}">
-          </div>
+          ${showSearch ? `
+            <div class="col-12 ${canWrite ? "col-md-8 col-lg-9" : "col-md-12"}">
+              <label class="form-label">${esc(text(lang, "search"))}</label>
+              <input id="nomenclature_products_q" class="form-control" value="${esc(q)}">
+            </div>
+          ` : ""}
           ${canWrite ? `
             <div class="col-12 col-md-4 col-lg-3 d-grid">
               <button id="nomenclature_products_create" class="btn btn-primary">${esc(text(lang, "create"))}</button>
@@ -417,40 +467,46 @@ export async function render(ctx) {
         </div>
       </div>
     </div>
-    ${items.length ? tableHtml(items, lang, canWrite) : emptyHtml(text(lang, "noItems"))}
+    ${items.length ? tableHtml(items, lang, canWrite, fields) : emptyHtml(text(lang, "noItems"))}
   `;
 
-  const qEl = document.getElementById("nomenclature_products_q");
-  qEl.addEventListener("input", () => {
-    viewEl.setAttribute("data-q", qEl.value.trim());
-    queueRerender(viewEl, "__nomenclatureProductsTimer", () => render(ctx), 180);
-  });
+  if (showSearch) {
+    const qEl = document.getElementById("nomenclature_products_q");
+    qEl.addEventListener("input", () => {
+      viewEl.setAttribute("data-q", qEl.value.trim());
+      queueRerender(viewEl, "__nomenclatureProductsTimer", () => render(ctx), 180);
+    });
+  } else {
+    viewEl.setAttribute("data-q", "");
+  }
 
   if (canWrite) {
     const createBtn = document.getElementById("nomenclature_products_create");
     if (createBtn) {
-      createBtn.addEventListener("click", () => openEntityModal(ctx, null, categories, units));
+      createBtn.addEventListener("click", () => openEntityModal(ctx, null, categories, units, fields));
     }
 
     document.querySelectorAll("[data-edit-product]").forEach(btn => {
       btn.addEventListener("click", () => {
         const id = Number(btn.dataset.editProduct);
         const item = allItems.find(entry => entry.id === id);
-        if (item) openEntityModal(ctx, item, categories, units);
+        if (item) openEntityModal(ctx, item, categories, units, fields);
       });
     });
 
-    document.querySelectorAll("[data-toggle-product]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const id = Number(btn.dataset.toggleProduct);
-        const next = Number(btn.dataset.next);
-        await api(`/products/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ is_active: next })
+    if (fields.isEnabled("is_active")) {
+      document.querySelectorAll("[data-toggle-product]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const id = Number(btn.dataset.toggleProduct);
+          const next = Number(btn.dataset.next);
+          await api(`/products/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ is_active: next })
+          });
+          await render(ctx);
         });
-        await render(ctx);
       });
-    });
+    }
   }
 }

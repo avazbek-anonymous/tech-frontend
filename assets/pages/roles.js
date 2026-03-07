@@ -1,3 +1,10 @@
+import {
+  isEmptyFieldValue,
+  langOf,
+  loadEntityFieldAccess,
+  stripDisabledFields
+} from "./settings-utils.js";
+
 const ROLE_ACTIONS = [
   { code: "read", label: { ru: "Смотреть", uz: "Ko'rish", en: "View" } },
   { code: "add", label: { ru: "Создать", uz: "Yaratish", en: "Create" } },
@@ -185,28 +192,36 @@ function permissionGridHtml(modules, selected, lang) {
   `;
 }
 
-function roleModalHtml(role, modules, selectedPerms, lang) {
+function roleModalHtml(role, modules, selectedPerms, lang, fields) {
   return `
     <div class="row g-3">
-      <div class="col-md-4">
-        <label class="form-label">${esc(text(lang, "roleName"))}</label>
-        <input class="form-control" name="name" value="${esc(role.name || "")}">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">${esc(text(lang, "groupName"))}</label>
-        <input class="form-control" name="group_name" value="${esc(role.group_name || "")}">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">${esc(text(lang, "positionName"))}</label>
-        <input class="form-control" name="position_name" value="${esc(role.position_name || "")}">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">${esc(text(lang, "roleStatus"))}</label>
-        <select class="form-select" name="is_active">
-          <option value="1" ${Number(role.is_active ?? 1) === 1 ? "selected" : ""}>${esc(text(lang, "active"))}</option>
-          <option value="0" ${Number(role.is_active ?? 1) === 0 ? "selected" : ""}>${esc(text(lang, "inactive"))}</option>
-        </select>
-      </div>
+      ${fields.showInForm("name") ? `
+        <div class="col-md-4">
+          <label class="form-label">${esc(text(lang, "roleName"))}</label>
+          <input class="form-control" name="name" value="${esc(role.name || "")}">
+        </div>
+      ` : ""}
+      ${fields.showInForm("group_name") ? `
+        <div class="col-md-4">
+          <label class="form-label">${esc(text(lang, "groupName"))}</label>
+          <input class="form-control" name="group_name" value="${esc(role.group_name || "")}">
+        </div>
+      ` : ""}
+      ${fields.showInForm("position_name") ? `
+        <div class="col-md-4">
+          <label class="form-label">${esc(text(lang, "positionName"))}</label>
+          <input class="form-control" name="position_name" value="${esc(role.position_name || "")}">
+        </div>
+      ` : ""}
+      ${fields.showInForm("is_active") ? `
+        <div class="col-md-4">
+          <label class="form-label">${esc(text(lang, "roleStatus"))}</label>
+          <select class="form-select" name="is_active">
+            <option value="1" ${Number(role.is_active ?? 1) === 1 ? "selected" : ""}>${esc(text(lang, "active"))}</option>
+            <option value="0" ${Number(role.is_active ?? 1) === 0 ? "selected" : ""}>${esc(text(lang, "inactive"))}</option>
+          </select>
+        </div>
+      ` : ""}
       <div class="col-12">
         <label class="form-label fw-semibold">${esc(text(lang, "permissions"))}</label>
         ${permissionGridHtml(modules, selectedPerms, lang)}
@@ -217,6 +232,7 @@ function roleModalHtml(role, modules, selectedPerms, lang) {
 
 function readRoleForm(modalEl) {
   const byName = (name) => modalEl.querySelector(`[name="${name}"]`);
+  const readText = (name) => String(byName(name)?.value || "").trim();
   const permissions = [];
 
   modalEl.querySelectorAll("[data-perm]").forEach(el => {
@@ -224,48 +240,45 @@ function readRoleForm(modalEl) {
   });
 
   return {
-    name: byName("name").value.trim(),
-    group_name: byName("group_name").value.trim() || null,
-    position_name: byName("position_name").value.trim() || null,
-    is_active: Number(byName("is_active").value || 1),
+    name: readText("name"),
+    group_name: readText("group_name") || null,
+    position_name: readText("position_name") || null,
+    is_active: Number(byName("is_active")?.value || 1),
     permissions: permissions.filter(Boolean)
   };
 }
 
-function filteredItems(items, q, status) {
+function filteredItems(items, q, status, filterableFields) {
   const qx = String(q || "").toLowerCase();
+  const fields = (filterableFields || []).length ? filterableFields : ["name", "group_name", "position_name"];
   return items.filter(item => {
     if (status !== "all" && Number(item.is_active) !== Number(status)) return false;
     if (!qx) return true;
-    return [
-      item.name,
-      item.group_name,
-      item.position_name
-    ].some(v => String(v || "").toLowerCase().includes(qx));
+    return fields.some((key) => String(item?.[key] || "").toLowerCase().includes(qx));
   });
 }
 
-function desktopTableHtml(items, lang) {
+function desktopTableHtml(items, lang, fields) {
   return `
     <div class="card d-none d-lg-block">
       <div class="card-body table-wrap">
         <table class="table table-sm table-hover align-middle mb-0">
           <thead>
             <tr>
-              <th>${esc(text(lang, "roleName"))}</th>
-              <th>${esc(text(lang, "groupName"))}</th>
-              <th>${esc(text(lang, "positionName"))}</th>
-              <th style="width:120px">${esc(text(lang, "status"))}</th>
+              ${fields.showInList("name") ? `<th>${esc(text(lang, "roleName"))}</th>` : ""}
+              ${fields.showInList("group_name") ? `<th>${esc(text(lang, "groupName"))}</th>` : ""}
+              ${fields.showInList("position_name") ? `<th>${esc(text(lang, "positionName"))}</th>` : ""}
+              ${fields.showInList("is_active") ? `<th style="width:120px">${esc(text(lang, "status"))}</th>` : ""}
               <th style="width:120px">${esc(text(lang, "actions"))}</th>
             </tr>
           </thead>
           <tbody>
             ${items.map(role => `
               <tr>
-                <td class="fw-semibold">${esc(role.name)}</td>
-                <td>${esc(role.group_name || "-")}</td>
-                <td>${esc(role.position_name || "-")}</td>
-                <td>${roleStatusBadge(role, lang)}</td>
+                ${fields.showInList("name") ? `<td class="fw-semibold">${esc(role.name)}</td>` : ""}
+                ${fields.showInList("group_name") ? `<td>${esc(role.group_name || "-")}</td>` : ""}
+                ${fields.showInList("position_name") ? `<td>${esc(role.position_name || "-")}</td>` : ""}
+                ${fields.showInList("is_active") ? `<td>${roleStatusBadge(role, lang)}</td>` : ""}
                 <td>
                   <button class="btn btn-sm btn-outline-primary" data-edit-role="${role.id}">${esc(text(lang, "update"))}</button>
                 </td>
@@ -278,7 +291,7 @@ function desktopTableHtml(items, lang) {
   `;
 }
 
-function mobileCardsHtml(items, lang) {
+function mobileCardsHtml(items, lang, fields) {
   return `
     <div class="d-lg-none">
       ${items.map(role => `
@@ -286,12 +299,12 @@ function mobileCardsHtml(items, lang) {
           <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-start gap-2">
               <div>
-                <div class="fw-semibold">${esc(role.name)}</div>
+                ${fields.showInCard("name") ? `<div class="fw-semibold">${esc(role.name)}</div>` : ""}
               </div>
-              ${roleStatusBadge(role, lang)}
+              ${fields.showInCard("is_active") ? roleStatusBadge(role, lang) : ""}
             </div>
-            <div class="small text-muted mt-2">${esc(text(lang, "groupName"))}: ${esc(role.group_name || "-")}</div>
-            <div class="small text-muted">${esc(text(lang, "positionName"))}: ${esc(role.position_name || "-")}</div>
+            ${fields.showInCard("group_name") ? `<div class="small text-muted mt-2">${esc(text(lang, "groupName"))}: ${esc(role.group_name || "-")}</div>` : ""}
+            ${fields.showInCard("position_name") ? `<div class="small text-muted">${esc(text(lang, "positionName"))}: ${esc(role.position_name || "-")}</div>` : ""}
             <button class="btn btn-sm btn-outline-primary mt-3" data-edit-role="${role.id}">${esc(text(lang, "update"))}</button>
           </div>
         </div>
@@ -300,7 +313,7 @@ function mobileCardsHtml(items, lang) {
   `;
 }
 
-async function openRoleModal(ctx, role, modules, lang) {
+async function openRoleModal(ctx, role, modules, lang, fields) {
   const { api, openModal } = ctx;
   const isCreate = !role?.id;
   let selected = new Set();
@@ -313,18 +326,18 @@ async function openRoleModal(ctx, role, modules, lang) {
   openModal({
     title: isCreate ? text(lang, "createRole") : text(lang, "editRole"),
     saveText: text(lang, "save"),
-    bodyHtml: roleModalHtml(role || { is_active: 1 }, modules, selected, lang),
+    bodyHtml: roleModalHtml(role || { is_active: 1 }, modules, selected, lang, fields),
     onSave: async (modalEl) => {
       const payload = readRoleForm(modalEl);
-      if (!payload.name) throw new Error(text(lang, "requiredName"));
-
-      let roleId = role?.id || null;
-      const roleBody = {
+      const roleBody = stripDisabledFields({
         name: payload.name,
         group_name: payload.group_name,
         position_name: payload.position_name,
         is_active: payload.is_active
-      };
+      }, fields);
+      if (fields.isRequired("name") && isEmptyFieldValue(roleBody.name)) throw new Error(text(lang, "requiredName"));
+
+      let roleId = role?.id || null;
 
       if (isCreate) {
         const created = await api("/roles", {
@@ -354,7 +367,7 @@ async function openRoleModal(ctx, role, modules, lang) {
 
 export async function render(ctx) {
   const { page, viewEl, state, section, api } = ctx;
-  const lang = document.documentElement.lang || "ru";
+  const lang = langOf();
 
   page(text(lang, "title"), text(lang, "subtitle"), { raw: true });
 
@@ -368,24 +381,32 @@ export async function render(ctx) {
   const modules = modulePermissionsList(state, section?.id || "", lang);
 
   let rolesResp;
+  let fields;
   try {
-    rolesResp = await api("/roles");
+    [rolesResp, fields] = await Promise.all([
+      api("/roles"),
+      loadEntityFieldAccess(api, "roles")
+    ]);
   } catch (e) {
     viewEl.innerHTML = `<div class="alert alert-danger mb-0">${esc(String(e?.message || e))}</div>`;
     return;
   }
 
   const allRoles = (rolesResp.items || []).map(normalizeRole);
-  const items = filteredItems(allRoles, q, status);
+  const showSearch = ["name", "group_name", "position_name"].some((key) => fields.showInFilters(key));
+  const filterableFields = ["name", "group_name", "position_name"].filter((key) => fields.showInFilters(key));
+  const items = filteredItems(allRoles, q, status, filterableFields);
 
   viewEl.innerHTML = `
     <div class="card mb-3 roles-toolbar">
       <div class="card-body">
         <div class="row g-2 align-items-end">
-          <div class="col-12 col-md-6 col-lg-5">
-            <label class="form-label">${esc(text(lang, "search"))}</label>
-            <input id="roles_q" class="form-control" value="${esc(q)}">
-          </div>
+          ${showSearch ? `
+            <div class="col-12 col-md-6 col-lg-5">
+              <label class="form-label">${esc(text(lang, "search"))}</label>
+              <input id="roles_q" class="form-control" value="${esc(q)}">
+            </div>
+          ` : ""}
           <div class="col-6 col-md-3 col-lg-3">
             <label class="form-label">${esc(text(lang, "status"))}</label>
             <select id="roles_status" class="form-select">
@@ -401,8 +422,8 @@ export async function render(ctx) {
       </div>
     </div>
 
-    ${items.length ? desktopTableHtml(items, lang) : `<div class="alert alert-light border mb-2">${esc(text(lang, "noRoles"))}</div>`}
-    ${items.length ? mobileCardsHtml(items, lang) : ""}
+    ${items.length ? desktopTableHtml(items, lang, fields) : `<div class="alert alert-light border mb-2">${esc(text(lang, "noRoles"))}</div>`}
+    ${items.length ? mobileCardsHtml(items, lang, fields) : ""}
   `;
 
   const queueRender = () => {
@@ -410,25 +431,29 @@ export async function render(ctx) {
     viewEl.__rolesTimer = setTimeout(() => render(ctx), 180);
   };
 
-  const qEl = document.getElementById("roles_q");
-  qEl.addEventListener("input", () => {
-    viewEl.setAttribute("data-q", qEl.value.trim());
-    queueRender();
-  });
+  if (showSearch) {
+    const qEl = document.getElementById("roles_q");
+    qEl.addEventListener("input", () => {
+      viewEl.setAttribute("data-q", qEl.value.trim());
+      queueRender();
+    });
+  } else {
+    viewEl.setAttribute("data-q", "");
+  }
 
   document.getElementById("roles_status").addEventListener("change", () => {
     viewEl.setAttribute("data-status", document.getElementById("roles_status").value);
     queueRender();
   });
 
-  document.getElementById("roles_create").onclick = () => openRoleModal(ctx, null, modules, lang);
+  document.getElementById("roles_create").onclick = () => openRoleModal(ctx, null, modules, lang, fields);
 
   document.querySelectorAll("[data-edit-role]").forEach(btn => {
     btn.addEventListener("click", () => {
       const id = Number(btn.dataset.editRole);
       const role = allRoles.find(x => x.id === id);
       if (!role) return;
-      openRoleModal(ctx, role, modules, lang);
+      openRoleModal(ctx, role, modules, lang, fields);
     });
   });
 }

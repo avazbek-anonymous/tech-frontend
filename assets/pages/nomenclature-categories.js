@@ -3,9 +3,12 @@ import {
   emptyHtml,
   errorHtml,
   esc,
+  isEmptyFieldValue,
   langOf,
+  loadEntityFieldAccess,
   pick,
-  queueRerender
+  queueRerender,
+  stripDisabledFields
 } from "./settings-utils.js";
 
 const UI = {
@@ -202,39 +205,46 @@ function parentOptionsHtml(lang, items, currentId, selectedParentId) {
   `;
 }
 
-function modalHtml(lang, item, allItems) {
+function modalHtml(lang, item, allItems, fields) {
   return `
     <div class="row g-3">
-      <div class="col-md-7">
-        <label class="form-label">${esc(text(lang, "name"))}</label>
-        <input class="form-control" name="name" value="${esc(item?.name || "")}">
-      </div>
-      <div class="col-md-5">
-        <label class="form-label">${esc(text(lang, "parent"))}</label>
-        <select class="form-select" name="parent_id">
-          ${parentOptionsHtml(lang, allItems, item?.id || null, item?.parent_id || null)}
-        </select>
-      </div>
-      <div class="col-12">
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" role="switch" name="is_active" ${Number(item?.is_active ?? 1) === 1 ? "checked" : ""}>
-          <label class="form-check-label">${esc(text(lang, "active"))}</label>
+      ${fields.showInForm("name") ? `
+        <div class="col-md-7">
+          <label class="form-label">${esc(text(lang, "name"))}</label>
+          <input class="form-control" name="name" value="${esc(item?.name || "")}">
         </div>
-      </div>
+      ` : ""}
+      ${fields.showInForm("parent_id") ? `
+        <div class="col-md-5">
+          <label class="form-label">${esc(text(lang, "parent"))}</label>
+          <select class="form-select" name="parent_id">
+            ${parentOptionsHtml(lang, allItems, item?.id || null, item?.parent_id || null)}
+          </select>
+        </div>
+      ` : ""}
+      ${fields.showInForm("is_active") ? `
+        <div class="col-12">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" role="switch" name="is_active" ${Number(item?.is_active ?? 1) === 1 ? "checked" : ""}>
+            <label class="form-check-label">${esc(text(lang, "active"))}</label>
+          </div>
+        </div>
+      ` : ""}
     </div>
   `;
 }
 
 function readForm(modalEl) {
-  const parentRaw = modalEl.querySelector("[name='parent_id']").value;
+  const byName = (name) => modalEl.querySelector(`[name='${name}']`);
+  const parentRaw = byName("parent_id")?.value || "";
   return {
-    name: modalEl.querySelector("[name='name']").value.trim(),
+    name: String(byName("name")?.value || "").trim(),
     parent_id: parentRaw ? Number(parentRaw) : null,
-    is_active: modalEl.querySelector("[name='is_active']").checked ? 1 : 0
+    is_active: byName("is_active")?.checked ? 1 : 0
   };
 }
 
-function treeHtml(rows, lang, canWrite) {
+function treeHtml(rows, lang, canWrite, fields) {
   const labels = {
     active: text(lang, "active"),
     inactive: text(lang, "inactive")
@@ -246,7 +256,7 @@ function treeHtml(rows, lang, canWrite) {
         <div class="category-tree ${canWrite ? "has-actions" : "no-actions"}">
           <div class="category-tree-head">
             <div>${esc(text(lang, "name"))}</div>
-            <div>${esc(text(lang, "status"))}</div>
+            <div>${fields.showInList("is_active") ? esc(text(lang, "status")) : ""}</div>
             ${canWrite ? `<div>${esc(text(lang, "actions"))}</div>` : ""}
           </div>
           ${rows.map(row => `
@@ -262,12 +272,12 @@ function treeHtml(rows, lang, canWrite) {
                 <span class="category-tree-label">${esc(row.name)}</span>
               </div>
               <div class="category-tree-status">
-                ${activeBadge(row.is_active, labels)}
+                ${fields.showInList("is_active") ? activeBadge(row.is_active, labels) : ""}
               </div>
               ${canWrite ? `
                 <div class="category-tree-actions">
                   <button class="btn btn-sm btn-outline-primary" data-edit-category="${row.id}">${esc(text(lang, "update"))}</button>
-                  <button class="btn btn-sm btn-outline-secondary" data-toggle-category="${row.id}" data-next="${row.is_active ? 0 : 1}">${row.is_active ? esc(text(lang, "inactive")) : esc(text(lang, "active"))}</button>
+                  ${fields.isEnabled("is_active") ? `<button class="btn btn-sm btn-outline-secondary" data-toggle-category="${row.id}" data-next="${row.is_active ? 0 : 1}">${row.is_active ? esc(text(lang, "inactive")) : esc(text(lang, "active"))}</button>` : ""}
                 </div>
               ` : ""}
             </div>
@@ -278,7 +288,7 @@ function treeHtml(rows, lang, canWrite) {
   `;
 }
 
-async function openEntityModal(ctx, item, allItems) {
+async function openEntityModal(ctx, item, allItems, fields) {
   const { api, openModal } = ctx;
   const lang = langOf();
   const isCreate = !item?.id;
@@ -286,10 +296,10 @@ async function openEntityModal(ctx, item, allItems) {
   openModal({
     title: isCreate ? text(lang, "create") : text(lang, "edit"),
     saveText: text(lang, "save"),
-    bodyHtml: modalHtml(lang, item, allItems),
+    bodyHtml: modalHtml(lang, item, allItems, fields),
     onSave: async (modalEl) => {
-      const payload = readForm(modalEl);
-      if (!payload.name) throw new Error(text(lang, "requiredName"));
+      const payload = stripDisabledFields(readForm(modalEl), fields);
+      if (fields.isRequired("name") && isEmptyFieldValue(payload.name)) throw new Error(text(lang, "requiredName"));
 
       try {
         if (isCreate) {
@@ -330,24 +340,31 @@ export async function render(ctx) {
   const expandedIds = viewEl.__nomenclatureCategoryExpanded;
 
   let resp;
+  let fields;
   try {
-    resp = await api("/product_categories");
+    [resp, fields] = await Promise.all([
+      api("/product_categories"),
+      loadEntityFieldAccess(api, "product_categories")
+    ]);
   } catch (e) {
     viewEl.innerHTML = errorHtml(String(e?.message || e));
     return;
   }
 
   const allItems = (resp.items || []).map(normalizeItem);
+  const showSearch = fields.showInFilters("name");
   const rows = buildTreeRows(allItems, expandedIds, q);
 
   viewEl.innerHTML = `
     <div class="card mb-3 entity-toolbar-card">
       <div class="card-body">
         <div class="row g-2 align-items-end">
-          <div class="col-12 ${canWrite ? "col-md-8 col-lg-9" : "col-md-12"}">
-            <label class="form-label">${esc(text(lang, "search"))}</label>
-            <input id="nomenclature_categories_q" class="form-control" value="${esc(q)}">
-          </div>
+          ${showSearch ? `
+            <div class="col-12 ${canWrite ? "col-md-8 col-lg-9" : "col-md-12"}">
+              <label class="form-label">${esc(text(lang, "search"))}</label>
+              <input id="nomenclature_categories_q" class="form-control" value="${esc(q)}">
+            </div>
+          ` : ""}
           ${canWrite ? `
             <div class="col-12 col-md-4 col-lg-3 d-grid">
               <button id="nomenclature_categories_create" class="btn btn-primary">${esc(text(lang, "create"))}</button>
@@ -356,14 +373,18 @@ export async function render(ctx) {
         </div>
       </div>
     </div>
-    ${rows.length ? treeHtml(rows, lang, canWrite) : emptyHtml(text(lang, "noItems"))}
+    ${rows.length ? treeHtml(rows, lang, canWrite, fields) : emptyHtml(text(lang, "noItems"))}
   `;
 
-  const qEl = document.getElementById("nomenclature_categories_q");
-  qEl.addEventListener("input", () => {
-    viewEl.setAttribute("data-q", qEl.value.trim());
-    queueRerender(viewEl, "__nomenclatureCategoriesTimer", () => render(ctx), 180);
-  });
+  if (showSearch) {
+    const qEl = document.getElementById("nomenclature_categories_q");
+    qEl.addEventListener("input", () => {
+      viewEl.setAttribute("data-q", qEl.value.trim());
+      queueRerender(viewEl, "__nomenclatureCategoriesTimer", () => render(ctx), 180);
+    });
+  } else {
+    viewEl.setAttribute("data-q", "");
+  }
 
   document.querySelectorAll("[data-cat-expand]").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -378,28 +399,30 @@ export async function render(ctx) {
   if (canWrite) {
     const createBtn = document.getElementById("nomenclature_categories_create");
     if (createBtn) {
-      createBtn.addEventListener("click", () => openEntityModal(ctx, null, allItems));
+      createBtn.addEventListener("click", () => openEntityModal(ctx, null, allItems, fields));
     }
 
     document.querySelectorAll("[data-edit-category]").forEach(btn => {
       btn.addEventListener("click", () => {
         const id = Number(btn.dataset.editCategory);
         const item = allItems.find(entry => entry.id === id);
-        if (item) openEntityModal(ctx, item, allItems);
+        if (item) openEntityModal(ctx, item, allItems, fields);
       });
     });
 
-    document.querySelectorAll("[data-toggle-category]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const id = Number(btn.dataset.toggleCategory);
-        const next = Number(btn.dataset.next);
-        await api(`/product_categories/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ is_active: next })
+    if (fields.isEnabled("is_active")) {
+      document.querySelectorAll("[data-toggle-category]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const id = Number(btn.dataset.toggleCategory);
+          const next = Number(btn.dataset.next);
+          await api(`/product_categories/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ is_active: next })
+          });
+          await render(ctx);
         });
-        await render(ctx);
       });
-    });
+    }
   }
 }
