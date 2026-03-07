@@ -304,7 +304,7 @@ function mobileCardsHtml(items, lang, canWrite) {
   return `
     <div class="d-lg-none">
       ${items.map(item => `
-        <div class="card mb-2 shadow-sm">
+        <div class="card mb-2 shadow-sm entity-mobile-card">
           <div class="card-body p-3">
             <div class="d-flex justify-content-between gap-2 align-items-start">
               <div>
@@ -320,7 +320,7 @@ function mobileCardsHtml(items, lang, canWrite) {
             <div class="small text-muted">${esc(text(lang, "serial"))}: ${item.track_serial ? esc(text(lang, "yes")) : esc(text(lang, "no"))}</div>
             <div class="small text-muted">${esc(text(lang, "imei"))}: ${item.track_imei ? esc(text(lang, "yes")) : esc(text(lang, "no"))}</div>
             ${canWrite ? `
-              <div class="d-flex gap-2 flex-wrap mt-3">
+              <div class="entity-mobile-actions d-flex gap-2 flex-wrap mt-3">
                 <button class="btn btn-sm btn-outline-primary" data-edit-product="${item.id}">${esc(text(lang, "update"))}</button>
                 <button class="btn btn-sm btn-outline-secondary" data-toggle-product="${item.id}" data-next="${item.is_active ? 0 : 1}">${item.is_active ? esc(text(lang, "inactive")) : esc(text(lang, "active"))}</button>
               </div>
@@ -402,7 +402,7 @@ export async function render(ctx) {
   const items = filterItems(allItems, q);
 
   viewEl.innerHTML = `
-    <div class="card mb-3">
+    <div class="card mb-3 entity-toolbar-card">
       <div class="card-body">
         <div class="row g-2 align-items-end">
           <div class="col-12 ${canWrite ? "col-md-8 col-lg-9" : "col-md-12"}">

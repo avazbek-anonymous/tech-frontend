@@ -87,33 +87,91 @@ function normalizeItem(item) {
   };
 }
 
-function filterItems(items, q) {
+function matchesNeedle(item, needle) {
+  return String(item.name || "").toLowerCase().includes(needle);
+}
+
+function buildTreeIndex(items) {
+  const byId = new Map(items.map(item => [item.id, item]));
+  const children = new Map();
+
+  for (const item of items) {
+    const parentId = item.parent_id && byId.has(item.parent_id) ? item.parent_id : null;
+    const list = children.get(parentId) || [];
+    list.push(item);
+    children.set(parentId, list);
+  }
+
+  for (const list of children.values()) {
+    list.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), undefined, { sensitivity: "base" }));
+  }
+
+  return { byId, children };
+}
+
+function buildVisibleSet(items, byId, q) {
   const needle = String(q || "").trim().toLowerCase();
-  if (!needle) return items;
-  return items.filter(item => (
-    String(item.name || "").toLowerCase().includes(needle)
-  ));
+  if (!needle) return null;
+
+  const visible = new Set();
+  for (const item of items) {
+    if (!matchesNeedle(item, needle)) continue;
+    let cur = item;
+    while (cur) {
+      if (visible.has(cur.id)) break;
+      visible.add(cur.id);
+      cur = cur.parent_id ? byId.get(cur.parent_id) : null;
+    }
+  }
+  return visible;
+}
+
+function buildTreeRows(items, expandedIds, q) {
+  const { byId, children } = buildTreeIndex(items);
+  const visibleSet = buildVisibleSet(items, byId, q);
+  const searchMode = Boolean(visibleSet);
+  const rows = [];
+
+  function walk(parentId, depth) {
+    const list = children.get(parentId) || [];
+    for (const item of list) {
+      if (visibleSet && !visibleSet.has(item.id)) continue;
+      const childCandidates = children.get(item.id) || [];
+      const visibleChildren = visibleSet
+        ? childCandidates.filter(child => visibleSet.has(child.id))
+        : childCandidates;
+      const hasChildren = visibleChildren.length > 0;
+      const isExpanded = hasChildren && (searchMode ? true : expandedIds.has(item.id));
+
+      rows.push({
+        id: item.id,
+        depth,
+        name: item.name,
+        is_active: item.is_active,
+        hasChildren,
+        isExpanded
+      });
+
+      if (hasChildren && isExpanded) walk(item.id, depth + 1);
+    }
+  }
+
+  walk(null, 0);
+  return rows;
 }
 
 function getDescendantIds(items, rootId) {
-  const byParent = new Map();
-  for (const item of items) {
-    const key = item.parent_id === null ? "null" : String(item.parent_id);
-    const list = byParent.get(key) || [];
-    list.push(item.id);
-    byParent.set(key, list);
-  }
-
+  const { children } = buildTreeIndex(items);
   const seen = new Set();
   const stack = [rootId];
+
   while (stack.length) {
     const current = stack.pop();
-    const children = byParent.get(String(current)) || [];
-    for (const childId of children) {
-      if (!seen.has(childId)) {
-        seen.add(childId);
-        stack.push(childId);
-      }
+    const list = children.get(current) || [];
+    for (const child of list) {
+      if (seen.has(child.id)) continue;
+      seen.add(child.id);
+      stack.push(child.id);
     }
   }
   return seen;
@@ -132,8 +190,9 @@ function parentOptionsHtml(lang, items, currentId, selectedParentId) {
   const blocked = currentId ? getDescendantIds(items, currentId) : new Set();
   if (currentId) blocked.add(currentId);
 
-  const options = items
+  const options = [...items]
     .filter(item => !blocked.has(item.id))
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), undefined, { sensitivity: "base" }))
     .map(item => `<option value="${item.id}" ${Number(selectedParentId) === Number(item.id) ? "selected" : ""}>${esc(item.name)}</option>`)
     .join("");
 
@@ -175,80 +234,48 @@ function readForm(modalEl) {
   };
 }
 
-function desktopTableHtml(items, lang, parentById, canWrite) {
+function treeHtml(rows, lang, canWrite) {
   const labels = {
     active: text(lang, "active"),
     inactive: text(lang, "inactive")
   };
 
   return `
-    <div class="card d-none d-lg-block">
-      <div class="card-body table-wrap">
-        <table class="table table-sm table-hover align-middle mb-0">
-          <thead>
-            <tr>
-              <th>${esc(text(lang, "name"))}</th>
-              <th style="width:220px">${esc(text(lang, "parent"))}</th>
-              <th style="width:110px">${esc(text(lang, "status"))}</th>
-              ${canWrite ? `<th style="width:160px">${esc(text(lang, "actions"))}</th>` : ""}
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map(item => `
-              <tr>
-                <td class="fw-semibold">${esc(item.name)}</td>
-                <td>${esc(parentById.get(Number(item.parent_id)) || text(lang, "topLevel"))}</td>
-                <td>${activeBadge(item.is_active, labels)}</td>
-                ${canWrite ? `
-                  <td>
-                    <div class="d-flex gap-2 flex-wrap">
-                      <button class="btn btn-sm btn-outline-primary" data-edit-category="${item.id}">${esc(text(lang, "update"))}</button>
-                      <button class="btn btn-sm btn-outline-secondary" data-toggle-category="${item.id}" data-next="${item.is_active ? 0 : 1}">${item.is_active ? esc(text(lang, "inactive")) : esc(text(lang, "active"))}</button>
-                    </div>
-                  </td>
-                ` : ""}
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
+    <div class="card category-tree-card">
+      <div class="card-body p-0">
+        <div class="category-tree ${canWrite ? "has-actions" : "no-actions"}">
+          <div class="category-tree-head">
+            <div>${esc(text(lang, "name"))}</div>
+            <div>${esc(text(lang, "status"))}</div>
+            ${canWrite ? `<div>${esc(text(lang, "actions"))}</div>` : ""}
+          </div>
+          ${rows.map(row => `
+            <div class="category-tree-row">
+              <div class="category-tree-name" style="--tree-depth:${row.depth}">
+                <button
+                  class="btn btn-sm category-tree-toggle ${row.hasChildren ? "" : "is-empty"}"
+                  ${row.hasChildren ? `data-cat-expand="${row.id}"` : "tabindex='-1' aria-hidden='true'"}
+                  aria-label="toggle"
+                >
+                  <i class="bi ${row.isExpanded ? "bi-caret-down-fill" : "bi-caret-right-fill"}"></i>
+                </button>
+                <span class="category-tree-label">${esc(row.name)}</span>
+              </div>
+              <div class="category-tree-status">
+                ${activeBadge(row.is_active, labels)}
+              </div>
+              ${canWrite ? `
+                <div class="category-tree-actions">
+                  <button class="btn btn-sm btn-outline-primary" data-edit-category="${row.id}">${esc(text(lang, "update"))}</button>
+                  <button class="btn btn-sm btn-outline-secondary" data-toggle-category="${row.id}" data-next="${row.is_active ? 0 : 1}">${row.is_active ? esc(text(lang, "inactive")) : esc(text(lang, "active"))}</button>
+                </div>
+              ` : ""}
+            </div>
+          `).join("")}
+        </div>
       </div>
     </div>
   `;
-}
-
-function mobileCardsHtml(items, lang, parentById, canWrite) {
-  const labels = {
-    active: text(lang, "active"),
-    inactive: text(lang, "inactive")
-  };
-
-  return `
-    <div class="d-lg-none">
-      ${items.map(item => `
-        <div class="card mb-2 shadow-sm">
-          <div class="card-body p-3">
-            <div class="d-flex justify-content-between gap-2 align-items-start">
-              <div>
-                <div class="fw-semibold">${esc(item.name)}</div>
-                <div class="small text-muted mt-1">${esc(text(lang, "parent"))}: ${esc(parentById.get(Number(item.parent_id)) || text(lang, "topLevel"))}</div>
-              </div>
-              ${activeBadge(item.is_active, labels)}
-            </div>
-            ${canWrite ? `
-              <div class="d-flex gap-2 flex-wrap mt-3">
-                <button class="btn btn-sm btn-outline-primary" data-edit-category="${item.id}">${esc(text(lang, "update"))}</button>
-                <button class="btn btn-sm btn-outline-secondary" data-toggle-category="${item.id}" data-next="${item.is_active ? 0 : 1}">${item.is_active ? esc(text(lang, "inactive")) : esc(text(lang, "active"))}</button>
-              </div>
-            ` : ""}
-          </div>
-        </div>
-      `).join("")}
-    </div>
-  `;
-}
-
-function tableHtml(items, lang, parentById, canWrite) {
-  return `${desktopTableHtml(items, lang, parentById, canWrite)}${mobileCardsHtml(items, lang, parentById, canWrite)}`;
 }
 
 async function openEntityModal(ctx, item, allItems) {
@@ -297,6 +324,11 @@ export async function render(ctx) {
   const canWrite = Boolean(perms?.[section.id]?.write);
   const q = viewEl.getAttribute("data-q") || "";
 
+  if (!(viewEl.__nomenclatureCategoryExpanded instanceof Set)) {
+    viewEl.__nomenclatureCategoryExpanded = new Set();
+  }
+  const expandedIds = viewEl.__nomenclatureCategoryExpanded;
+
   let resp;
   try {
     resp = await api("/product_categories");
@@ -306,11 +338,10 @@ export async function render(ctx) {
   }
 
   const allItems = (resp.items || []).map(normalizeItem);
-  const parentById = new Map(allItems.map(item => [item.id, item.name]));
-  const items = filterItems(allItems, q);
+  const rows = buildTreeRows(allItems, expandedIds, q);
 
   viewEl.innerHTML = `
-    <div class="card mb-3">
+    <div class="card mb-3 entity-toolbar-card">
       <div class="card-body">
         <div class="row g-2 align-items-end">
           <div class="col-12 ${canWrite ? "col-md-8 col-lg-9" : "col-md-12"}">
@@ -325,13 +356,23 @@ export async function render(ctx) {
         </div>
       </div>
     </div>
-    ${items.length ? tableHtml(items, lang, parentById, canWrite) : emptyHtml(text(lang, "noItems"))}
+    ${rows.length ? treeHtml(rows, lang, canWrite) : emptyHtml(text(lang, "noItems"))}
   `;
 
   const qEl = document.getElementById("nomenclature_categories_q");
   qEl.addEventListener("input", () => {
     viewEl.setAttribute("data-q", qEl.value.trim());
     queueRerender(viewEl, "__nomenclatureCategoriesTimer", () => render(ctx), 180);
+  });
+
+  document.querySelectorAll("[data-cat-expand]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = Number(btn.dataset.catExpand);
+      if (!id) return;
+      if (expandedIds.has(id)) expandedIds.delete(id);
+      else expandedIds.add(id);
+      render(ctx);
+    });
   });
 
   if (canWrite) {
