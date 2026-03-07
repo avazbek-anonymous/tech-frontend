@@ -35,6 +35,7 @@ const SECTION_OVERRIDES = {
   nomenclature_products: { module: "/assets/pages/nomenclature-products.js" },
   settings_users: { module: "/assets/pages/settings-users.js" },
   settings_roles: { module: "/assets/pages/roles.js" },
+  settings_business: { module: "/assets/pages/settings-business.js" },
   settings_filials: { module: "/assets/pages/settings-filials.js" },
   settings_cash_accounts: { module: "/assets/pages/settings-cash-accounts.js" },
   settings_warehouses: { module: "/assets/pages/settings-warehouses.js" },
@@ -570,6 +571,14 @@ async function bootstrap() {
     } else {
       state.rolePermissions = new Set();
     }
+  }
+
+  if (state.roleScope === "business") {
+    try {
+      const settingsResp = await api("/business-settings/enabled-sections");
+      const allowed = new Set(settingsResp.section_ids || []);
+      state.sections = state.sections.filter(section => allowed.has(section.id));
+    } catch {}
   }
 
   if (!state.sections.length) {

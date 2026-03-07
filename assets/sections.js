@@ -65,6 +65,7 @@ export const LEVEL2_SECTIONS = [
 
   { id: "settings_users", icon: "bi-people", label: tr("Настройки: Пользователи", "Sozlamalar: Foydalanuvchilar", "Settings: Users"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
   { id: "settings_roles", icon: "bi-shield-check", label: tr("Настройки: Роли", "Sozlamalar: Rollar", "Settings: Roles"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
+  { id: "settings_business", icon: "bi-sliders2", label: tr("Настройки: Бизнес", "Sozlamalar: Biznes", "Settings: Business"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
   { id: "settings_filials", icon: "bi-diagram-3", label: tr("Настройки: Филиалы", "Sozlamalar: Filiallar", "Settings: Branches"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
   { id: "settings_cash_accounts", icon: "bi-wallet", label: tr("Настройки: Кассы", "Sozlamalar: Kassalar", "Settings: Cash desks"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
   { id: "settings_warehouses", icon: "bi-building", label: tr("Настройки: Склады", "Sozlamalar: Omborlar", "Settings: Warehouses"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
