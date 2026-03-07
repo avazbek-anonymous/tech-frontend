@@ -99,7 +99,6 @@ function normalizeItem(item) {
   return {
     id: Number(item?.id || 0),
     name: String(item?.name || ""),
-    code: String(item?.code || ""),
     phone: String(item?.phone || ""),
     address: String(item?.address || ""),
     comment: String(item?.comment || ""),
@@ -117,10 +116,6 @@ function modalHtml(lang, item, currencyCodes) {
       <div class="col-md-6">
         <label class="form-label">${esc(text(lang, "name"))}</label>
         <input class="form-control" name="name" value="${esc(item?.name || "")}">
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">${esc(text(lang, "code"))}</label>
-        <input class="form-control" name="code" value="${esc(item?.code || "")}">
       </div>
       <div class="col-md-6">
         <label class="form-label">${esc(text(lang, "phone"))}</label>
@@ -164,7 +159,6 @@ function modalHtml(lang, item, currencyCodes) {
 function readForm(modalEl) {
   return {
     name: modalEl.querySelector("[name='name']").value.trim(),
-    code: modalEl.querySelector("[name='code']").value.trim() || null,
     phone: modalEl.querySelector("[name='phone']").value.trim() || null,
     address: modalEl.querySelector("[name='address']").value.trim() || null,
     comment: modalEl.querySelector("[name='comment']").value.trim() || null,
@@ -178,7 +172,7 @@ function readForm(modalEl) {
 function filterItems(items, q) {
   const needle = String(q || "").trim().toLowerCase();
   if (!needle) return items;
-  return items.filter(item => [item.name, item.code, item.phone, item.address].some(v => String(v || "").toLowerCase().includes(needle)));
+  return items.filter(item => [item.name, item.phone, item.address].some(v => String(v || "").toLowerCase().includes(needle)));
 }
 
 function tableHtml(items, lang) {
@@ -194,9 +188,7 @@ function tableHtml(items, lang) {
         <table class="table table-sm table-hover align-middle mb-0">
           <thead>
             <tr>
-              <th style="width:72px">ID</th>
               <th>${esc(text(lang, "name"))}</th>
-              <th style="width:120px">${esc(text(lang, "code"))}</th>
               <th style="width:150px">${esc(text(lang, "phone"))}</th>
               <th style="width:110px">${esc(text(lang, "currency"))}</th>
               <th style="width:110px">${esc(text(lang, "isDefault"))}</th>
@@ -207,12 +199,10 @@ function tableHtml(items, lang) {
           <tbody>
             ${items.map(item => `
               <tr>
-                <td>${item.id}</td>
                 <td>
                   <div class="fw-semibold">${esc(item.name)}</div>
                   <div class="text-muted small">${esc(item.address || "-")}</div>
                 </td>
-                <td>${esc(item.code || "-")}</td>
                 <td>${esc(item.phone || "-")}</td>
                 <td>${esc(item.currency || "UZS")}</td>
                 <td>${ynBadge(item.is_default, labels)}</td>
@@ -235,9 +225,7 @@ function tableHtml(items, lang) {
           <div class="card-body p-3">
             <div class="d-flex justify-content-between gap-2 align-items-start">
               <div>
-                <div class="small text-muted">#${item.id}</div>
                 <div class="fw-semibold">${esc(item.name)}</div>
-                <div class="text-muted small">${esc(item.code || "-")}</div>
               </div>
               ${activeBadge(item.is_active, labels)}
             </div>
@@ -261,7 +249,7 @@ async function openEntityModal(ctx, item, currencyCodes) {
   const isCreate = !item?.id;
 
   openModal({
-    title: isCreate ? text(lang, "create") : `${text(lang, "edit")} #${item.id}`,
+    title: isCreate ? text(lang, "create") : text(lang, "edit"),
     saveText: text(lang, "save"),
     bodyHtml: modalHtml(lang, item, currencyCodes),
     onSave: async (modalEl) => {
@@ -312,7 +300,7 @@ export async function render(ctx) {
     return;
   }
 
-  const currencyCodes = (currenciesResp.items || []).map(item => String(item.code || "")).filter(Boolean);
+  const currencyCodes = (currenciesResp.items || []).map(item => String(item.name || "")).filter(Boolean);
   const allItems = (filialsResp.items || []).map(normalizeItem);
   const items = filterItems(allItems, q);
 

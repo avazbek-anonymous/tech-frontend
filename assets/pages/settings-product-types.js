@@ -84,7 +84,6 @@ function normalizeItem(item) {
   return {
     id: Number(item?.id || 0),
     name: String(item?.name || ""),
-    code: String(item?.code || ""),
     requires_imei: Number(item?.requires_imei || 0),
     is_active: Number(item?.is_active || 0)
   };
@@ -93,19 +92,15 @@ function normalizeItem(item) {
 function filterItems(items, q) {
   const needle = String(q || "").trim().toLowerCase();
   if (!needle) return items;
-  return items.filter(item => [item.name, item.code].some(v => String(v || "").toLowerCase().includes(needle)));
+  return items.filter(item => String(item.name || "").toLowerCase().includes(needle));
 }
 
 function modalHtml(lang, item) {
   return `
     <div class="row g-3">
-      <div class="col-md-8">
+      <div class="col-12">
         <label class="form-label">${esc(text(lang, "name"))}</label>
         <input class="form-control" name="name" value="${esc(item?.name || "")}">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">${esc(text(lang, "code"))}</label>
-        <input class="form-control" name="code" value="${esc(item?.code || "")}">
       </div>
       <div class="col-md-6">
         <div class="form-check form-switch">
@@ -126,7 +121,6 @@ function modalHtml(lang, item) {
 function readForm(modalEl) {
   return {
     name: modalEl.querySelector("[name='name']").value.trim(),
-    code: modalEl.querySelector("[name='code']").value.trim() || null,
     requires_imei: modalEl.querySelector("[name='requires_imei']").checked ? 1 : 0,
     is_active: modalEl.querySelector("[name='is_active']").checked ? 1 : 0
   };
@@ -145,9 +139,7 @@ function tableHtml(items, lang) {
         <table class="table table-sm table-hover align-middle mb-0">
           <thead>
             <tr>
-              <th style="width:72px">ID</th>
               <th>${esc(text(lang, "name"))}</th>
-              <th style="width:160px">${esc(text(lang, "code"))}</th>
               <th style="width:150px">${esc(text(lang, "imei"))}</th>
               <th style="width:110px">${esc(text(lang, "status"))}</th>
               <th style="width:160px">${esc(text(lang, "actions"))}</th>
@@ -156,9 +148,7 @@ function tableHtml(items, lang) {
           <tbody>
             ${items.map(item => `
               <tr>
-                <td>${item.id}</td>
                 <td class="fw-semibold">${esc(item.name)}</td>
-                <td>${esc(item.code || "-")}</td>
                 <td>${ynBadge(item.requires_imei, labels)}</td>
                 <td>${activeBadge(item.is_active, labels)}</td>
                 <td>
@@ -179,9 +169,7 @@ function tableHtml(items, lang) {
           <div class="card-body p-3">
             <div class="d-flex justify-content-between gap-2 align-items-start">
               <div>
-                <div class="small text-muted">#${item.id}</div>
                 <div class="fw-semibold">${esc(item.name)}</div>
-                <div class="text-muted small">${esc(item.code || "-")}</div>
               </div>
               ${activeBadge(item.is_active, labels)}
             </div>
@@ -203,7 +191,7 @@ async function openEntityModal(ctx, item) {
   const isCreate = !item?.id;
 
   openModal({
-    title: isCreate ? text(lang, "create") : `${text(lang, "edit")} #${item.id}`,
+    title: isCreate ? text(lang, "create") : text(lang, "edit"),
     saveText: text(lang, "save"),
     bodyHtml: modalHtml(lang, item),
     onSave: async (modalEl) => {

@@ -269,7 +269,6 @@ function desktopTableHtml(items, roles, filials, lang) {
         <table class="table table-sm table-hover align-middle mb-0">
           <thead>
             <tr>
-              <th style="width:72px">ID</th>
               <th>${esc(text(lang, "fullName"))}</th>
               <th>${esc(text(lang, "email"))}</th>
               <th style="width:160px">${esc(text(lang, "systemRole"))}</th>
@@ -284,11 +283,10 @@ function desktopTableHtml(items, roles, filials, lang) {
             ${items.map(item => {
               const assignedFilials = Number(item.can_all_filials) === 1
                 ? text(lang, "noFilials")
-                : (item.__filial_ids || []).map(id => filialById.get(Number(id)) || `#${id}`).join(", ");
+                : (item.__filial_ids || []).map(id => filialById.get(Number(id)) || "-").join(", ");
               const permissionRole = roles.find(role => Number(role.id) === Number(item.role_id))?.name || text(lang, "noRole");
               return `
                 <tr>
-                  <td>${item.id}</td>
                   <td class="fw-semibold">${esc(item.full_name)}</td>
                   <td>${esc(item.email)}</td>
                   <td>${esc(roleLabel(lang, item.role))}</td>
@@ -320,13 +318,12 @@ function mobileCardsHtml(items, roles, filials, lang) {
         const permissionRole = roles.find(role => Number(role.id) === Number(item.role_id))?.name || text(lang, "noRole");
         const assignedFilials = Number(item.can_all_filials) === 1
           ? text(lang, "noFilials")
-          : (item.__filial_ids || []).map(id => filialById.get(Number(id)) || `#${id}`).join(", ");
+          : (item.__filial_ids || []).map(id => filialById.get(Number(id)) || "-").join(", ");
         return `
           <div class="card mb-2 shadow-sm">
             <div class="card-body p-3">
               <div class="d-flex justify-content-between gap-2 align-items-start">
                 <div>
-                  <div class="small text-muted">#${item.id}</div>
                   <div class="fw-semibold">${esc(item.full_name)}</div>
                   <div class="text-muted small">${esc(item.email)}</div>
                 </div>
@@ -353,7 +350,7 @@ async function openPasswordModal(ctx, user) {
   const lang = langOf();
 
   openModal({
-    title: `${text(lang, "resetPassword")} #${user.id}`,
+    title: text(lang, "resetPassword"),
     saveText: text(lang, "save"),
     bodyHtml: `
       <div>
@@ -387,7 +384,7 @@ async function openUserModal(ctx, user, roles, filials) {
   }
 
   openModal({
-    title: isCreate ? text(lang, "createUser") : `${text(lang, "editUser")} #${user.id}`,
+    title: isCreate ? text(lang, "createUser") : text(lang, "editUser"),
     saveText: text(lang, "save"),
     bodyHtml: userModalHtml(lang, user, roles, filials, selectedFilials, isCreate),
     onSave: async (modalEl) => {

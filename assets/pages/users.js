@@ -66,12 +66,12 @@ export async function render(ctx) {
     <div class="card"><div class="card-body table-wrap">
       <table class="table table-sm table-bordered">
         <thead><tr>
-          <th>ID</th><th>${t("fullName")}</th><th>${t("email")}</th><th>${t("phone")}</th><th>${t("role")}</th>
+          <th>${t("fullName")}</th><th>${t("email")}</th><th>${t("phone")}</th><th>${t("role")}</th>
           ${scope === "businesses" ? `<th>${t("business")}</th><th>${t("lastLogin")}</th>` : ""}
           <th>${t("status")}</th>${canWrite ? `<th>${t("action")}</th>` : ""}
         </tr></thead>
         <tbody>${items.map(u => `<tr>
-          <td>${u.id}</td><td>${esc(u.full_name)}</td><td>${esc(u.email)}</td><td>${esc(u.phone || "")}</td><td>${esc(u.role)}</td>
+          <td>${esc(u.full_name)}</td><td>${esc(u.email)}</td><td>${esc(u.phone || "")}</td><td>${esc(u.role)}</td>
           ${scope === "businesses" ? `<td>${esc(u.business_name || "")}</td><td>${u.last_login_at ? new Date(u.last_login_at * 1000).toLocaleString() : "-"}</td>` : ""}
           <td>${u.is_active ? t("active") : t("blocked")}</td>
           ${canWrite ? `<td><button class="btn btn-xs btn-outline-primary" data-edit="${u.id}">${t("edit")}</button></td>` : ""}
@@ -125,7 +125,7 @@ export async function render(ctx) {
     const item = items.find(x => x.id === id);
     if (!item) return;
     openModal({
-      title: `${t("edit")} #${id}`,
+      title: t("edit"),
       bodyHtml: userFormHtml(businesses.items || [], item, scope),
       onSave: async (modalEl) => {
         const payload = readForm(modalEl, scope);

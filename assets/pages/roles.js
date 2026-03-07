@@ -252,7 +252,6 @@ function desktopTableHtml(items, lang) {
         <table class="table table-sm table-hover align-middle mb-0">
           <thead>
             <tr>
-              <th style="width:80px">ID</th>
               <th>${esc(text(lang, "roleName"))}</th>
               <th>${esc(text(lang, "groupName"))}</th>
               <th>${esc(text(lang, "positionName"))}</th>
@@ -263,7 +262,6 @@ function desktopTableHtml(items, lang) {
           <tbody>
             ${items.map(role => `
               <tr>
-                <td>${role.id}</td>
                 <td class="fw-semibold">${esc(role.name)}</td>
                 <td>${esc(role.group_name || "-")}</td>
                 <td>${esc(role.position_name || "-")}</td>
@@ -288,7 +286,6 @@ function mobileCardsHtml(items, lang) {
           <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-start gap-2">
               <div>
-                <div class="small text-muted">#${role.id}</div>
                 <div class="fw-semibold">${esc(role.name)}</div>
               </div>
               ${roleStatusBadge(role, lang)}
@@ -314,7 +311,7 @@ async function openRoleModal(ctx, role, modules, lang) {
   }
 
   openModal({
-    title: isCreate ? text(lang, "createRole") : `${text(lang, "editRole")} #${role.id}`,
+    title: isCreate ? text(lang, "createRole") : text(lang, "editRole"),
     saveText: text(lang, "save"),
     bodyHtml: roleModalHtml(role || { is_active: 1 }, modules, selected, lang),
     onSave: async (modalEl) => {

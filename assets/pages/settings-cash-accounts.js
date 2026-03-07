@@ -122,7 +122,6 @@ function normalizeItem(item) {
     name: String(item?.name || ""),
     kind: String(item?.kind || "cash"),
     currency: String(item?.currency || "UZS"),
-    code: String(item?.code || ""),
     comment: String(item?.comment || ""),
     is_default: Number(item?.is_default || 0),
     is_active: Number(item?.is_active || 0)
@@ -135,7 +134,7 @@ function filterItems(items, q, filialId, kind) {
     if (filialId && Number(item.filial_id) !== Number(filialId)) return false;
     if (kind && item.kind !== kind) return false;
     if (!needle) return true;
-    return [item.name, item.code, item.currency, item.comment].some(v => String(v || "").toLowerCase().includes(needle));
+    return [item.name, item.currency, item.comment].some(v => String(v || "").toLowerCase().includes(needle));
   });
 }
 
@@ -163,10 +162,6 @@ function modalHtml(lang, item, filials, currencyCodes) {
       <div class="col-md-6">
         <label class="form-label">${esc(text(lang, "name"))}</label>
         <input class="form-control" name="name" value="${esc(item?.name || "")}">
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">${esc(text(lang, "code"))}</label>
-        <input class="form-control" name="code" value="${esc(item?.code || "")}">
       </div>
       <div class="col-md-6">
         <label class="form-label">${esc(text(lang, "currency"))}</label>
@@ -200,7 +195,6 @@ function readForm(modalEl) {
     filial_id: Number(modalEl.querySelector("[name='filial_id']").value || 0),
     kind: modalEl.querySelector("[name='kind']").value,
     name: modalEl.querySelector("[name='name']").value.trim(),
-    code: modalEl.querySelector("[name='code']").value.trim() || null,
     currency: modalEl.querySelector("[name='currency']").value.trim() || "UZS",
     comment: modalEl.querySelector("[name='comment']").value.trim() || null,
     is_default: modalEl.querySelector("[name='is_default']").checked ? 1 : 0,
@@ -222,12 +216,10 @@ function tableHtml(items, filials, lang) {
         <table class="table table-sm table-hover align-middle mb-0">
           <thead>
             <tr>
-              <th style="width:72px">ID</th>
               <th style="width:170px">${esc(text(lang, "filial"))}</th>
               <th>${esc(text(lang, "name"))}</th>
               <th style="width:150px">${esc(text(lang, "kind"))}</th>
               <th style="width:100px">${esc(text(lang, "currency"))}</th>
-              <th style="width:120px">${esc(text(lang, "code"))}</th>
               <th style="width:110px">${esc(text(lang, "isDefault"))}</th>
               <th style="width:110px">${esc(text(lang, "status"))}</th>
               <th style="width:160px">${esc(text(lang, "actions"))}</th>
@@ -236,15 +228,13 @@ function tableHtml(items, filials, lang) {
           <tbody>
             ${items.map(item => `
               <tr>
-                <td>${item.id}</td>
-                <td>${esc(filialById.get(Number(item.filial_id)) || `#${item.filial_id}`)}</td>
+                <td>${esc(filialById.get(Number(item.filial_id)) || "-")}</td>
                 <td>
                   <div class="fw-semibold">${esc(item.name)}</div>
                   <div class="text-muted small">${esc(item.comment || "-")}</div>
                 </td>
                 <td>${esc(kindLabel(lang, item.kind))}</td>
                 <td>${esc(item.currency)}</td>
-                <td>${esc(item.code || "-")}</td>
                 <td>${ynBadge(item.is_default, labels)}</td>
                 <td>${activeBadge(item.is_active, labels)}</td>
                 <td>
@@ -265,9 +255,8 @@ function tableHtml(items, filials, lang) {
           <div class="card-body p-3">
             <div class="d-flex justify-content-between gap-2 align-items-start">
               <div>
-                <div class="small text-muted">#${item.id}</div>
                 <div class="fw-semibold">${esc(item.name)}</div>
-                <div class="text-muted small">${esc(filialById.get(Number(item.filial_id)) || `#${item.filial_id}`)}</div>
+                <div class="text-muted small">${esc(filialById.get(Number(item.filial_id)) || "-")}</div>
               </div>
               ${activeBadge(item.is_active, labels)}
             </div>
@@ -291,7 +280,7 @@ async function openEntityModal(ctx, item, filials, currencyCodes) {
   const isCreate = !item?.id;
 
   openModal({
-    title: isCreate ? text(lang, "create") : `${text(lang, "edit")} #${item.id}`,
+    title: isCreate ? text(lang, "create") : text(lang, "edit"),
     saveText: text(lang, "save"),
     bodyHtml: modalHtml(lang, item, filials, currencyCodes),
     onSave: async (modalEl) => {
@@ -348,7 +337,7 @@ export async function render(ctx) {
   }
 
   const filials = (filialsResp.items || []).filter(item => Number(item.is_active) === 1);
-  const currencyCodes = (currenciesResp.items || []).map(item => String(item.code || "")).filter(Boolean);
+  const currencyCodes = (currenciesResp.items || []).map(item => String(item.name || "")).filter(Boolean);
   const allItems = (cashResp.items || []).map(normalizeItem);
   const items = filterItems(allItems, q, filialFilter, kindFilter);
 

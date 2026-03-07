@@ -1,7 +1,7 @@
 function reportName(r, lang) {
-  if (lang === "uz") return r.name_uz || r.code;
-  if (lang === "en") return r.name_en || r.code;
-  return r.name_ru || r.code;
+  if (lang === "uz") return r.name_uz || r.name_ru || r.name_en || "Report";
+  if (lang === "en") return r.name_en || r.name_ru || r.name_uz || "Report";
+  return r.name_ru || r.name_uz || r.name_en || "Отчет";
 }
 
 export async function render(ctx) {
@@ -26,14 +26,16 @@ export async function render(ctx) {
     </div></div>
     <div class="card"><div class="card-body table-wrap">
       <table class="table table-sm table-bordered">
-        <thead><tr><th>ID</th><th>${t("business")}</th><th>Enabled reports</th>${canWrite ? `<th>${t("action")}</th>` : ""}</tr></thead>
+        <thead><tr><th>${t("business")}</th><th>Enabled reports</th>${canWrite ? `<th>${t("action")}</th>` : ""}</tr></thead>
         <tbody>
-          ${items.map(x => `<tr>
-            <td>${x.business_id}</td>
+          ${items.map(x => {
+            const enabledCount = String(x.enabled_reports || "").split(",").filter(Boolean).length;
+            return `<tr>
             <td>${esc(x.business_name)}</td>
-            <td>${esc(x.enabled_reports || "")}</td>
+            <td>${enabledCount}</td>
             ${canWrite ? `<td><button class="btn btn-xs btn-outline-primary" data-open="${x.business_id}">${t("edit")}</button></td>` : ""}
-          </tr>`).join("")}
+          </tr>`;
+          }).join("")}
         </tbody>
       </table>
     </div></div>`;
@@ -56,7 +58,7 @@ export async function render(ctx) {
     const bodyHtml = reports.map(r => `
       <div class="form-check mb-2">
         <input class="form-check-input" type="checkbox" value="${esc(r.code)}" id="rep_${esc(r.code)}" ${Number(r.is_enabled) === 1 ? "checked" : ""}>
-        <label class="form-check-label" for="rep_${esc(r.code)}">${esc(reportName(r, lang))} <span class="text-muted">(${esc(r.code)})</span></label>
+        <label class="form-check-label" for="rep_${esc(r.code)}">${esc(reportName(r, lang))}</label>
       </div>`).join("");
 
     openModal({

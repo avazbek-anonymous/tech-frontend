@@ -69,10 +69,10 @@ export async function render(ctx) {
     </div></div>
     <div class="card"><div class="card-body table-wrap">
       <table class="table table-sm table-bordered">
-        <thead><tr><th>ID</th><th>${t("business")}</th><th>Date</th><th>${t("amount")}</th><th>${t("tariff")}</th><th>${t("status")}</th><th>Payment method</th><th>Comment</th>${canWrite ? `<th>${t("action")}</th>` : ""}</tr></thead>
+        <thead><tr><th>${t("business")}</th><th>Date</th><th>${t("amount")}</th><th>${t("tariff")}</th><th>${t("status")}</th><th>Payment method</th><th>Comment</th>${canWrite ? `<th>${t("action")}</th>` : ""}</tr></thead>
         <tbody>
         ${items.map(x => `<tr>
-          <td>${x.id}</td><td>${esc(x.business_name)}</td><td>${esc(x.payment_date)}</td><td>${fmt(x.amount)}</td><td>${esc(x.tariff_plan)}</td><td>${esc(x.status)}</td><td>${esc(x.payment_method || "")}</td><td>${esc(x.comment || "")}</td>
+          <td>${esc(x.business_name)}</td><td>${esc(x.payment_date)}</td><td>${fmt(x.amount)}</td><td>${esc(x.tariff_plan)}</td><td>${esc(x.status)}</td><td>${esc(x.payment_method || "")}</td><td>${esc(x.comment || "")}</td>
           ${canWrite ? `<td><button class="btn btn-xs btn-outline-primary me-1" data-edit="${x.id}">${t("edit")}</button>${x.status !== "posted" ? `<button class="btn btn-xs btn-outline-success" data-post="${x.id}">${t("posted")}</button>` : ""}</td>` : ""}
         </tr>`).join("")}
         </tbody>
@@ -115,7 +115,7 @@ export async function render(ctx) {
     const item = items.find(x => x.id === id);
     if (!item) return;
     openModal({
-      title: `${t("edit")} #${id}`,
+      title: t("edit"),
       bodyHtml: paymentFormHtml(businesses.items || [], item),
       onSave: async (modalEl) => {
         await api("/gekto/payments/" + id, {

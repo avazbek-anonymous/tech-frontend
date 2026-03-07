@@ -31,7 +31,6 @@ const UI = {
     no: "Нет",
     save: "Сохранить",
     update: "Изменить",
-    requiredCode: "Укажите код валюты",
     requiredRate: "Курс должен быть больше нуля"
   },
   uz: {
@@ -54,7 +53,6 @@ const UI = {
     no: "Yo'q",
     save: "Saqlash",
     update: "Yangilash",
-    requiredCode: "Valyuta kodini kiriting",
     requiredRate: "Kurs noldan katta bo'lishi kerak"
   },
   en: {
@@ -77,13 +75,21 @@ const UI = {
     no: "No",
     save: "Save",
     update: "Update",
-    requiredCode: "Currency code is required",
     requiredRate: "Rate must be greater than zero"
   }
 };
 
 function text(lang, key) {
   return pick(UI, lang, key);
+}
+
+function requiredNameError(lang) {
+  const dict = {
+    ru: "\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u0432\u0430\u043b\u044e\u0442\u044b",
+    uz: "Valyuta nomini kiriting",
+    en: "Currency name is required"
+  };
+  return dict[lang] || dict.en;
 }
 
 function extraText(lang, key) {
@@ -93,24 +99,14 @@ function extraText(lang, key) {
       nameHint: "\u041f\u043e\u043b\u043d\u043e\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435, \u043d\u0430\u043f\u0440\u0438\u043c\u0435\u0440 \u0414\u043e\u043b\u043b\u0430\u0440 \u0421\u0428\u0410",
       codePlaceholder: "USD",
       namePlaceholder: "\u0414\u043e\u043b\u043b\u0430\u0440 \u0421\u0428\u0410",
-      invalidCode: "\u041a\u043e\u0434 \u0432\u0430\u043b\u044e\u0442\u044b \u0434\u043e\u043b\u0436\u0435\u043d \u0441\u043e\u0434\u0435\u0440\u0436\u0430\u0442\u044c 3-6 \u043b\u0430\u0442\u0438\u043d\u0441\u043a\u0438\u0445 \u0431\u0443\u043a\u0432, \u043d\u0430\u043f\u0440\u0438\u043c\u0435\u0440 USD",
-      duplicateCode: "\u0412\u0430\u043b\u044e\u0442\u0430 \u0441 \u0442\u0430\u043a\u0438\u043c \u043a\u043e\u0434\u043e\u043c \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442"
     },
     uz: {
-      codeHint: "3-6 ta lotin harfi, masalan USD",
       nameHint: "To'liq nomi, masalan AQSH dollari",
-      codePlaceholder: "USD",
-      namePlaceholder: "AQSH dollari",
-      invalidCode: "Valyuta kodi 3-6 ta lotin harfidan iborat bo'lishi kerak, masalan USD",
-      duplicateCode: "Bunday kodli valyuta allaqachon mavjud"
+      namePlaceholder: "AQSH dollari"
     },
     en: {
-      codeHint: "3-6 latin letters, for example USD",
       nameHint: "Full name, for example US Dollar",
-      codePlaceholder: "USD",
-      namePlaceholder: "US Dollar",
-      invalidCode: "Currency code must contain 3-6 latin letters, for example USD",
-      duplicateCode: "A currency with this code already exists"
+      namePlaceholder: "US Dollar"
     }
   };
   return pick(dict, lang, key);
@@ -119,7 +115,6 @@ function extraText(lang, key) {
 function normalizeItem(item) {
   return {
     id: Number(item?.id || 0),
-    code: String(item?.code || ""),
     name: String(item?.name || ""),
     rate: Number(item?.rate || 0),
     is_default: Number(item?.is_default || 0),
@@ -130,39 +125,19 @@ function normalizeItem(item) {
 function filterItems(items, q) {
   const needle = String(q || "").trim().toLowerCase();
   if (!needle) return items;
-  return items.filter(item => [item.code, item.name].some(v => String(v || "").toLowerCase().includes(needle)));
-}
-
-function isValidCode(code) {
-  return /^[A-Z]{3,6}$/.test(String(code || "").trim().toUpperCase());
+  return items.filter(item => [item.name].some(v => String(v || "").toLowerCase().includes(needle)));
 }
 
 function mapSaveError(lang, error) {
   const msg = String(error?.message || error || "");
-  if (msg === "code must be 3-6 latin letters") return extraText(lang, "invalidCode");
-  if (msg === "Required: code" || msg === "code cannot be empty") return text(lang, "requiredCode");
+  if (msg === "name cannot be empty" || msg === "Required: name") return requiredNameError(lang);
   if (msg === "rate must be > 0") return text(lang, "requiredRate");
-  if (msg === "Code already exists") return extraText(lang, "duplicateCode");
   return msg;
 }
 
 function modalHtml(lang, item) {
   return `
     <div class="row g-3">
-      <div class="col-md-4">
-        <label class="form-label">${esc(text(lang, "code"))}</label>
-        <input
-          class="form-control text-uppercase"
-          name="code"
-          value="${esc(item?.code || "")}"
-          maxlength="6"
-          placeholder="${esc(extraText(lang, "codePlaceholder"))}"
-          inputmode="text"
-          autocomplete="off"
-          autocapitalize="characters"
-          spellcheck="false">
-        <div class="form-text">${esc(extraText(lang, "codeHint"))}</div>
-      </div>
       <div class="col-md-8">
         <label class="form-label">${esc(text(lang, "name"))}</label>
         <input class="form-control" name="name" value="${esc(item?.name || "")}" placeholder="${esc(extraText(lang, "namePlaceholder"))}">
@@ -190,7 +165,6 @@ function modalHtml(lang, item) {
 
 function readForm(modalEl) {
   return {
-    code: modalEl.querySelector("[name='code']").value.trim().toUpperCase(),
     name: modalEl.querySelector("[name='name']").value.trim(),
     rate: Number(modalEl.querySelector("[name='rate']").value || 0),
     is_default: modalEl.querySelector("[name='is_default']").checked ? 1 : 0,
@@ -211,8 +185,6 @@ function tableHtml(items, lang) {
         <table class="table table-sm table-hover align-middle mb-0">
           <thead>
             <tr>
-              <th style="width:72px">ID</th>
-              <th style="width:120px">${esc(text(lang, "code"))}</th>
               <th>${esc(text(lang, "name"))}</th>
               <th style="width:140px">${esc(text(lang, "rate"))}</th>
               <th style="width:110px">${esc(text(lang, "isDefault"))}</th>
@@ -223,9 +195,7 @@ function tableHtml(items, lang) {
           <tbody>
             ${items.map(item => `
               <tr>
-                <td>${item.id}</td>
-                <td class="fw-semibold">${esc(item.code)}</td>
-                <td>${esc(item.name)}</td>
+                <td class="fw-semibold">${esc(item.name)}</td>
                 <td>${esc(item.rate)}</td>
                 <td>${ynBadge(item.is_default, labels)}</td>
                 <td>${activeBadge(item.is_active, labels)}</td>
@@ -247,9 +217,7 @@ function tableHtml(items, lang) {
           <div class="card-body p-3">
             <div class="d-flex justify-content-between gap-2 align-items-start">
               <div>
-                <div class="small text-muted">#${item.id}</div>
-                <div class="fw-semibold">${esc(item.code)}</div>
-                <div class="text-muted small">${esc(item.name)}</div>
+                <div class="fw-semibold">${esc(item.name)}</div>
               </div>
               ${activeBadge(item.is_active, labels)}
             </div>
@@ -272,15 +240,13 @@ async function openEntityModal(ctx, item) {
   const isCreate = !item?.id;
 
   openModal({
-    title: isCreate ? text(lang, "create") : `${text(lang, "edit")} #${item.id}`,
+    title: isCreate ? text(lang, "create") : text(lang, "edit"),
     saveText: text(lang, "save"),
     bodyHtml: modalHtml(lang, item),
     onSave: async (modalEl) => {
       const payload = readForm(modalEl);
-      if (!payload.code) throw new Error(text(lang, "requiredCode"));
-      if (!isValidCode(payload.code)) throw new Error(extraText(lang, "invalidCode"));
+      if (!payload.name) throw new Error(requiredNameError(lang));
       if (!(payload.rate > 0)) throw new Error(text(lang, "requiredRate"));
-      if (!payload.name) payload.name = payload.code;
 
       try {
         if (isCreate) {

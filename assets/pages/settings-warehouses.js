@@ -106,7 +106,6 @@ function normalizeItem(item) {
     id: Number(item?.id || 0),
     filial_id: Number(item?.filial_id || 0),
     name: String(item?.name || ""),
-    code: String(item?.code || ""),
     address: String(item?.address || ""),
     comment: String(item?.comment || ""),
     sellable: Number(item?.sellable ?? 1),
@@ -120,7 +119,7 @@ function filterItems(items, q, filialId) {
   return items.filter(item => {
     if (filialId && Number(item.filial_id) !== Number(filialId)) return false;
     if (!needle) return true;
-    return [item.name, item.code, item.address].some(v => String(v || "").toLowerCase().includes(needle));
+    return [item.name, item.address].some(v => String(v || "").toLowerCase().includes(needle));
   });
 }
 
@@ -137,10 +136,6 @@ function modalHtml(lang, item, filials) {
       <div class="col-md-8">
         <label class="form-label">${esc(text(lang, "name"))}</label>
         <input class="form-control" name="name" value="${esc(item?.name || "")}">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">${esc(text(lang, "code"))}</label>
-        <input class="form-control" name="code" value="${esc(item?.code || "")}">
       </div>
       <div class="col-12">
         <label class="form-label">${esc(text(lang, "address"))}</label>
@@ -176,7 +171,6 @@ function readForm(modalEl) {
   return {
     filial_id: Number(modalEl.querySelector("[name='filial_id']").value || 0),
     name: modalEl.querySelector("[name='name']").value.trim(),
-    code: modalEl.querySelector("[name='code']").value.trim() || null,
     address: modalEl.querySelector("[name='address']").value.trim() || null,
     comment: modalEl.querySelector("[name='comment']").value.trim() || null,
     sellable: modalEl.querySelector("[name='sellable']").checked ? 1 : 0,
@@ -199,10 +193,8 @@ function tableHtml(items, filials, lang) {
         <table class="table table-sm table-hover align-middle mb-0">
           <thead>
             <tr>
-              <th style="width:72px">ID</th>
               <th style="width:180px">${esc(text(lang, "filial"))}</th>
               <th>${esc(text(lang, "name"))}</th>
-              <th style="width:130px">${esc(text(lang, "code"))}</th>
               <th style="width:110px">${esc(text(lang, "sellable"))}</th>
               <th style="width:110px">${esc(text(lang, "isDefault"))}</th>
               <th style="width:110px">${esc(text(lang, "status"))}</th>
@@ -212,13 +204,11 @@ function tableHtml(items, filials, lang) {
           <tbody>
             ${items.map(item => `
               <tr>
-                <td>${item.id}</td>
-                <td>${esc(filialById.get(Number(item.filial_id)) || `#${item.filial_id}`)}</td>
+                <td>${esc(filialById.get(Number(item.filial_id)) || "-")}</td>
                 <td>
                   <div class="fw-semibold">${esc(item.name)}</div>
                   <div class="text-muted small">${esc(item.address || "-")}</div>
                 </td>
-                <td>${esc(item.code || "-")}</td>
                 <td>${ynBadge(item.sellable, labels)}</td>
                 <td>${ynBadge(item.is_default, labels)}</td>
                 <td>${activeBadge(item.is_active, labels)}</td>
@@ -240,9 +230,8 @@ function tableHtml(items, filials, lang) {
           <div class="card-body p-3">
             <div class="d-flex justify-content-between gap-2 align-items-start">
               <div>
-                <div class="small text-muted">#${item.id}</div>
                 <div class="fw-semibold">${esc(item.name)}</div>
-                <div class="text-muted small">${esc(filialById.get(Number(item.filial_id)) || `#${item.filial_id}`)}</div>
+                <div class="text-muted small">${esc(filialById.get(Number(item.filial_id)) || "-")}</div>
               </div>
               ${activeBadge(item.is_active, labels)}
             </div>
@@ -265,7 +254,7 @@ async function openEntityModal(ctx, item, filials) {
   const isCreate = !item?.id;
 
   openModal({
-    title: isCreate ? text(lang, "create") : `${text(lang, "edit")} #${item.id}`,
+    title: isCreate ? text(lang, "create") : text(lang, "edit"),
     saveText: text(lang, "save"),
     bodyHtml: modalHtml(lang, item, filials),
     onSave: async (modalEl) => {
