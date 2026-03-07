@@ -313,7 +313,11 @@ function fieldLabel(fields, lang, fieldKey, fallback) {
     is_inspection: text(lang, "flagInspection"),
     is_other: text(lang, "flagOther")
   };
-  return esc(fields.label(fieldKey, lang, fallback || fallbackMap[fieldKey] || fieldKey));
+  const resolved = String(fields.label(fieldKey, lang, fallback || fallbackMap[fieldKey] || fieldKey) || "");
+  if (fallbackMap[fieldKey] && resolved.trim().toLowerCase() === String(fieldKey).toLowerCase()) {
+    return esc(fallbackMap[fieldKey]);
+  }
+  return esc(resolved);
 }
 
 function optionHtml(value, selected, label) {
@@ -423,6 +427,7 @@ function mapSaveError(lang, error) {
 function modalHtml(lang, item, fields, meta) {
   const forcePhysical = Boolean(meta?.forcePhysical);
   const currentPerson = forcePhysical ? "physical" : (String(item?.person_type || "legal") === "physical" ? "physical" : "legal");
+  const fullNameLabel = forcePhysical || currentPerson === "physical" ? text(lang, "fio") : text(lang, "name");
 
   const statusField = visible(fields, "status", "form") ? `
     <div class="col-md-4">
@@ -574,12 +579,12 @@ function modalHtml(lang, item, fields, meta) {
           ${personField}
           ${visible(fields, "full_name", "form") ? `
             <div class="col-md-8">
-              <label class="form-label">${esc(meta.role === "employee" ? text(lang, "fio") : text(lang, "name"))}</label>
+              <label class="form-label" data-full-name-label>${esc(fullNameLabel)}</label>
               <input class="form-control" name="full_name" value="${esc(item?.full_name || item?.name || "")}">
             </div>
           ` : ""}
           ${visible(fields, "contact_person", "form") ? `
-            <div class="col-md-6">
+            <div class="col-md-6" data-contact-row>
               <label class="form-label">${esc(text(lang, "contactPerson"))}</label>
               <input class="form-control" name="contact_person" value="${esc(item?.contact_person || "")}">
             </div>
@@ -732,28 +737,33 @@ function readForm(modalEl, meta, draft = {}) {
     payload[key] = readBool(key, Number(draft?.[key] ?? 0));
   }
 
-  payload.full_name = payload.full_name || payload.contact_person || payload.name;
-  payload.name = payload.full_name || payload.contact_person || payload.name;
   payload.phone_1 = payload.phone_1 || payload.phone;
   if (meta.forcePhysical || Number(payload.is_employee || 0) === 1) {
     payload.person_type = "physical";
   } else if (!payload.person_type) {
     payload.person_type = "legal";
   }
+  if (payload.person_type === "physical") {
+    payload.contact_person = "";
+  }
+  payload.full_name = payload.full_name || payload.contact_person || payload.name;
+  payload.name = payload.full_name || payload.contact_person || payload.name;
   return payload;
 }
 
 function bindModalBehavior(modalEl, meta) {
   const root = modalEl.querySelector("[data-counterparty-form]");
   if (!root) return;
+  const lang = langOf();
 
   const advancedBtn = root.querySelector("[data-advanced-toggle]");
   const advancedBody = root.querySelector("[data-advanced-body]");
   const advancedLabel = root.querySelector("[data-advanced-label]");
   const advancedIcon = root.querySelector("[data-advanced-icon]");
+  const fullNameLabelEl = root.querySelector("[data-full-name-label]");
+  const contactRowEl = root.querySelector("[data-contact-row]");
 
   if (advancedBtn && advancedBody && advancedLabel && advancedIcon) {
-    const lang = langOf();
     advancedBtn.addEventListener("click", () => {
       const opened = !advancedBody.classList.contains("d-none");
       advancedBody.classList.toggle("d-none", opened);
@@ -774,6 +784,8 @@ function bindModalBehavior(modalEl, meta) {
     }
     root.querySelectorAll("[data-person-only='legal']").forEach((el) => el.classList.toggle("d-none", mode !== "legal"));
     root.querySelectorAll("[data-person-only='physical']").forEach((el) => el.classList.toggle("d-none", mode !== "physical"));
+    if (fullNameLabelEl) fullNameLabelEl.textContent = mode === "physical" ? text(lang, "fio") : text(lang, "name");
+    if (contactRowEl) contactRowEl.classList.toggle("d-none", mode === "physical");
   };
 
   if (personTypeEl) personTypeEl.addEventListener("change", syncPersonMode);
@@ -897,6 +909,9 @@ async function openEntityModal(ctx, item, meta, fields) {
       }
       if (meta.forcePhysical || Number(payload.is_employee || 0) === 1) {
         payload.person_type = "physical";
+      }
+      if (payload.person_type === "physical") {
+        payload.contact_person = "";
       }
       payload.full_name = String(payload.full_name || "").trim() || String(payload.contact_person || "").trim();
       payload.name = payload.full_name || String(payload.name || "").trim();
