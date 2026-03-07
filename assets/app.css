@@ -365,6 +365,29 @@ body {
   min-width: 8.25rem;
 }
 
+.counterparty-form-block {
+  border: 1px solid rgba(var(--bs-body-color-rgb), 0.14);
+  border-radius: 0.6rem;
+  padding: 0.8rem;
+}
+
+.counterparty-form-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(var(--bs-body-color-rgb), 0.72);
+  margin-bottom: 0.7rem;
+}
+
+.counterparty-advanced-btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
 .category-tree-card .card-body {
   padding: 0;
 }

@@ -63,6 +63,9 @@ export const LEVEL2_SECTIONS = [
 
   { id: "counterparties_suppliers", icon: "bi-truck", label: tr("Контрагенты: Поставщики", "Kontragentlar: Ta'minotchilar", "Counterparties: Suppliers"), module: "/assets/pages/soon.js", groupId: "counterparties", group: GROUPS.COUNTERPARTIES },
   { id: "counterparties_clients", icon: "bi-person-lines-fill", label: tr("Контрагенты: Клиенты", "Kontragentlar: Mijozlar", "Counterparties: Clients"), module: "/assets/pages/soon.js", groupId: "counterparties", group: GROUPS.COUNTERPARTIES },
+  { id: "counterparties_inspections", icon: "bi-shield-check", label: tr("Контрагенты: Инспекции", "Kontragentlar: Inspeksiyalar", "Counterparties: Inspections"), module: "/assets/pages/soon.js", groupId: "counterparties", group: GROUPS.COUNTERPARTIES },
+  { id: "counterparties_employees", icon: "bi-person-badge", label: tr("Контрагенты: Сотрудники", "Kontragentlar: Xodimlar", "Counterparties: Employees"), module: "/assets/pages/soon.js", groupId: "counterparties", group: GROUPS.COUNTERPARTIES },
+  { id: "counterparties_other", icon: "bi-three-dots", label: tr("Контрагенты: Прочее", "Kontragentlar: Boshqa", "Counterparties: Other"), module: "/assets/pages/soon.js", groupId: "counterparties", group: GROUPS.COUNTERPARTIES },
 
   { id: "settings_users", icon: "bi-people", label: tr("Настройки: Пользователи", "Sozlamalar: Foydalanuvchilar", "Settings: Users"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
   { id: "settings_roles", icon: "bi-shield-check", label: tr("Настройки: Роли", "Sozlamalar: Rollar", "Settings: Roles"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },

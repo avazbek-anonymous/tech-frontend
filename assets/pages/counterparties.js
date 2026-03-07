@@ -1,4 +1,4 @@
-import {
+﻿import {
   activeBadge,
   emptyHtml,
   errorHtml,
@@ -14,17 +14,33 @@ import {
 const UI = {
   ru: {
     titleSuppliers: "Контрагенты: Поставщики",
-    titleClients: "Контрагенты: Покупатели",
+    titleClients: "Контрагенты: Клиенты",
+    titleInspections: "Контрагенты: Инспекции",
+    titleEmployees: "Контрагенты: Сотрудники",
+    titleOther: "Контрагенты: Прочее",
     subtitleSuppliers: "База поставщиков для закупок и взаиморасчетов",
-    subtitleClients: "База покупателей для продаж и взаиморасчетов",
+    subtitleClients: "База клиентов для продаж и взаиморасчетов",
+    subtitleInspections: "Контрагенты проверяющих и контролирующих органов",
+    subtitleEmployees: "Справочник сотрудников в роли контрагентов",
+    subtitleOther: "Прочие контрагенты бизнеса",
     search: "Поиск",
     createSupplier: "Добавить поставщика",
-    createClient: "Добавить покупателя",
+    createClient: "Добавить клиента",
+    createInspection: "Добавить инспекцию",
+    createEmployee: "Добавить сотрудника",
+    createOther: "Добавить контрагента",
     editSupplier: "Редактировать поставщика",
-    editClient: "Редактировать покупателя",
+    editClient: "Редактировать клиента",
+    editInspection: "Редактировать инспекцию",
+    editEmployee: "Редактировать сотрудника",
+    editOther: "Редактировать контрагента",
     noItemsSuppliers: "Поставщики не найдены",
-    noItemsClients: "Покупатели не найдены",
-    name: "Название",
+    noItemsClients: "Клиенты не найдены",
+    noItemsInspections: "Инспекции не найдены",
+    noItemsEmployees: "Сотрудники не найдены",
+    noItemsOther: "Контрагенты не найдены",
+    name: "Полное наименование",
+    fio: "ФИО",
     contactPerson: "Контактное лицо",
     phone: "Телефон",
     email: "Email",
@@ -46,24 +62,52 @@ const UI = {
     statusBlocked: "Заблокирован",
     personLegal: "Юр. лицо",
     personPhysical: "Физ. лицо",
+    employeeAlwaysPhysical: "Для сотрудника тип всегда: Физ. лицо",
     genderMale: "Мужской",
     genderFemale: "Женский",
     genderOther: "Другое",
+    mainBlock: "Основное",
+    contactsBlock: "Контактные данные",
+    advancedOpen: "Расширенные",
+    advancedClose: "Скрыть расширенные",
+    additionalBlock: "Дополнительно",
+    requisitesBlock: "Реквизиты",
+    flagSupplier: "Поставщик",
+    flagClient: "Клиент",
+    flagEmployee: "Сотрудник",
+    flagInspection: "Инспекция",
+    flagOther: "Прочее",
     flags: "Флаги"
   },
   uz: {
     titleSuppliers: "Kontragentlar: Ta'minotchilar",
-    titleClients: "Kontragentlar: Xaridorlar",
+    titleClients: "Kontragentlar: Mijozlar",
+    titleInspections: "Kontragentlar: Inspeksiyalar",
+    titleEmployees: "Kontragentlar: Xodimlar",
+    titleOther: "Kontragentlar: Boshqa",
     subtitleSuppliers: "Xarid va hisob-kitoblar uchun ta'minotchilar bazasi",
-    subtitleClients: "Sotuv va hisob-kitoblar uchun xaridorlar bazasi",
+    subtitleClients: "Sotuv va hisob-kitoblar uchun mijozlar bazasi",
+    subtitleInspections: "Tekshiruvchi va nazorat organlari kontragentlari",
+    subtitleEmployees: "Kontragent rolidagi xodimlar ro'yxati",
+    subtitleOther: "Biznesning boshqa kontragentlari",
     search: "Qidiruv",
     createSupplier: "Ta'minotchi qo'shish",
-    createClient: "Xaridor qo'shish",
+    createClient: "Mijoz qo'shish",
+    createInspection: "Inspeksiya qo'shish",
+    createEmployee: "Xodim qo'shish",
+    createOther: "Kontragent qo'shish",
     editSupplier: "Ta'minotchini tahrirlash",
-    editClient: "Xaridorni tahrirlash",
+    editClient: "Mijozni tahrirlash",
+    editInspection: "Inspeksiyani tahrirlash",
+    editEmployee: "Xodimni tahrirlash",
+    editOther: "Kontragentni tahrirlash",
     noItemsSuppliers: "Ta'minotchilar topilmadi",
-    noItemsClients: "Xaridorlar topilmadi",
-    name: "Nomi",
+    noItemsClients: "Mijozlar topilmadi",
+    noItemsInspections: "Inspeksiyalar topilmadi",
+    noItemsEmployees: "Xodimlar topilmadi",
+    noItemsOther: "Kontragentlar topilmadi",
+    name: "To'liq nom",
+    fio: "F.I.Sh.",
     contactPerson: "Mas'ul shaxs",
     phone: "Telefon",
     email: "Email",
@@ -85,24 +129,52 @@ const UI = {
     statusBlocked: "Bloklangan",
     personLegal: "Yuridik shaxs",
     personPhysical: "Jismoniy shaxs",
+    employeeAlwaysPhysical: "Xodim uchun tur doim: Jismoniy shaxs",
     genderMale: "Erkak",
     genderFemale: "Ayol",
     genderOther: "Boshqa",
+    mainBlock: "Asosiy",
+    contactsBlock: "Kontakt ma'lumotlari",
+    advancedOpen: "Kengaytirilgan",
+    advancedClose: "Kengaytirilganni yopish",
+    additionalBlock: "Qo'shimcha",
+    requisitesBlock: "Rekvizitlar",
+    flagSupplier: "Ta'minotchi",
+    flagClient: "Mijoz",
+    flagEmployee: "Xodim",
+    flagInspection: "Inspeksiya",
+    flagOther: "Boshqa",
     flags: "Flaglar"
   },
   en: {
     titleSuppliers: "Counterparties: Suppliers",
-    titleClients: "Counterparties: Buyers",
+    titleClients: "Counterparties: Clients",
+    titleInspections: "Counterparties: Inspections",
+    titleEmployees: "Counterparties: Employees",
+    titleOther: "Counterparties: Other",
     subtitleSuppliers: "Suppliers directory for purchasing and settlements",
-    subtitleClients: "Buyers directory for sales and settlements",
+    subtitleClients: "Clients directory for sales and settlements",
+    subtitleInspections: "Inspection and regulatory counterparties",
+    subtitleEmployees: "Employees registered as counterparties",
+    subtitleOther: "Other business counterparties",
     search: "Search",
     createSupplier: "Add supplier",
-    createClient: "Add buyer",
+    createClient: "Add client",
+    createInspection: "Add inspection",
+    createEmployee: "Add employee",
+    createOther: "Add counterparty",
     editSupplier: "Edit supplier",
-    editClient: "Edit buyer",
+    editClient: "Edit client",
+    editInspection: "Edit inspection",
+    editEmployee: "Edit employee",
+    editOther: "Edit counterparty",
     noItemsSuppliers: "No suppliers found",
-    noItemsClients: "No buyers found",
-    name: "Name",
+    noItemsClients: "No clients found",
+    noItemsInspections: "No inspections found",
+    noItemsEmployees: "No employees found",
+    noItemsOther: "No counterparties found",
+    name: "Full name",
+    fio: "Full name",
     contactPerson: "Contact person",
     phone: "Phone",
     email: "Email",
@@ -124,9 +196,21 @@ const UI = {
     statusBlocked: "Blocked",
     personLegal: "Legal entity",
     personPhysical: "Individual",
+    employeeAlwaysPhysical: "Employees are always: Individual",
     genderMale: "Male",
     genderFemale: "Female",
     genderOther: "Other",
+    mainBlock: "Main",
+    contactsBlock: "Contact details",
+    advancedOpen: "Advanced",
+    advancedClose: "Hide advanced",
+    additionalBlock: "Additional",
+    requisitesBlock: "Requisites",
+    flagSupplier: "Supplier",
+    flagClient: "Client",
+    flagEmployee: "Employee",
+    flagInspection: "Inspection",
+    flagOther: "Other",
     flags: "Flags"
   }
 };
@@ -138,7 +222,6 @@ function text(lang, key) {
 const EXTRA_TEXT_FIELDS = [
   "code",
   "counterparty_type",
-  "full_name",
   "short_name",
   "phone_1",
   "phone_2",
@@ -162,16 +245,104 @@ const EXTRA_TEXT_FIELDS = [
 const EXTRA_NUMBER_FIELDS = ["debt_limit", "payment_delay_days", "discount_level"];
 const EXTRA_BOOL_FIELDS = ["is_vat_payer", "is_blacklisted", "is_supplier", "is_client", "is_employee", "is_inspection", "is_other"];
 
+const ROLE_FLAG_FIELDS = ["is_supplier", "is_client", "is_employee", "is_inspection", "is_other"];
+
+const SECTION_META = {
+  counterparties_suppliers: {
+    role: "supplier",
+    kind: "supplier",
+    titleKey: "titleSuppliers",
+    subtitleKey: "subtitleSuppliers",
+    createKey: "createSupplier",
+    editKey: "editSupplier",
+    noItemsKey: "noItemsSuppliers",
+    defaultFlags: { is_supplier: 1, is_client: 0, is_employee: 0, is_inspection: 0, is_other: 0 },
+    forcePhysical: false
+  },
+  counterparties_clients: {
+    role: "client",
+    kind: "client",
+    titleKey: "titleClients",
+    subtitleKey: "subtitleClients",
+    createKey: "createClient",
+    editKey: "editClient",
+    noItemsKey: "noItemsClients",
+    defaultFlags: { is_supplier: 0, is_client: 1, is_employee: 0, is_inspection: 0, is_other: 0 },
+    forcePhysical: false
+  },
+  counterparties_inspections: {
+    role: "inspection",
+    kind: "client",
+    titleKey: "titleInspections",
+    subtitleKey: "subtitleInspections",
+    createKey: "createInspection",
+    editKey: "editInspection",
+    noItemsKey: "noItemsInspections",
+    defaultFlags: { is_supplier: 0, is_client: 0, is_employee: 0, is_inspection: 1, is_other: 0 },
+    forcePhysical: false
+  },
+  counterparties_employees: {
+    role: "employee",
+    kind: "client",
+    titleKey: "titleEmployees",
+    subtitleKey: "subtitleEmployees",
+    createKey: "createEmployee",
+    editKey: "editEmployee",
+    noItemsKey: "noItemsEmployees",
+    defaultFlags: { is_supplier: 0, is_client: 0, is_employee: 1, is_inspection: 0, is_other: 0 },
+    forcePhysical: true
+  },
+  counterparties_other: {
+    role: "other",
+    kind: "client",
+    titleKey: "titleOther",
+    subtitleKey: "subtitleOther",
+    createKey: "createOther",
+    editKey: "editOther",
+    noItemsKey: "noItemsOther",
+    defaultFlags: { is_supplier: 0, is_client: 0, is_employee: 0, is_inspection: 0, is_other: 1 },
+    forcePhysical: false
+  }
+};
+
 function fieldLabel(fields, lang, fieldKey, fallback) {
-  return esc(fields.label(fieldKey, lang, fallback || fieldKey));
+  const fallbackMap = {
+    is_supplier: text(lang, "flagSupplier"),
+    is_client: text(lang, "flagClient"),
+    is_employee: text(lang, "flagEmployee"),
+    is_inspection: text(lang, "flagInspection"),
+    is_other: text(lang, "flagOther")
+  };
+  return esc(fields.label(fieldKey, lang, fallback || fallbackMap[fieldKey] || fieldKey));
 }
 
 function optionHtml(value, selected, label) {
   return `<option value="${esc(value)}" ${String(selected || "") === String(value) ? "selected" : ""}>${esc(label)}</option>`;
 }
 
-function sectionKind(sectionId) {
-  return sectionId === "counterparties_suppliers" ? "supplier" : "client";
+function sectionMeta(sectionId) {
+  return SECTION_META[sectionId] || SECTION_META.counterparties_clients;
+}
+
+function visible(fields, key, mode = "form") {
+  if (!fields) return true;
+  const fn = mode === "list"
+    ? fields.showInList
+    : mode === "filters"
+      ? fields.showInFilters
+      : mode === "card"
+        ? fields.showInCard
+        : fields.showInForm;
+
+  if (key === "phone_1") return fn("phone_1") || fn("phone");
+  return fn(key);
+}
+
+function displayName(item, meta) {
+  if (meta.role === "employee") {
+    return String(item?.full_name || item?.name || item?.contact_person || "");
+  }
+  return String(item?.full_name || item?.name || "");
 }
 
 function normalizeItem(item) {
@@ -249,53 +420,125 @@ function mapSaveError(lang, error) {
   return msg;
 }
 
-function modalHtml(lang, item, fields) {
-  const extraTextHtml = EXTRA_TEXT_FIELDS.map((key) => {
-    if (!fields.showInForm(key)) return "";
-    if (key === "gender") {
-      return `
+function modalHtml(lang, item, fields, meta) {
+  const forcePhysical = Boolean(meta?.forcePhysical);
+  const currentPerson = forcePhysical ? "physical" : (String(item?.person_type || "legal") === "physical" ? "physical" : "legal");
+
+  const statusField = visible(fields, "status", "form") ? `
+    <div class="col-md-4">
+      <label class="form-label">${fieldLabel(fields, lang, "status", text(lang, "status"))}</label>
+      <select class="form-select" name="status">
+        ${optionHtml("active", item?.status || "active", text(lang, "statusActive"))}
+        ${optionHtml("inactive", item?.status || "active", text(lang, "statusInactive"))}
+        ${optionHtml("blocked", item?.status || "active", text(lang, "statusBlocked"))}
+      </select>
+    </div>
+  ` : "";
+
+  const personField = visible(fields, "person_type", "form")
+    ? (forcePhysical
+      ? `
         <div class="col-md-4">
-          <label class="form-label">${fieldLabel(fields, lang, "gender", "Gender")}</label>
-          <select class="form-select" name="gender">
-            ${optionHtml("", item?.gender || "", "-")}
-            ${optionHtml("male", item?.gender || "", text(lang, "genderMale"))}
-            ${optionHtml("female", item?.gender || "", text(lang, "genderFemale"))}
-            ${optionHtml("other", item?.gender || "", text(lang, "genderOther"))}
-          </select>
+          <label class="form-label">${fieldLabel(fields, lang, "person_type", text(lang, "personPhysical"))}</label>
+          <input class="form-control" value="${esc(text(lang, "employeeAlwaysPhysical"))}" disabled>
+          <input type="hidden" name="person_type" value="physical">
         </div>
-      `;
-    }
-    if (key === "person_type") {
-      return `
+      `
+      : `
         <div class="col-md-4">
           <label class="form-label">${fieldLabel(fields, lang, "person_type", "Person type")}</label>
-          <select class="form-select" name="person_type">
-            ${optionHtml("", item?.person_type || "", "-")}
-            ${optionHtml("legal", item?.person_type || "", text(lang, "personLegal"))}
-            ${optionHtml("physical", item?.person_type || "", text(lang, "personPhysical"))}
+          <select class="form-select" name="person_type" data-person-type>
+            ${optionHtml("legal", currentPerson, text(lang, "personLegal"))}
+            ${optionHtml("physical", currentPerson, text(lang, "personPhysical"))}
           </select>
         </div>
-      `;
-    }
-    if (key === "birth_date") {
-      return `
-        <div class="col-md-4">
-          <label class="form-label">${fieldLabel(fields, lang, "birth_date", "Birth date")}</label>
-          <input class="form-control" type="date" name="birth_date" value="${esc(item?.birth_date || "")}">
-        </div>
-      `;
-    }
-    const value = item?.[key] ?? "";
+      `)
+    : "";
+
+  const contactPhoneField = visible(fields, "phone_1", "form") ? `
+    <div class="col-md-4">
+      <label class="form-label">${fieldLabel(fields, lang, "phone_1", text(lang, "phone"))}</label>
+      <input class="form-control" name="phone_1" value="${esc(item?.phone_1 || item?.phone || "")}">
+    </div>
+  ` : "";
+
+  const counterpartyTypeField = visible(fields, "counterparty_type", "form") ? `
+    <div class="col-md-4">
+      <label class="form-label">${fieldLabel(fields, lang, "counterparty_type", "Type")}</label>
+      <select class="form-select" name="counterparty_type">
+        ${optionHtml("", item?.counterparty_type || "", "-")}
+        ${optionHtml("partner", item?.counterparty_type || "", "Partner")}
+        ${optionHtml("state", item?.counterparty_type || "", "State")}
+        ${optionHtml("service", item?.counterparty_type || "", "Service")}
+        ${optionHtml("other", item?.counterparty_type || "", "Other")}
+      </select>
+    </div>
+  ` : "";
+
+  const additionalFields = ["code", "short_name", "manager_name"].map((key) => {
+    if (!visible(fields, key, "form")) return "";
     return `
       <div class="col-md-4">
         <label class="form-label">${fieldLabel(fields, lang, key)}</label>
-        <input class="form-control" name="${esc(key)}" value="${esc(value)}">
+        <input class="form-control" name="${esc(key)}" value="${esc(item?.[key] ?? "")}">
       </div>
     `;
   }).join("");
 
-  const extraNumHtml = EXTRA_NUMBER_FIELDS.map((key) => {
-    if (!fields.showInForm(key)) return "";
+  const legalFields = [
+    { key: "inn", col: "col-md-4", type: "text" },
+    { key: "bank_name", col: "col-md-4", type: "text" },
+    { key: "mfo", col: "col-md-4", type: "text" },
+    { key: "bank_account", col: "col-md-4", type: "text" },
+    { key: "director", col: "col-md-4", type: "text" }
+  ].map((f) => {
+    if (!visible(fields, f.key, "form")) return "";
+    return `
+      <div class="${f.col}" data-person-only="legal">
+        <label class="form-label">${fieldLabel(fields, lang, f.key)}</label>
+        <input class="form-control" type="${f.type}" name="${esc(f.key)}" value="${esc(item?.[f.key] ?? "")}">
+      </div>
+    `;
+  }).join("");
+
+  const vatField = visible(fields, "is_vat_payer", "form") ? `
+    <div class="form-check form-switch me-3 mb-2" data-person-only="legal">
+      <input class="form-check-input" type="checkbox" role="switch" name="is_vat_payer" ${Number(item?.is_vat_payer || 0) === 1 ? "checked" : ""}>
+      <label class="form-check-label">${fieldLabel(fields, lang, "is_vat_payer")}</label>
+    </div>
+  ` : "";
+
+  const physicalFields = ["pinfl", "passport_series", "passport_number"].map((key) => {
+    if (!visible(fields, key, "form")) return "";
+    return `
+      <div class="col-md-4" data-person-only="physical">
+        <label class="form-label">${fieldLabel(fields, lang, key)}</label>
+        <input class="form-control" name="${esc(key)}" value="${esc(item?.[key] ?? "")}">
+      </div>
+    `;
+  }).join("");
+
+  const birthField = visible(fields, "birth_date", "form") ? `
+    <div class="col-md-4" data-person-only="physical">
+      <label class="form-label">${fieldLabel(fields, lang, "birth_date", "Birth date")}</label>
+      <input class="form-control" type="date" name="birth_date" value="${esc(item?.birth_date || "")}">
+    </div>
+  ` : "";
+
+  const genderField = visible(fields, "gender", "form") ? `
+    <div class="col-md-4" data-person-only="physical">
+      <label class="form-label">${fieldLabel(fields, lang, "gender", "Gender")}</label>
+      <select class="form-select" name="gender">
+        ${optionHtml("", item?.gender || "", "-")}
+        ${optionHtml("male", item?.gender || "", text(lang, "genderMale"))}
+        ${optionHtml("female", item?.gender || "", text(lang, "genderFemale"))}
+        ${optionHtml("other", item?.gender || "", text(lang, "genderOther"))}
+      </select>
+    </div>
+  ` : "";
+
+  const numericFields = EXTRA_NUMBER_FIELDS.map((key) => {
+    if (!visible(fields, key, "form")) return "";
     const step = key === "payment_delay_days" ? "1" : "0.01";
     return `
       <div class="col-md-4">
@@ -305,8 +548,8 @@ function modalHtml(lang, item, fields) {
     `;
   }).join("");
 
-  const extraBoolHtml = EXTRA_BOOL_FIELDS.map((key) => {
-    if (!fields.showInForm(key)) return "";
+  const roleFlags = ROLE_FLAG_FIELDS.map((key) => {
+    if (!visible(fields, key, "form")) return "";
     return `
       <div class="form-check form-switch me-3 mb-2">
         <input class="form-check-input" type="checkbox" role="switch" name="${esc(key)}" ${Number(item?.[key] || 0) === 1 ? "checked" : ""}>
@@ -315,87 +558,141 @@ function modalHtml(lang, item, fields) {
     `;
   }).join("");
 
+  const blacklistedField = visible(fields, "is_blacklisted", "form") ? `
+    <div class="form-check form-switch me-3 mb-2">
+      <input class="form-check-input" type="checkbox" role="switch" name="is_blacklisted" ${Number(item?.is_blacklisted || 0) === 1 ? "checked" : ""}>
+      <label class="form-check-label">${fieldLabel(fields, lang, "is_blacklisted")}</label>
+    </div>
+  ` : "";
+
   return `
-    <div class="row g-3">
-      ${fields.showInForm("status") ? `
-        <div class="col-md-4">
-          <label class="form-label">${fieldLabel(fields, lang, "status", text(lang, "status"))}</label>
-          <select class="form-select" name="status">
-            ${optionHtml("active", item?.status || "active", text(lang, "statusActive"))}
-            ${optionHtml("inactive", item?.status || "active", text(lang, "statusInactive"))}
-            ${optionHtml("blocked", item?.status || "active", text(lang, "statusBlocked"))}
-          </select>
+    <div data-counterparty-form data-force-physical="${forcePhysical ? "1" : "0"}">
+      <div class="counterparty-form-block">
+        <div class="counterparty-form-title">${esc(text(lang, "mainBlock"))}</div>
+        <div class="row g-3">
+          ${statusField}
+          ${personField}
+          ${visible(fields, "full_name", "form") ? `
+            <div class="col-md-8">
+              <label class="form-label">${esc(meta.role === "employee" ? text(lang, "fio") : text(lang, "name"))}</label>
+              <input class="form-control" name="full_name" value="${esc(item?.full_name || item?.name || "")}">
+            </div>
+          ` : ""}
+          ${visible(fields, "contact_person", "form") ? `
+            <div class="col-md-6">
+              <label class="form-label">${esc(text(lang, "contactPerson"))}</label>
+              <input class="form-control" name="contact_person" value="${esc(item?.contact_person || "")}">
+            </div>
+          ` : ""}
+          ${visible(fields, "is_active", "form") ? `
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" name="is_active" ${Number(item?.is_active ?? 1) === 1 ? "checked" : ""}>
+                <label class="form-check-label">${esc(text(lang, "active"))}</label>
+              </div>
+            </div>
+          ` : ""}
         </div>
-      ` : ""}
-      ${fields.showInForm("full_name") ? `
-        <div class="col-md-8">
-          <label class="form-label">${fieldLabel(fields, lang, "full_name", text(lang, "name"))}</label>
-          <input class="form-control" name="full_name" value="${esc(item?.full_name || item?.name || "")}">
+      </div>
+
+      <div class="counterparty-form-block mt-3">
+        <div class="counterparty-form-title">${esc(text(lang, "contactsBlock"))}</div>
+        <div class="row g-3">
+          ${contactPhoneField}
+          ${visible(fields, "phone_2", "form") ? `
+            <div class="col-md-4">
+              <label class="form-label">${fieldLabel(fields, lang, "phone_2")}</label>
+              <input class="form-control" name="phone_2" value="${esc(item?.phone_2 || "")}">
+            </div>
+          ` : ""}
+          ${visible(fields, "telegram", "form") ? `
+            <div class="col-md-4">
+              <label class="form-label">${fieldLabel(fields, lang, "telegram")}</label>
+              <input class="form-control" name="telegram" value="${esc(item?.telegram || "")}">
+            </div>
+          ` : ""}
+          ${visible(fields, "email", "form") ? `
+            <div class="col-md-6">
+              <label class="form-label">${esc(text(lang, "email"))}</label>
+              <input class="form-control" name="email" value="${esc(item?.email || "")}">
+            </div>
+          ` : ""}
+          ${visible(fields, "address", "form") ? `
+            <div class="col-md-6">
+              <label class="form-label">${esc(text(lang, "address"))}</label>
+              <input class="form-control" name="address" value="${esc(item?.address || "")}">
+            </div>
+          ` : ""}
+          ${visible(fields, "country", "form") ? `
+            <div class="col-md-4">
+              <label class="form-label">${fieldLabel(fields, lang, "country")}</label>
+              <input class="form-control" name="country" value="${esc(item?.country || "")}">
+            </div>
+          ` : ""}
+          ${visible(fields, "region", "form") ? `
+            <div class="col-md-4">
+              <label class="form-label">${fieldLabel(fields, lang, "region")}</label>
+              <input class="form-control" name="region" value="${esc(item?.region || "")}">
+            </div>
+          ` : ""}
+          ${visible(fields, "city", "form") ? `
+            <div class="col-md-4">
+              <label class="form-label">${fieldLabel(fields, lang, "city")}</label>
+              <input class="form-control" name="city" value="${esc(item?.city || "")}">
+            </div>
+          ` : ""}
         </div>
-      ` : ""}
-      ${fields.showInForm("name") ? `
-        <div class="col-md-4">
-          <label class="form-label">${esc(text(lang, "name"))}</label>
-          <input class="form-control" name="name" value="${esc(item?.name || "")}">
-        </div>
-      ` : ""}
-      ${fields.showInForm("phone") ? `
-        <div class="col-md-4">
-          <label class="form-label">${esc(text(lang, "phone"))}</label>
-          <input class="form-control" name="phone" value="${esc(item?.phone || "")}">
-        </div>
-      ` : ""}
-      ${fields.showInForm("contact_person") ? `
-        <div class="col-md-6">
-          <label class="form-label">${esc(text(lang, "contactPerson"))}</label>
-          <input class="form-control" name="contact_person" value="${esc(item?.contact_person || "")}">
-        </div>
-      ` : ""}
-      ${fields.showInForm("email") ? `
-        <div class="col-md-6">
-          <label class="form-label">${esc(text(lang, "email"))}</label>
-          <input class="form-control" name="email" value="${esc(item?.email || "")}">
-        </div>
-      ` : ""}
-      ${fields.showInForm("inn") ? `
-        <div class="col-md-4">
-          <label class="form-label">${esc(text(lang, "inn"))}</label>
-          <input class="form-control" name="inn" value="${esc(item?.inn || "")}">
-        </div>
-      ` : ""}
-      ${fields.showInForm("address") ? `
-        <div class="col-md-8">
-          <label class="form-label">${esc(text(lang, "address"))}</label>
-          <input class="form-control" name="address" value="${esc(item?.address || "")}">
-        </div>
-      ` : ""}
-      ${fields.showInForm("comment") ? `
-        <div class="col-12">
-          <label class="form-label">${esc(text(lang, "comment"))}</label>
-          <textarea class="form-control" rows="3" name="comment">${esc(item?.comment || "")}</textarea>
-        </div>
-      ` : ""}
-      ${extraTextHtml}
-      ${extraNumHtml}
-      ${extraBoolHtml ? `
-        <div class="col-12">
-          <label class="form-label d-block">${esc(text(lang, "flags"))}</label>
-          <div class="d-flex flex-wrap">${extraBoolHtml}</div>
-        </div>
-      ` : ""}
-      ${fields.showInForm("is_active") ? `
-        <div class="col-12">
-          <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" role="switch" name="is_active" ${Number(item?.is_active ?? 1) === 1 ? "checked" : ""}>
-            <label class="form-check-label">${esc(text(lang, "active"))}</label>
+      </div>
+
+      <div class="counterparty-advanced-toggle mt-3 pt-2 border-top">
+        <button class="btn btn-link p-0 counterparty-advanced-btn" type="button" data-advanced-toggle aria-expanded="false">
+          <i class="bi bi-chevron-down" data-advanced-icon></i>
+          <span data-advanced-label>${esc(text(lang, "advancedOpen"))}</span>
+        </button>
+      </div>
+
+      <div class="counterparty-advanced-body d-none" data-advanced-body>
+        <div class="counterparty-form-block mt-3">
+          <div class="counterparty-form-title">${esc(text(lang, "additionalBlock"))}</div>
+          <div class="row g-3">
+            ${counterpartyTypeField}
+            ${additionalFields}
+            ${visible(fields, "comment", "form") ? `
+              <div class="col-12">
+                <label class="form-label">${esc(text(lang, "comment"))}</label>
+                <textarea class="form-control" rows="3" name="comment">${esc(item?.comment || "")}</textarea>
+              </div>
+            ` : ""}
           </div>
         </div>
-      ` : ""}
+
+        <div class="counterparty-form-block mt-3">
+          <div class="counterparty-form-title">${esc(text(lang, "requisitesBlock"))}</div>
+          <div class="row g-3">
+            ${legalFields}
+            ${physicalFields}
+            ${birthField}
+            ${genderField}
+            ${numericFields}
+          </div>
+          ${vatField ? `<div class="d-flex flex-wrap mt-2">${vatField}</div>` : ""}
+        </div>
+
+        ${(roleFlags || blacklistedField) ? `
+          <div class="counterparty-form-block mt-3">
+            <div class="counterparty-form-title">${esc(text(lang, "flags"))}</div>
+            <div class="d-flex flex-wrap">
+              ${roleFlags}
+              ${blacklistedField}
+            </div>
+          </div>
+        ` : ""}
+      </div>
     </div>
   `;
 }
 
-function readForm(modalEl, kind) {
+function readForm(modalEl, meta, draft = {}) {
   const byName = (name) => modalEl.querySelector(`[name='${name}']`);
   const readText = (name) => String(byName(name)?.value || "").trim();
   const readNum = (name, fallback = 0) => {
@@ -404,40 +701,94 @@ function readForm(modalEl, kind) {
     const n = Number(raw);
     return Number.isFinite(n) ? n : fallback;
   };
+  const readBool = (name, fallback = 0) => {
+    const el = byName(name);
+    if (!el) return Number(fallback || 0) === 1 ? 1 : 0;
+    return el.checked ? 1 : 0;
+  };
+  const phone1 = readText("phone_1") || readText("phone");
   const payload = {
-    kind,
+    kind: meta.kind,
     name: readText("name"),
     full_name: readText("full_name"),
     contact_person: readText("contact_person"),
-    phone: readText("phone"),
+    phone: phone1,
+    phone_1: phone1,
     email: readText("email"),
     inn: readText("inn"),
     address: readText("address"),
     comment: readText("comment"),
     status: readText("status") || "active",
-    is_active: byName("is_active")?.checked ? 1 : 0
+    is_active: readBool("is_active", Number(draft?.is_active ?? 1))
   };
 
   for (const key of EXTRA_TEXT_FIELDS) {
     payload[key] = readText(key);
   }
   for (const key of EXTRA_NUMBER_FIELDS) {
-    payload[key] = readNum(key, 0);
+    payload[key] = readNum(key, Number(draft?.[key] ?? 0));
   }
   for (const key of EXTRA_BOOL_FIELDS) {
-    payload[key] = byName(key)?.checked ? 1 : 0;
+    payload[key] = readBool(key, Number(draft?.[key] ?? 0));
   }
 
-  payload.full_name = payload.full_name || payload.name;
+  payload.full_name = payload.full_name || payload.contact_person || payload.name;
+  payload.name = payload.full_name || payload.contact_person || payload.name;
   payload.phone_1 = payload.phone_1 || payload.phone;
+  if (meta.forcePhysical || Number(payload.is_employee || 0) === 1) {
+    payload.person_type = "physical";
+  } else if (!payload.person_type) {
+    payload.person_type = "legal";
+  }
   return payload;
 }
 
-function desktopTableHtml(items, lang, canWrite, fields) {
+function bindModalBehavior(modalEl, meta) {
+  const root = modalEl.querySelector("[data-counterparty-form]");
+  if (!root) return;
+
+  const advancedBtn = root.querySelector("[data-advanced-toggle]");
+  const advancedBody = root.querySelector("[data-advanced-body]");
+  const advancedLabel = root.querySelector("[data-advanced-label]");
+  const advancedIcon = root.querySelector("[data-advanced-icon]");
+
+  if (advancedBtn && advancedBody && advancedLabel && advancedIcon) {
+    const lang = langOf();
+    advancedBtn.addEventListener("click", () => {
+      const opened = !advancedBody.classList.contains("d-none");
+      advancedBody.classList.toggle("d-none", opened);
+      advancedBtn.setAttribute("aria-expanded", opened ? "false" : "true");
+      advancedIcon.classList.toggle("bi-chevron-down", opened);
+      advancedIcon.classList.toggle("bi-chevron-up", !opened);
+      advancedLabel.textContent = opened ? text(lang, "advancedOpen") : text(lang, "advancedClose");
+    });
+  }
+
+  const personTypeEl = root.querySelector("[data-person-type]");
+  const employeeFlagEl = root.querySelector("[name='is_employee']");
+  const syncPersonMode = () => {
+    let mode = String(personTypeEl?.value || "legal").toLowerCase();
+    if (meta.forcePhysical || (employeeFlagEl && employeeFlagEl.checked)) {
+      mode = "physical";
+      if (personTypeEl) personTypeEl.value = "physical";
+    }
+    root.querySelectorAll("[data-person-only='legal']").forEach((el) => el.classList.toggle("d-none", mode !== "legal"));
+    root.querySelectorAll("[data-person-only='physical']").forEach((el) => el.classList.toggle("d-none", mode !== "physical"));
+  };
+
+  if (personTypeEl) personTypeEl.addEventListener("change", syncPersonMode);
+  if (employeeFlagEl) employeeFlagEl.addEventListener("change", syncPersonMode);
+  syncPersonMode();
+}
+
+function desktopTableHtml(items, lang, canWrite, fields, meta) {
   const labels = {
     active: text(lang, "active"),
     inactive: text(lang, "inactive")
   };
+  const nameHead = meta.role === "employee"
+    ? esc(text(lang, "fio"))
+    : fieldLabel(fields, lang, "full_name", text(lang, "name"));
 
   return `
     <div class="card d-none d-lg-block">
@@ -445,7 +796,7 @@ function desktopTableHtml(items, lang, canWrite, fields) {
         <table class="table table-sm table-hover align-middle mb-0">
           <thead>
             <tr>
-              ${fields.showInList("full_name") || fields.showInList("name") ? `<th>${fieldLabel(fields, lang, "full_name", text(lang, "name"))}</th>` : ""}
+              ${(visible(fields, "full_name", "list") || fields.showInList("name")) ? `<th>${nameHead}</th>` : ""}
               ${fields.showInList("contact_person") ? `<th style="width:170px">${esc(text(lang, "contactPerson"))}</th>` : ""}
               ${fields.showInList("phone_1") || fields.showInList("phone") ? `<th style="width:150px">${fieldLabel(fields, lang, "phone_1", text(lang, "phone"))}</th>` : ""}
               ${fields.showInList("address") ? `<th style="width:230px">${esc(text(lang, "address"))}</th>` : ""}
@@ -456,9 +807,9 @@ function desktopTableHtml(items, lang, canWrite, fields) {
           <tbody>
             ${items.map(item => `
               <tr>
-                ${fields.showInList("full_name") || fields.showInList("name") ? `
+                ${(visible(fields, "full_name", "list") || fields.showInList("name")) ? `
                   <td>
-                    <div class="fw-semibold">${esc(item.full_name || item.name)}</div>
+                    <div class="fw-semibold">${esc(displayName(item, meta) || "-")}</div>
                     ${item.code ? `<div class="small text-muted">${fieldLabel(fields, lang, "code", "Code")}: ${esc(item.code)}</div>` : ""}
                     ${fields.showInCard("inn") && item.inn ? `<div class="small text-muted">${esc(text(lang, "inn"))}: ${esc(item.inn)}</div>` : ""}
                   </td>
@@ -484,7 +835,7 @@ function desktopTableHtml(items, lang, canWrite, fields) {
   `;
 }
 
-function mobileCardsHtml(items, lang, canWrite, fields) {
+function mobileCardsHtml(items, lang, canWrite, fields, meta) {
   const labels = {
     active: text(lang, "active"),
     inactive: text(lang, "inactive")
@@ -497,7 +848,7 @@ function mobileCardsHtml(items, lang, canWrite, fields) {
           <div class="card-body p-3">
             <div class="d-flex justify-content-between gap-2 align-items-start">
               <div>
-                ${fields.showInCard("full_name") || fields.showInCard("name") ? `<div class="fw-semibold">${esc(item.full_name || item.name)}</div>` : ""}
+                ${fields.showInCard("full_name") || fields.showInCard("name") ? `<div class="fw-semibold">${esc(displayName(item, meta) || "-")}</div>` : ""}
                 ${fields.showInCard("inn") && item.inn ? `<div class="small text-muted mt-1">${esc(text(lang, "inn"))}: ${esc(item.inn)}</div>` : ""}
               </div>
               ${fields.showInCard("is_active") ? activeBadge(item.is_active, labels) : ""}
@@ -519,39 +870,44 @@ function mobileCardsHtml(items, lang, canWrite, fields) {
   `;
 }
 
-function tableHtml(items, lang, canWrite, fields) {
-  return `${desktopTableHtml(items, lang, canWrite, fields)}${mobileCardsHtml(items, lang, canWrite, fields)}`;
+function tableHtml(items, lang, canWrite, fields, meta) {
+  return `${desktopTableHtml(items, lang, canWrite, fields, meta)}${mobileCardsHtml(items, lang, canWrite, fields, meta)}`;
 }
 
-async function openEntityModal(ctx, item, kind, fields) {
+async function openEntityModal(ctx, item, meta, fields) {
   const { api, openModal } = ctx;
   const lang = langOf();
   const isCreate = !item?.id;
-  const kindIsSupplier = kind === "supplier";
   const draft = item || {
-    kind,
+    kind: meta.kind,
     status: "active",
-    is_supplier: kind === "supplier" ? 1 : 0,
-    is_client: kind === "client" ? 1 : 0,
-    is_employee: 0,
-    is_inspection: 0,
-    is_other: 0,
+    person_type: meta.forcePhysical ? "physical" : "legal",
+    ...meta.defaultFlags,
     is_active: 1
   };
 
   openModal({
-    title: isCreate
-      ? text(lang, kindIsSupplier ? "createSupplier" : "createClient")
-      : text(lang, kindIsSupplier ? "editSupplier" : "editClient"),
+    title: isCreate ? text(lang, meta.createKey) : text(lang, meta.editKey),
     saveText: text(lang, "save"),
-    bodyHtml: modalHtml(lang, draft, fields),
+    bodyHtml: modalHtml(lang, draft, fields, meta),
     onSave: async (modalEl) => {
-      const payload = stripDisabledFields(readForm(modalEl, kind), fields);
+      const payload = stripDisabledFields(readForm(modalEl, meta, draft), fields);
+      for (const key of ROLE_FLAG_FIELDS) {
+        if (payload[key] === undefined) payload[key] = Number(draft[key] || 0);
+      }
+      if (meta.forcePhysical || Number(payload.is_employee || 0) === 1) {
+        payload.person_type = "physical";
+      }
+      payload.full_name = String(payload.full_name || "").trim() || String(payload.contact_person || "").trim();
+      payload.name = payload.full_name || String(payload.name || "").trim();
+      payload.phone = String(payload.phone_1 || payload.phone || "").trim();
+
       if ((fields.isRequired("full_name") || fields.isRequired("name")) && isEmptyFieldValue(payload.full_name || payload.name)) {
         throw new Error(text(lang, "requiredName"));
       }
-      const enabledFlagKeys = EXTRA_BOOL_FIELDS.filter((key) => fields.isEnabled(key));
-      if (enabledFlagKeys.length && enabledFlagKeys.every((key) => Number(payload[key] || 0) === 0)) {
+      const enabledFlagKeys = ROLE_FLAG_FIELDS.filter((key) => fields.isEnabled(key));
+      const checkKeys = enabledFlagKeys.length ? enabledFlagKeys : ROLE_FLAG_FIELDS;
+      if (checkKeys.every((key) => Number(payload[key] || 0) === 0)) {
         throw new Error(text(lang, "requiredFlag"));
       }
 
@@ -576,16 +932,21 @@ async function openEntityModal(ctx, item, kind, fields) {
       await render(ctx);
     }
   });
+
+  setTimeout(() => {
+    const modals = document.querySelectorAll(".modal");
+    const modalEl = modals[modals.length - 1];
+    if (modalEl) bindModalBehavior(modalEl, meta);
+  }, 0);
 }
 
 export async function render(ctx) {
   const { api, page, viewEl, section, accessFor, state } = ctx;
   const lang = langOf();
-  const kind = sectionKind(section?.id || "");
-  const isSupplier = kind === "supplier";
-  const title = text(lang, isSupplier ? "titleSuppliers" : "titleClients");
-  const subtitle = text(lang, isSupplier ? "subtitleSuppliers" : "subtitleClients");
-  const noItemsText = text(lang, isSupplier ? "noItemsSuppliers" : "noItemsClients");
+  const meta = sectionMeta(section?.id || "");
+  const title = text(lang, meta.titleKey);
+  const subtitle = text(lang, meta.subtitleKey);
+  const noItemsText = text(lang, meta.noItemsKey);
 
   page(title, subtitle, { raw: true });
 
@@ -597,7 +958,7 @@ export async function render(ctx) {
   let fields;
   try {
     [resp, fields] = await Promise.all([
-      api(`/counterparties?kind=${encodeURIComponent(kind)}`),
+      api(`/counterparties?role=${encodeURIComponent(meta.role)}`),
       loadEntityFieldAccess(api, "counterparties")
     ]);
   } catch (e) {
@@ -607,8 +968,8 @@ export async function render(ctx) {
 
   const allItems = (resp.items || []).map(normalizeItem);
   const searchKeys = ["code", "full_name", "short_name", "name", "contact_person", "phone_1", "phone", "email", "inn", "address", "city"];
-  const showSearch = searchKeys.some((key) => fields.showInFilters(key));
-  const filterableFields = searchKeys.filter((key) => fields.showInFilters(key));
+  const showSearch = searchKeys.some((key) => visible(fields, key, "filters"));
+  const filterableFields = searchKeys.filter((key) => visible(fields, key, "filters"));
   const items = filterItems(allItems, q, filterableFields);
 
   viewEl.innerHTML = `
@@ -623,13 +984,13 @@ export async function render(ctx) {
           ` : ""}
           ${canWrite ? `
             <div class="col-12 col-md-4 col-lg-3 d-grid">
-              <button id="counterparties_create" class="btn btn-primary">${esc(text(lang, isSupplier ? "createSupplier" : "createClient"))}</button>
+              <button id="counterparties_create" class="btn btn-primary">${esc(text(lang, meta.createKey))}</button>
             </div>
           ` : ""}
         </div>
       </div>
     </div>
-    ${items.length ? tableHtml(items, lang, canWrite, fields) : emptyHtml(noItemsText)}
+    ${items.length ? tableHtml(items, lang, canWrite, fields, meta) : emptyHtml(noItemsText)}
   `;
 
   if (showSearch) {
@@ -645,14 +1006,14 @@ export async function render(ctx) {
   if (canWrite) {
     const createBtn = document.getElementById("counterparties_create");
     if (createBtn) {
-      createBtn.addEventListener("click", () => openEntityModal(ctx, null, kind, fields));
+      createBtn.addEventListener("click", () => openEntityModal(ctx, null, meta, fields));
     }
 
     document.querySelectorAll("[data-edit-counterparty]").forEach(btn => {
       btn.addEventListener("click", () => {
         const id = Number(btn.dataset.editCounterparty);
         const item = allItems.find(entry => entry.id === id);
-        if (item) openEntityModal(ctx, item, kind, fields);
+        if (item) openEntityModal(ctx, item, meta, fields);
       });
     });
 
@@ -672,3 +1033,4 @@ export async function render(ctx) {
     }
   }
 }
+
