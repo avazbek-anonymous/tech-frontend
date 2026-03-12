@@ -44,6 +44,7 @@ const SECTION_OVERRIDES = {
   settings_warehouses: { module: "/assets/pages/settings-warehouses.js" },
   settings_units: { module: "/assets/pages/settings-units.js" },
   settings_product_types: { module: "/assets/pages/settings-product-types.js" },
+  settings_product_lookups: { module: "/assets/pages/settings-product-lookups.js" },
   settings_currency: { module: "/assets/pages/settings-currency.js" }
 };
 

@@ -39,6 +39,7 @@ const UI = {
     noUnit: "Не выбрано",
     noType: "Не выбрано",
     noSupplier: "Не выбран",
+    noLookup: "Не выбрано",
     requiredName: "Укажите наименование товара",
     invalidCategory: "Выбрана некорректная категория",
     invalidSubcategory: "Выбрана некорректная подкатегория",
@@ -46,6 +47,7 @@ const UI = {
     invalidUnit: "Выбрана некорректная единица измерения",
     invalidProductType: "Выбран некорректный тип товара",
     invalidSupplier: "Выбран некорректный поставщик",
+    invalidLookup: "Выбрано некорректное значение справочника",
     duplicateCode: "Товар с таким кодом уже существует",
     duplicateSku: "Товар с таким SKU уже существует",
     duplicateBarcode: "Товар с таким штрихкодом уже существует",
@@ -77,6 +79,7 @@ const UI = {
     noUnit: "Tanlanmagan",
     noType: "Tanlanmagan",
     noSupplier: "Tanlanmagan",
+    noLookup: "Tanlanmagan",
     requiredName: "Tovar nomini kiriting",
     invalidCategory: "Noto'g'ri kategoriya tanlandi",
     invalidSubcategory: "Noto'g'ri quyi kategoriya tanlandi",
@@ -84,6 +87,7 @@ const UI = {
     invalidUnit: "Noto'g'ri o'lchov birligi tanlandi",
     invalidProductType: "Noto'g'ri tovar turi tanlandi",
     invalidSupplier: "Noto'g'ri ta'minotchi tanlandi",
+    invalidLookup: "Ma'lumotnomadan noto'g'ri qiymat tanlandi",
     duplicateCode: "Bunday kodli tovar allaqachon mavjud",
     duplicateSku: "Bunday SKUli tovar allaqachon mavjud",
     duplicateBarcode: "Bunday shtrixkodli tovar allaqachon mavjud",
@@ -115,6 +119,7 @@ const UI = {
     noUnit: "Not selected",
     noType: "Not selected",
     noSupplier: "Not selected",
+    noLookup: "Not selected",
     requiredName: "Product name is required",
     invalidCategory: "Invalid category selected",
     invalidSubcategory: "Invalid subcategory selected",
@@ -122,6 +127,7 @@ const UI = {
     invalidUnit: "Invalid unit selected",
     invalidProductType: "Invalid product type selected",
     invalidSupplier: "Invalid supplier selected",
+    invalidLookup: "Invalid dictionary value selected",
     duplicateCode: "Product code already exists",
     duplicateSku: "Product SKU already exists",
     duplicateBarcode: "Product barcode already exists",
@@ -131,24 +137,32 @@ const UI = {
 
 const TEXT_KEYS = [
   "name", "full_name", "code", "article", "sku", "barcode", "extra_barcode",
-  "brand", "model", "series", "device_type", "manufacturer", "country_manufacture",
-  "country_brand", "description", "image_url", "warranty", "exchange_return_term",
+  "model", "series", "description", "image_url", "warranty", "exchange_return_term",
   "serial_number", "imei_1", "imei_2", "mac_address", "batch_number", "production_date",
-  "product_condition", "warranty_start_date", "warranty_end_date",
+  "warranty_start_date", "warranty_end_date",
   "color", "memory_capacity", "ram", "cpu", "gpu", "screen_size", "screen_resolution",
   "screen_type", "refresh_rate", "battery_capacity", "operating_system", "network_standard",
   "wifi", "bluetooth", "main_camera", "front_camera", "ports", "package_contents", "weight", "dimensions"
 ];
 
 const NUM_KEYS = [
-  "vat_rate", "price_retail", "price_wholesale", "purchase_price_default",
-  "min_sale_price", "recommended_sale_price", "min_stock", "max_stock"
+  "min_stock", "max_stock"
 ];
 
 const BOOL_KEYS = [
   "track_serial", "track_imei", "track_imei2", "track_batches", "is_commission",
   "complete_set", "warranty_activated", "esim_support", "nfc"
 ];
+
+const LOOKUP_FIELD_MAP = {
+  brand_id: "brand",
+  device_type_id: "device_type",
+  manufacturer_id: "manufacturer",
+  country_manufacture_id: "country_manufacture",
+  country_brand_id: "country_brand",
+  product_status_id: "product_status",
+  product_condition_id: "product_condition"
+};
 
 const TECHNICAL_KEYS = [
   "color",
@@ -195,11 +209,6 @@ function optionHtml(value, selected, label) {
   return `<option value="${esc(value)}" ${String(selected ?? "") === String(value ?? "") ? "selected" : ""}>${esc(label)}</option>`;
 }
 
-function formatNumber(lang, value) {
-  const locale = lang === "uz" ? "uz-UZ" : (lang === "en" ? "en-US" : "ru-RU");
-  return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(Number(value || 0));
-}
-
 function normalizeItem(item) {
   const out = {
     id: Number(item?.id || 0),
@@ -208,16 +217,17 @@ function normalizeItem(item) {
     unit_id: item?.unit_id ? Number(item.unit_id) : null,
     product_type_id: item?.product_type_id ? Number(item.product_type_id) : null,
     supplier_id: item?.supplier_id ? Number(item.supplier_id) : null,
-    product_status: String(item?.product_status || (Number(item?.is_active || 0) === 1 ? "active" : "inactive")),
+    brand_id: item?.brand_id ? Number(item.brand_id) : null,
+    device_type_id: item?.device_type_id ? Number(item.device_type_id) : null,
+    manufacturer_id: item?.manufacturer_id ? Number(item.manufacturer_id) : null,
+    country_manufacture_id: item?.country_manufacture_id ? Number(item.country_manufacture_id) : null,
+    country_brand_id: item?.country_brand_id ? Number(item.country_brand_id) : null,
+    product_status_id: item?.product_status_id ? Number(item.product_status_id) : null,
+    product_condition_id: item?.product_condition_id ? Number(item.product_condition_id) : null,
+    product_status: String(item?.product_status || ""),
     is_active: Number(item?.is_active || 0),
     sim_count: item?.sim_count === null || item?.sim_count === undefined || item?.sim_count === "" ? null : Number(item?.sim_count),
     lead_time_days: Number(item?.lead_time_days || 0),
-    vat_rate: Number(item?.vat_rate || 0),
-    price_retail: Number(item?.price_retail || 0),
-    price_wholesale: Number(item?.price_wholesale || 0),
-    purchase_price_default: Number(item?.purchase_price_default || 0),
-    min_sale_price: Number(item?.min_sale_price || 0),
-    recommended_sale_price: Number(item?.recommended_sale_price || 0),
     min_stock: Number(item?.min_stock || 0),
     max_stock: Number(item?.max_stock || 0)
   };
@@ -230,6 +240,13 @@ function normalizeItem(item) {
   out.unit_name = String(item?.unit_name || "");
   out.product_type_name = String(item?.product_type_name || "");
   out.supplier_name = String(item?.supplier_name || "");
+  out.brand_name = String(item?.brand_name || item?.brand || "");
+  out.device_type_name = String(item?.device_type_name || item?.device_type || "");
+  out.manufacturer_name = String(item?.manufacturer_name || item?.manufacturer || "");
+  out.country_manufacture_name = String(item?.country_manufacture_name || item?.country_manufacture || "");
+  out.country_brand_name = String(item?.country_brand_name || item?.country_brand || "");
+  out.product_status_name = String(item?.product_status_name || item?.product_status || "");
+  out.product_condition_name = String(item?.product_condition_name || item?.product_condition || "");
 
   return out;
 }
@@ -247,6 +264,46 @@ function normalizeSimple(item) {
     id: Number(item?.id || 0),
     name: String(item?.full_name || item?.name || "")
   };
+}
+
+function normalizeLookup(item) {
+  return {
+    id: Number(item?.id || 0),
+    kind: String(item?.kind || ""),
+    name_ru: String(item?.name_ru || ""),
+    name_uz: String(item?.name_uz || ""),
+    name_en: String(item?.name_en || ""),
+    sort_order: Number(item?.sort_order || 100),
+    is_active: Number(item?.is_active || 0)
+  };
+}
+
+function lookupLabel(item, lang) {
+  if (!item) return "";
+  if (lang === "uz") return String(item.name_uz || item.name_ru || item.name_en || "").trim();
+  if (lang === "en") return String(item.name_en || item.name_ru || item.name_uz || "").trim();
+  return String(item.name_ru || item.name_uz || item.name_en || "").trim();
+}
+
+function groupedLookupsByKind(items) {
+  const map = {};
+  Object.values(LOOKUP_FIELD_MAP).forEach((kind) => {
+    map[kind] = [];
+  });
+  for (const item of items) {
+    if (!map[item.kind]) continue;
+    if (Number(item.is_active || 0) !== 1) continue;
+    map[item.kind].push(item);
+  }
+  for (const kind of Object.keys(map)) {
+    map[kind].sort((a, b) => {
+      const ao = Number(a.sort_order || 0);
+      const bo = Number(b.sort_order || 0);
+      if (ao !== bo) return ao - bo;
+      return String(a.name_ru || "").localeCompare(String(b.name_ru || ""), undefined, { sensitivity: "base" });
+    });
+  }
+  return map;
 }
 
 function sortByName(items) {
@@ -300,18 +357,11 @@ function categoryPath(item, lang) {
 }
 
 function statusBadgeHtml(lang, statusValue, isActive) {
-  const status = String(statusValue || "").toLowerCase();
-  const label = status === "discontinued"
-    ? text(lang, "discontinued")
-    : status === "archived"
-      ? text(lang, "archived")
-      : status === "inactive"
-        ? text(lang, "inactive")
-        : text(lang, "active");
-
-  if (status === "discontinued") return `<span class="badge text-bg-warning-subtle border border-warning-subtle">${esc(label)}</span>`;
-  if (status === "archived") return `<span class="badge text-bg-dark">${esc(label)}</span>`;
-  return activeBadge(Number(isActive || 0), { active: text(lang, "active"), inactive: text(lang, "inactive") });
+  const label = String(statusValue || "").trim() || (Number(isActive || 0) === 1 ? text(lang, "active") : text(lang, "inactive"));
+  if (Number(isActive || 0) === 1) {
+    return `<span class="badge text-bg-success-subtle border border-success-subtle">${esc(label)}</span>`;
+  }
+  return `<span class="badge text-bg-secondary">${esc(label)}</span>`;
 }
 
 function leafCategoryOptionsHtml(lang, maps, selectedId) {
@@ -335,14 +385,12 @@ function simpleOptionsHtml(list, selectedId, emptyText) {
   `;
 }
 
-function statusOptionsHtml(lang, selectedStatus, isActive) {
-  const status = String(selectedStatus || "") || (Number(isActive || 0) === 1 ? "active" : "inactive");
-  return [
-    optionHtml("active", status, text(lang, "active")),
-    optionHtml("inactive", status, text(lang, "inactive")),
-    optionHtml("discontinued", status, text(lang, "discontinued")),
-    optionHtml("archived", status, text(lang, "archived"))
-  ].join("");
+function lookupOptionsHtml(lang, list, selectedId, emptyText) {
+  const values = Array.isArray(list) ? list : [];
+  return `
+    <option value="">${esc(emptyText)}</option>
+    ${values.map((row) => optionHtml(row.id, selectedId, lookupLabel(row, lang) || row.id)).join("")}
+  `;
 }
 
 function textInput(fields, lang, key, value, col = "col-md-4") {
@@ -397,7 +445,7 @@ function textAreaInput(fields, lang, key, value, col = "col-12", rows = 2) {
   `;
 }
 
-function modalHtml(lang, draft, categories, units, productTypes, suppliers, fields) {
+function modalHtml(lang, draft, categories, units, productTypes, suppliers, lookupsByKind, fields) {
   const maps = buildCategoryMaps(categories);
   const item = { ...draft, category_id: leafCategoryId(draft) };
   const hasTechnical = TECHNICAL_KEYS.some((key) => visible(fields, key, "form"));
@@ -440,22 +488,59 @@ function modalHtml(lang, draft, categories, units, productTypes, suppliers, fiel
             </div>
           ` : ""}
 
-          ${textInput(fields, lang, "brand", item.brand, "col-md-4")}
+          ${visible(fields, "brand_id", "form") ? `
+            <div class="col-md-4">
+              <label class="form-label">${fieldLabel(fields, lang, "brand_id")}</label>
+              <select class="form-select" name="brand_id">
+                ${lookupOptionsHtml(lang, lookupsByKind.brand, item.brand_id, text(lang, "noLookup"))}
+              </select>
+            </div>
+          ` : ""}
           ${textInput(fields, lang, "model", item.model, "col-md-4")}
           ${textInput(fields, lang, "series", item.series, "col-md-4")}
-          ${textInput(fields, lang, "device_type", item.device_type, "col-md-4")}
+          ${visible(fields, "device_type_id", "form") ? `
+            <div class="col-md-4">
+              <label class="form-label">${fieldLabel(fields, lang, "device_type_id")}</label>
+              <select class="form-select" name="device_type_id">
+                ${lookupOptionsHtml(lang, lookupsByKind.device_type, item.device_type_id, text(lang, "noLookup"))}
+              </select>
+            </div>
+          ` : ""}
           ${textInput(fields, lang, "barcode", item.barcode, "col-md-4")}
           ${textInput(fields, lang, "extra_barcode", item.extra_barcode, "col-md-4")}
-          ${textInput(fields, lang, "manufacturer", item.manufacturer, "col-md-4")}
-          ${textInput(fields, lang, "country_manufacture", item.country_manufacture, "col-md-4")}
-          ${textInput(fields, lang, "country_brand", item.country_brand, "col-md-4")}
+          ${visible(fields, "manufacturer_id", "form") ? `
+            <div class="col-md-4">
+              <label class="form-label">${fieldLabel(fields, lang, "manufacturer_id")}</label>
+              <select class="form-select" name="manufacturer_id">
+                ${lookupOptionsHtml(lang, lookupsByKind.manufacturer, item.manufacturer_id, text(lang, "noLookup"))}
+              </select>
+            </div>
+          ` : ""}
+          ${visible(fields, "country_manufacture_id", "form") ? `
+            <div class="col-md-4">
+              <label class="form-label">${fieldLabel(fields, lang, "country_manufacture_id")}</label>
+              <select class="form-select" name="country_manufacture_id">
+                ${lookupOptionsHtml(lang, lookupsByKind.country_manufacture, item.country_manufacture_id, text(lang, "noLookup"))}
+              </select>
+            </div>
+          ` : ""}
+          ${visible(fields, "country_brand_id", "form") ? `
+            <div class="col-md-4">
+              <label class="form-label">${fieldLabel(fields, lang, "country_brand_id")}</label>
+              <select class="form-select" name="country_brand_id">
+                ${lookupOptionsHtml(lang, lookupsByKind.country_brand, item.country_brand_id, text(lang, "noLookup"))}
+              </select>
+            </div>
+          ` : ""}
           ${textInput(fields, lang, "image_url", item.image_url, "col-md-6")}
           ${textAreaInput(fields, lang, "description", item.description, "col-md-6", 2)}
 
-          ${visible(fields, "product_status", "form") ? `
+          ${visible(fields, "product_status_id", "form") ? `
             <div class="col-md-4">
-              <label class="form-label">${fieldLabel(fields, lang, "product_status")}</label>
-              <select class="form-select" name="product_status">${statusOptionsHtml(lang, item.product_status, item.is_active)}</select>
+              <label class="form-label">${fieldLabel(fields, lang, "product_status_id")}</label>
+              <select class="form-select" name="product_status_id">
+                ${lookupOptionsHtml(lang, lookupsByKind.product_status, item.product_status_id, text(lang, "noLookup"))}
+              </select>
             </div>
           ` : ""}
 
@@ -475,12 +560,6 @@ function modalHtml(lang, draft, categories, units, productTypes, suppliers, fiel
             </div>
           ` : ""}
 
-          ${numberInput(fields, lang, "purchase_price_default", item.purchase_price_default, "col-md-3")}
-          ${numberInput(fields, lang, "price_retail", item.price_retail, "col-md-3")}
-          ${numberInput(fields, lang, "price_wholesale", item.price_wholesale, "col-md-3")}
-          ${numberInput(fields, lang, "min_sale_price", item.min_sale_price, "col-md-3")}
-          ${numberInput(fields, lang, "recommended_sale_price", item.recommended_sale_price, "col-md-3")}
-          ${numberInput(fields, lang, "vat_rate", item.vat_rate, "col-md-3")}
           ${numberInput(fields, lang, "min_stock", item.min_stock, "col-md-3")}
           ${numberInput(fields, lang, "max_stock", item.max_stock, "col-md-3")}
           ${numberInput(fields, lang, "lead_time_days", item.lead_time_days, "col-md-3", "1")}
@@ -497,7 +576,14 @@ function modalHtml(lang, draft, categories, units, productTypes, suppliers, fiel
           ${textInput(fields, lang, "mac_address", item.mac_address, "col-md-4")}
           ${textInput(fields, lang, "batch_number", item.batch_number, "col-md-4")}
           ${dateInput(fields, lang, "production_date", item.production_date, "col-md-4")}
-          ${textInput(fields, lang, "product_condition", item.product_condition, "col-md-4")}
+          ${visible(fields, "product_condition_id", "form") ? `
+            <div class="col-md-4">
+              <label class="form-label">${fieldLabel(fields, lang, "product_condition_id")}</label>
+              <select class="form-select" name="product_condition_id">
+                ${lookupOptionsHtml(lang, lookupsByKind.product_condition, item.product_condition_id, text(lang, "noLookup"))}
+              </select>
+            </div>
+          ` : ""}
           ${boolInput(fields, lang, "complete_set", item.complete_set, "col-md-4")}
           ${boolInput(fields, lang, "warranty_activated", item.warranty_activated, "col-md-4")}
           ${dateInput(fields, lang, "warranty_start_date", item.warranty_start_date, "col-md-4")}
@@ -591,7 +677,13 @@ function readForm(modalEl, draft = {}) {
     unit_id: readId(modalEl, "unit_id"),
     product_type_id: readId(modalEl, "product_type_id"),
     supplier_id: readId(modalEl, "supplier_id"),
-    product_status: readText(modalEl, "product_status"),
+    brand_id: readId(modalEl, "brand_id"),
+    device_type_id: readId(modalEl, "device_type_id"),
+    manufacturer_id: readId(modalEl, "manufacturer_id"),
+    country_manufacture_id: readId(modalEl, "country_manufacture_id"),
+    country_brand_id: readId(modalEl, "country_brand_id"),
+    product_status_id: readId(modalEl, "product_status_id"),
+    product_condition_id: readId(modalEl, "product_condition_id"),
     is_active: readSwitch(modalEl, "is_active")
   };
 
@@ -631,6 +723,18 @@ function mapSaveError(lang, error) {
   if (["unit_not_found", "unit_wrong_business", "unit_id must be number"].includes(msg)) return text(lang, "invalidUnit");
   if (["product_type_not_found", "product_type_wrong_business", "product_type_id must be number"].includes(msg)) return text(lang, "invalidProductType");
   if (["supplier_not_found", "supplier_wrong_business", "supplier_not_supplier", "supplier_id must be number"].includes(msg)) return text(lang, "invalidSupplier");
+  if ([
+    "brand_id must be number",
+    "device_type_id must be number",
+    "manufacturer_id must be number",
+    "country_manufacture_id must be number",
+    "country_brand_id must be number",
+    "product_status_id must be number",
+    "product_condition_id must be number"
+  ].includes(msg)) return text(lang, "invalidLookup");
+  if (/(brand|device_type|manufacturer|country_manufacture|country_brand|product_status|product_condition)_(not_found|wrong_business|wrong_kind)$/.test(msg)) {
+    return text(lang, "invalidLookup");
+  }
   if (msg === "Code already exists") return text(lang, "duplicateCode");
   if (msg === "SKU already exists") return text(lang, "duplicateSku");
   if (msg === "Barcode already exists") return text(lang, "duplicateBarcode");
@@ -655,9 +759,7 @@ function desktopTableHtml(items, lang, canWrite, fields) {
               ${visible(fields, "category_id", "list") ? `<th style="width:220px">${fieldLabel(fields, lang, "category_id")}</th>` : ""}
               ${visible(fields, "unit_id", "list") ? `<th style="width:120px">${fieldLabel(fields, lang, "unit_id")}</th>` : ""}
               ${visible(fields, "supplier_id", "list") ? `<th style="width:180px">${fieldLabel(fields, lang, "supplier_id")}</th>` : ""}
-              ${visible(fields, "price_retail", "list") ? `<th style="width:120px">${fieldLabel(fields, lang, "price_retail")}</th>` : ""}
-              ${visible(fields, "price_wholesale", "list") ? `<th style="width:120px">${fieldLabel(fields, lang, "price_wholesale")}</th>` : ""}
-              ${(visible(fields, "product_status", "list") || visible(fields, "is_active", "list")) ? `<th style="width:140px">${fieldLabel(fields, lang, "product_status", text(lang, "active"))}</th>` : ""}
+              ${(visible(fields, "product_status_id", "list") || visible(fields, "is_active", "list")) ? `<th style="width:140px">${fieldLabel(fields, lang, "product_status_id", text(lang, "active"))}</th>` : ""}
               ${canWrite ? `<th style="width:160px">${esc(text(lang, "actions"))}</th>` : ""}
             </tr>
           </thead>
@@ -677,9 +779,7 @@ function desktopTableHtml(items, lang, canWrite, fields) {
                 ${visible(fields, "category_id", "list") ? `<td>${esc(categoryPath(item, lang))}</td>` : ""}
                 ${visible(fields, "unit_id", "list") ? `<td>${esc(item.unit_name || text(lang, "noUnit"))}</td>` : ""}
                 ${visible(fields, "supplier_id", "list") ? `<td>${esc(item.supplier_name || text(lang, "noSupplier"))}</td>` : ""}
-                ${visible(fields, "price_retail", "list") ? `<td>${esc(formatNumber(lang, item.price_retail))}</td>` : ""}
-                ${visible(fields, "price_wholesale", "list") ? `<td>${esc(formatNumber(lang, item.price_wholesale))}</td>` : ""}
-                ${(visible(fields, "product_status", "list") || visible(fields, "is_active", "list")) ? `<td>${statusBadgeHtml(lang, item.product_status, item.is_active)}</td>` : ""}
+                ${(visible(fields, "product_status_id", "list") || visible(fields, "is_active", "list")) ? `<td>${statusBadgeHtml(lang, item.product_status_name, item.is_active)}</td>` : ""}
                 ${canWrite ? `
                   <td>
                     <div class="d-flex gap-2 flex-wrap">
@@ -708,10 +808,8 @@ function mobileCardsHtml(items, lang, canWrite, fields) {
                 ${(visible(fields, "name", "card") || visible(fields, "full_name", "card")) ? `<div class="fw-semibold">${esc(item.full_name || item.name || "-")}</div>` : ""}
                 ${visible(fields, "category_id", "card") ? `<div class="small text-muted mt-1">${esc(categoryPath(item, lang))}</div>` : ""}
               </div>
-              ${(visible(fields, "product_status", "card") || visible(fields, "is_active", "card")) ? statusBadgeHtml(lang, item.product_status, item.is_active) : ""}
+              ${(visible(fields, "product_status_id", "card") || visible(fields, "is_active", "card")) ? statusBadgeHtml(lang, item.product_status_name, item.is_active) : ""}
             </div>
-            ${visible(fields, "price_retail", "card") ? `<div class="small text-muted mt-2">${fieldLabel(fields, lang, "price_retail")}: ${esc(formatNumber(lang, item.price_retail))}</div>` : ""}
-            ${visible(fields, "price_wholesale", "card") ? `<div class="small text-muted">${fieldLabel(fields, lang, "price_wholesale")}: ${esc(formatNumber(lang, item.price_wholesale))}</div>` : ""}
             ${visible(fields, "track_serial", "card") ? `<div class="small text-muted">${fieldLabel(fields, lang, "track_serial")}: ${ynBadge(item.track_serial, { yes: text(lang, "yes"), no: text(lang, "no") })}</div>` : ""}
             ${canWrite ? `
               <div class="entity-mobile-actions d-flex gap-2 flex-wrap mt-3">
@@ -754,7 +852,7 @@ function bindModalBehavior(modalEl) {
 
 }
 
-async function openEntityModal(ctx, item, categories, units, productTypes, suppliers, fields) {
+async function openEntityModal(ctx, item, categories, units, productTypes, suppliers, lookupsByKind, fields) {
   const { api, openModal } = ctx;
   const lang = langOf();
   const isCreate = !item?.id;
@@ -762,26 +860,21 @@ async function openEntityModal(ctx, item, categories, units, productTypes, suppl
   const draft = {
     name: "",
     full_name: "",
-    product_status: "active",
     is_active: 1,
     complete_set: 1,
     warranty_activated: 0,
-    vat_rate: 0,
-    price_retail: 0,
-    price_wholesale: 0,
-    purchase_price_default: 0,
-    min_sale_price: 0,
-    recommended_sale_price: 0,
     min_stock: 0,
     max_stock: 0,
     lead_time_days: 0,
+    product_status_id: null,
+    product_condition_id: null,
     ...item
   };
 
   openModal({
     title: isCreate ? text(lang, "create") : text(lang, "edit"),
     saveText: text(lang, "save"),
-    bodyHtml: modalHtml(lang, draft, categories, units, productTypes, suppliers, fields),
+    bodyHtml: modalHtml(lang, draft, categories, units, productTypes, suppliers, lookupsByKind, fields),
     onSave: async (modalEl) => {
       const payload = stripDisabledFields(readForm(modalEl, draft), fields);
       if ((fields.isRequired("name") || fields.isRequired("full_name")) && isEmptyFieldValue(payload.name || payload.full_name)) {
@@ -834,14 +927,16 @@ export async function render(ctx) {
   let respUnits;
   let respProductTypes;
   let respSuppliers;
+  let respLookups;
   let fields;
   try {
-    [respProducts, respCategories, respUnits, respProductTypes, respSuppliers, fields] = await Promise.all([
+    [respProducts, respCategories, respUnits, respProductTypes, respSuppliers, respLookups, fields] = await Promise.all([
       api("/products"),
       api("/product_categories"),
       api("/units"),
       api("/product-types"),
       api("/counterparties?role=supplier"),
+      api("/product-lookups"),
       loadEntityFieldAccess(api, "products")
     ]);
   } catch (e) {
@@ -858,6 +953,8 @@ export async function render(ctx) {
   const units = (respUnits.items || []).map(normalizeSimple);
   const productTypes = (respProductTypes.items || []).map(normalizeSimple);
   const suppliers = (respSuppliers.items || []).map(normalizeSimple);
+  const lookups = (respLookups.items || []).map(normalizeLookup);
+  const lookupsByKind = groupedLookupsByKind(lookups);
 
   const searchDescriptors = [
     { key: "name", field: "name" },
@@ -872,10 +969,14 @@ export async function render(ctx) {
     { key: "imei_2", field: "imei_2" },
     { key: "mac_address", field: "mac_address" },
     { key: "batch_number", field: "batch_number" },
-    { key: "product_condition", field: "product_condition" },
-    { key: "brand", field: "brand" },
+    { key: "product_condition_name", field: "product_condition_id" },
+    { key: "product_status_name", field: "product_status_id" },
+    { key: "brand_name", field: "brand_id" },
+    { key: "device_type_name", field: "device_type_id" },
     { key: "model", field: "model" },
-    { key: "manufacturer", field: "manufacturer" },
+    { key: "manufacturer_name", field: "manufacturer_id" },
+    { key: "country_manufacture_name", field: "country_manufacture_id" },
+    { key: "country_brand_name", field: "country_brand_id" },
     { key: "category_path", field: "category_id" },
     { key: "unit_name", field: "unit_id" },
     { key: "supplier_name", field: "supplier_id" }
@@ -918,14 +1019,14 @@ export async function render(ctx) {
   if (canWrite) {
     const createBtn = document.getElementById("nomenclature_products_create");
     if (createBtn) {
-      createBtn.addEventListener("click", () => openEntityModal(ctx, null, categories, units, productTypes, suppliers, fields));
+      createBtn.addEventListener("click", () => openEntityModal(ctx, null, categories, units, productTypes, suppliers, lookupsByKind, fields));
     }
 
     document.querySelectorAll("[data-edit-product]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = Number(btn.dataset.editProduct);
         const item = allItems.find((entry) => entry.id === id);
-        if (item) openEntityModal(ctx, item, categories, units, productTypes, suppliers, fields);
+        if (item) openEntityModal(ctx, item, categories, units, productTypes, suppliers, lookupsByKind, fields);
       });
     });
 

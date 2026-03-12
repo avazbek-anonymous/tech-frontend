@@ -74,5 +74,6 @@ export const LEVEL2_SECTIONS = [
   { id: "settings_warehouses", icon: "bi-building", label: tr("Настройки: Склады", "Sozlamalar: Omborlar", "Settings: Warehouses"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
   { id: "settings_units", icon: "bi-rulers", label: tr("Настройки: Ед.изм", "Sozlamalar: O'lchov birliklari", "Settings: Units"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
   { id: "settings_product_types", icon: "bi-card-list", label: tr("Настройки: Типы товаров", "Sozlamalar: Tovar turlari", "Settings: Product types"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
+  { id: "settings_product_lookups", icon: "bi-diagram-2", label: tr("Настройки: Реквизиты товаров", "Sozlamalar: Tovar rekvizitlari", "Settings: Product attributes"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS },
   { id: "settings_currency", icon: "bi-currency-exchange", label: tr("Настройки: Валюта", "Sozlamalar: Valyuta", "Settings: Currency"), module: "/assets/pages/soon.js", groupId: "settings", group: GROUPS.SETTINGS }
 ];
