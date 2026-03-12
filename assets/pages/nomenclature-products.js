@@ -266,33 +266,37 @@ function buildCategoryMaps(categories) {
   for (const list of byParent.values()) {
     list.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), undefined, { sensitivity: "base" }));
   }
-  return { byId, byParent, roots: byParent.get(null) || [] };
+  const leaves = [];
+  for (const row of byId.values()) {
+    const children = byParent.get(row.id) || [];
+    if (!children.length) leaves.push(row);
+  }
+  return { byId, byParent, roots: byParent.get(null) || [], leaves };
 }
 
-function resolveCategoryPair(item, byId) {
+function leafCategoryId(item) {
   const categoryId = item?.category_id ? Number(item.category_id) : null;
   const subcategoryId = item?.subcategory_id ? Number(item.subcategory_id) : null;
+  return subcategoryId || categoryId || null;
+}
 
-  if (subcategoryId) {
-    return { category_id: categoryId, subcategory_id: subcategoryId };
+function categoryPathByLeafId(maps, leafId) {
+  const id = leafId ? Number(leafId) : null;
+  if (!id) return "";
+  const parts = [];
+  const seen = new Set();
+  let cur = maps.byId.get(id) || null;
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    parts.push(String(cur.name || "").trim());
+    const parentId = cur.parent_id ? Number(cur.parent_id) : null;
+    cur = parentId ? (maps.byId.get(parentId) || null) : null;
   }
-  if (!categoryId) {
-    return { category_id: null, subcategory_id: null };
-  }
-
-  const cat = byId.get(categoryId);
-  if (cat && cat.parent_id) {
-    return { category_id: Number(cat.parent_id), subcategory_id: categoryId };
-  }
-
-  return { category_id: categoryId, subcategory_id: null };
+  return parts.reverse().filter(Boolean).join(" / ");
 }
 
 function categoryPath(item, lang) {
-  if (item.subcategory_name) {
-    return `${item.category_name || text(lang, "topLevel")} / ${item.subcategory_name}`;
-  }
-  return item.category_name || text(lang, "topLevel");
+  return String(item?.category_path || "").trim() || text(lang, "topLevel");
 }
 
 function statusBadgeHtml(lang, statusValue, isActive) {
@@ -310,18 +314,17 @@ function statusBadgeHtml(lang, statusValue, isActive) {
   return activeBadge(Number(isActive || 0), { active: text(lang, "active"), inactive: text(lang, "inactive") });
 }
 
-function categoryOptionsHtml(lang, maps, selectedId) {
+function leafCategoryOptionsHtml(lang, maps, selectedId) {
+  const options = maps.leaves
+    .map((row) => ({
+      id: row.id,
+      path: categoryPathByLeafId(maps, row.id)
+    }))
+    .sort((a, b) => String(a.path || "").localeCompare(String(b.path || ""), undefined, { sensitivity: "base" }));
+
   return `
     <option value="">${esc(text(lang, "topLevel"))}</option>
-    ${sortByName(maps.roots).map((row) => optionHtml(row.id, selectedId, row.name)).join("")}
-  `;
-}
-
-function subcategoryOptionsHtml(lang, maps, categoryId, selectedId) {
-  const parentId = categoryId ? Number(categoryId) : null;
-  return `
-    <option value="">${esc(text(lang, "noSubcategory"))}</option>
-    ${sortByName(maps.byParent.get(parentId) || []).map((row) => optionHtml(row.id, selectedId, row.name)).join("")}
+    ${options.map((row) => optionHtml(row.id, selectedId, row.path || row.id)).join("")}
   `;
 }
 
@@ -396,8 +399,7 @@ function textAreaInput(fields, lang, key, value, col = "col-12", rows = 2) {
 
 function modalHtml(lang, draft, categories, units, productTypes, suppliers, fields) {
   const maps = buildCategoryMaps(categories);
-  const pair = resolveCategoryPair(draft, maps.byId);
-  const item = { ...draft, category_id: pair.category_id, subcategory_id: pair.subcategory_id };
+  const item = { ...draft, category_id: leafCategoryId(draft) };
   const hasTechnical = TECHNICAL_KEYS.some((key) => visible(fields, key, "form"));
 
   return `
@@ -424,16 +426,7 @@ function modalHtml(lang, draft, categories, units, productTypes, suppliers, fiel
             <div class="col-md-4">
               <label class="form-label">${fieldLabel(fields, lang, "category_id")}</label>
               <select class="form-select" name="category_id" data-product-category>
-                ${categoryOptionsHtml(lang, maps, item.category_id)}
-              </select>
-            </div>
-          ` : ""}
-
-          ${visible(fields, "subcategory_id", "form") ? `
-            <div class="col-md-4">
-              <label class="form-label">${fieldLabel(fields, lang, "subcategory_id")}</label>
-              <select class="form-select" name="subcategory_id" data-product-subcategory>
-                ${subcategoryOptionsHtml(lang, maps, item.category_id, item.subcategory_id)}
+                ${leafCategoryOptionsHtml(lang, maps, item.category_id)}
               </select>
             </div>
           ` : ""}
@@ -595,7 +588,6 @@ function readSwitch(modalEl, name) {
 function readForm(modalEl, draft = {}) {
   const payload = {
     category_id: readId(modalEl, "category_id"),
-    subcategory_id: readId(modalEl, "subcategory_id"),
     unit_id: readId(modalEl, "unit_id"),
     product_type_id: readId(modalEl, "product_type_id"),
     supplier_id: readId(modalEl, "supplier_id"),
@@ -660,7 +652,7 @@ function desktopTableHtml(items, lang, canWrite, fields) {
           <thead>
             <tr>
               ${(visible(fields, "name", "list") || visible(fields, "full_name", "list")) ? `<th>${fieldLabel(fields, lang, "name")}</th>` : ""}
-              ${(visible(fields, "category_id", "list") || visible(fields, "subcategory_id", "list")) ? `<th style="width:220px">${fieldLabel(fields, lang, "category_id")}</th>` : ""}
+              ${visible(fields, "category_id", "list") ? `<th style="width:220px">${fieldLabel(fields, lang, "category_id")}</th>` : ""}
               ${visible(fields, "unit_id", "list") ? `<th style="width:120px">${fieldLabel(fields, lang, "unit_id")}</th>` : ""}
               ${visible(fields, "supplier_id", "list") ? `<th style="width:180px">${fieldLabel(fields, lang, "supplier_id")}</th>` : ""}
               ${visible(fields, "price_retail", "list") ? `<th style="width:120px">${fieldLabel(fields, lang, "price_retail")}</th>` : ""}
@@ -682,7 +674,7 @@ function desktopTableHtml(items, lang, canWrite, fields) {
                     </div>
                   </td>
                 ` : ""}
-                ${(visible(fields, "category_id", "list") || visible(fields, "subcategory_id", "list")) ? `<td>${esc(categoryPath(item, lang))}</td>` : ""}
+                ${visible(fields, "category_id", "list") ? `<td>${esc(categoryPath(item, lang))}</td>` : ""}
                 ${visible(fields, "unit_id", "list") ? `<td>${esc(item.unit_name || text(lang, "noUnit"))}</td>` : ""}
                 ${visible(fields, "supplier_id", "list") ? `<td>${esc(item.supplier_name || text(lang, "noSupplier"))}</td>` : ""}
                 ${visible(fields, "price_retail", "list") ? `<td>${esc(formatNumber(lang, item.price_retail))}</td>` : ""}
@@ -714,7 +706,7 @@ function mobileCardsHtml(items, lang, canWrite, fields) {
             <div class="d-flex justify-content-between gap-2 align-items-start">
               <div>
                 ${(visible(fields, "name", "card") || visible(fields, "full_name", "card")) ? `<div class="fw-semibold">${esc(item.full_name || item.name || "-")}</div>` : ""}
-                ${(visible(fields, "category_id", "card") || visible(fields, "subcategory_id", "card")) ? `<div class="small text-muted mt-1">${esc(categoryPath(item, lang))}</div>` : ""}
+                ${visible(fields, "category_id", "card") ? `<div class="small text-muted mt-1">${esc(categoryPath(item, lang))}</div>` : ""}
               </div>
               ${(visible(fields, "product_status", "card") || visible(fields, "is_active", "card")) ? statusBadgeHtml(lang, item.product_status, item.is_active) : ""}
             </div>
@@ -738,12 +730,11 @@ function tableHtml(items, lang, canWrite, fields) {
   return `${desktopTableHtml(items, lang, canWrite, fields)}${mobileCardsHtml(items, lang, canWrite, fields)}`;
 }
 
-function bindModalBehavior(modalEl, categories) {
+function bindModalBehavior(modalEl) {
   const root = modalEl.querySelector("[data-product-form]");
   if (!root) return;
 
   const lang = langOf();
-  const maps = buildCategoryMaps(categories);
 
   const advBtn = root.querySelector("[data-product-advanced-toggle]");
   const advBody = root.querySelector("[data-product-advanced-body]");
@@ -761,17 +752,6 @@ function bindModalBehavior(modalEl, categories) {
     });
   }
 
-  const categoryEl = root.querySelector("[data-product-category]");
-  const subcategoryEl = root.querySelector("[data-product-subcategory]");
-  if (categoryEl && subcategoryEl) {
-    const syncSubcategories = () => {
-      const selectedParent = categoryEl.value ? Number(categoryEl.value) : null;
-      const selectedSub = subcategoryEl.value ? Number(subcategoryEl.value) : null;
-      subcategoryEl.innerHTML = subcategoryOptionsHtml(lang, maps, selectedParent, selectedSub);
-    };
-    categoryEl.addEventListener("change", syncSubcategories);
-    syncSubcategories();
-  }
 }
 
 async function openEntityModal(ctx, item, categories, units, productTypes, suppliers, fields) {
@@ -835,7 +815,7 @@ async function openEntityModal(ctx, item, categories, units, productTypes, suppl
   setTimeout(() => {
     const modals = document.querySelectorAll(".modal");
     const modalEl = modals[modals.length - 1];
-    if (modalEl) bindModalBehavior(modalEl, categories);
+    if (modalEl) bindModalBehavior(modalEl);
   }, 0);
 }
 
@@ -869,8 +849,12 @@ export async function render(ctx) {
     return;
   }
 
-  const allItems = (respProducts.items || []).map(normalizeItem);
   const categories = (respCategories.items || []).map(normalizeCategory);
+  const categoryMaps = buildCategoryMaps(categories);
+  const allItems = (respProducts.items || []).map(normalizeItem).map((item) => ({
+    ...item,
+    category_path: categoryPathByLeafId(categoryMaps, leafCategoryId(item))
+  }));
   const units = (respUnits.items || []).map(normalizeSimple);
   const productTypes = (respProductTypes.items || []).map(normalizeSimple);
   const suppliers = (respSuppliers.items || []).map(normalizeSimple);
@@ -892,8 +876,7 @@ export async function render(ctx) {
     { key: "brand", field: "brand" },
     { key: "model", field: "model" },
     { key: "manufacturer", field: "manufacturer" },
-    { key: "category_name", field: "category_id" },
-    { key: "subcategory_name", field: "subcategory_id" },
+    { key: "category_path", field: "category_id" },
     { key: "unit_name", field: "unit_id" },
     { key: "supplier_name", field: "supplier_id" }
   ].filter((row) => visible(fields, row.field, "filters"));
