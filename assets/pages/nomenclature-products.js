@@ -42,6 +42,7 @@ const UI = {
     requiredName: "Укажите наименование товара",
     invalidCategory: "Выбрана некорректная категория",
     invalidSubcategory: "Выбрана некорректная подкатегория",
+    selectLeafCategory: "Выберите конечную категорию без вложенных подкатегорий",
     invalidUnit: "Выбрана некорректная единица измерения",
     invalidProductType: "Выбран некорректный тип товара",
     invalidSupplier: "Выбран некорректный поставщик",
@@ -79,6 +80,7 @@ const UI = {
     requiredName: "Tovar nomini kiriting",
     invalidCategory: "Noto'g'ri kategoriya tanlandi",
     invalidSubcategory: "Noto'g'ri quyi kategoriya tanlandi",
+    selectLeafCategory: "Ichki bo'limsiz yakuniy kategoriya tanlang",
     invalidUnit: "Noto'g'ri o'lchov birligi tanlandi",
     invalidProductType: "Noto'g'ri tovar turi tanlandi",
     invalidSupplier: "Noto'g'ri ta'minotchi tanlandi",
@@ -116,6 +118,7 @@ const UI = {
     requiredName: "Product name is required",
     invalidCategory: "Invalid category selected",
     invalidSubcategory: "Invalid subcategory selected",
+    selectLeafCategory: "Select a final category without nested subcategories",
     invalidUnit: "Invalid unit selected",
     invalidProductType: "Invalid product type selected",
     invalidSupplier: "Invalid supplier selected",
@@ -130,6 +133,8 @@ const TEXT_KEYS = [
   "name", "full_name", "code", "article", "sku", "barcode", "extra_barcode",
   "brand", "model", "series", "device_type", "manufacturer", "country_manufacture",
   "country_brand", "description", "image_url", "warranty", "exchange_return_term",
+  "serial_number", "imei_1", "imei_2", "mac_address", "batch_number", "production_date",
+  "product_condition", "warranty_start_date", "warranty_end_date",
   "color", "memory_capacity", "ram", "cpu", "gpu", "screen_size", "screen_resolution",
   "screen_type", "refresh_rate", "battery_capacity", "operating_system", "network_standard",
   "wifi", "bluetooth", "main_camera", "front_camera", "ports", "package_contents", "weight", "dimensions"
@@ -141,7 +146,8 @@ const NUM_KEYS = [
 ];
 
 const BOOL_KEYS = [
-  "track_serial", "track_imei", "track_imei2", "track_batches", "is_commission", "esim_support", "nfc"
+  "track_serial", "track_imei", "track_imei2", "track_batches", "is_commission",
+  "complete_set", "warranty_activated", "esim_support", "nfc"
 ];
 
 const TECHNICAL_KEYS = [
@@ -356,6 +362,16 @@ function numberInput(fields, lang, key, value, col = "col-md-4", step = "0.01") 
   `;
 }
 
+function dateInput(fields, lang, key, value, col = "col-md-4") {
+  if (!visible(fields, key, "form")) return "";
+  return `
+    <div class="${col}">
+      <label class="form-label">${fieldLabel(fields, lang, key)}</label>
+      <input class="form-control" type="date" name="${esc(key)}" value="${esc(value ?? "")}">
+    </div>
+  `;
+}
+
 function boolInput(fields, lang, key, value, col = "col-md-3") {
   if (!visible(fields, key, "form")) return "";
   return `
@@ -482,6 +498,17 @@ function modalHtml(lang, draft, categories, units, productTypes, suppliers, fiel
           ${boolInput(fields, lang, "track_imei", item.track_imei)}
           ${boolInput(fields, lang, "track_imei2", item.track_imei2)}
           ${boolInput(fields, lang, "track_batches", item.track_batches)}
+          ${textInput(fields, lang, "serial_number", item.serial_number, "col-md-4")}
+          ${textInput(fields, lang, "imei_1", item.imei_1, "col-md-4")}
+          ${textInput(fields, lang, "imei_2", item.imei_2, "col-md-4")}
+          ${textInput(fields, lang, "mac_address", item.mac_address, "col-md-4")}
+          ${textInput(fields, lang, "batch_number", item.batch_number, "col-md-4")}
+          ${dateInput(fields, lang, "production_date", item.production_date, "col-md-4")}
+          ${textInput(fields, lang, "product_condition", item.product_condition, "col-md-4")}
+          ${boolInput(fields, lang, "complete_set", item.complete_set, "col-md-4")}
+          ${boolInput(fields, lang, "warranty_activated", item.warranty_activated, "col-md-4")}
+          ${dateInput(fields, lang, "warranty_start_date", item.warranty_start_date, "col-md-4")}
+          ${dateInput(fields, lang, "warranty_end_date", item.warranty_end_date, "col-md-4")}
         </div>
       </div>
 
@@ -608,6 +635,7 @@ function mapSaveError(lang, error) {
   if (msg === "Required: name" || msg === "name cannot be empty") return text(lang, "requiredName");
   if (["category_not_found", "category_wrong_business", "category_id must be number"].includes(msg)) return text(lang, "invalidCategory");
   if (["subcategory_not_found", "subcategory_wrong_business", "subcategory_not_child", "subcategory_wrong_parent", "subcategory_id must be number"].includes(msg)) return text(lang, "invalidSubcategory");
+  if (["category_not_leaf", "subcategory_not_leaf"].includes(msg)) return text(lang, "selectLeafCategory");
   if (["unit_not_found", "unit_wrong_business", "unit_id must be number"].includes(msg)) return text(lang, "invalidUnit");
   if (["product_type_not_found", "product_type_wrong_business", "product_type_id must be number"].includes(msg)) return text(lang, "invalidProductType");
   if (["supplier_not_found", "supplier_wrong_business", "supplier_not_supplier", "supplier_id must be number"].includes(msg)) return text(lang, "invalidSupplier");
@@ -756,6 +784,8 @@ async function openEntityModal(ctx, item, categories, units, productTypes, suppl
     full_name: "",
     product_status: "active",
     is_active: 1,
+    complete_set: 1,
+    warranty_activated: 0,
     vat_rate: 0,
     price_retail: 0,
     price_wholesale: 0,
@@ -853,6 +883,12 @@ export async function render(ctx) {
     { key: "sku", field: "sku" },
     { key: "barcode", field: "barcode" },
     { key: "extra_barcode", field: "extra_barcode" },
+    { key: "serial_number", field: "serial_number" },
+    { key: "imei_1", field: "imei_1" },
+    { key: "imei_2", field: "imei_2" },
+    { key: "mac_address", field: "mac_address" },
+    { key: "batch_number", field: "batch_number" },
+    { key: "product_condition", field: "product_condition" },
     { key: "brand", field: "brand" },
     { key: "model", field: "model" },
     { key: "manufacturer", field: "manufacturer" },
