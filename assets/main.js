@@ -36,6 +36,7 @@ const SECTION_OVERRIDES = {
   counterparties_other: { module: "/assets/pages/counterparties.js" },
   nomenclature_categories: { module: "/assets/pages/nomenclature-categories.js" },
   nomenclature_products: { module: "/assets/pages/nomenclature-products.js" },
+  prices_docs: { module: "/assets/pages/prices-docs.js" },
   business_settings: { module: "/assets/pages/settings-business.js" },
   settings_users: { module: "/assets/pages/settings-users.js" },
   settings_roles: { module: "/assets/pages/roles.js" },
