@@ -48,6 +48,8 @@ const UI = {
     invalidProductType: "Выбран некорректный тип товара",
     invalidSupplier: "Выбран некорректный поставщик",
     invalidLookup: "Выбрано некорректное значение справочника",
+    invalidSimCount: "Количество SIM должно быть целым числом (0, 1, 2...)",
+    invalidLeadTime: "Срок поставки должен быть целым числом дней",
     duplicateCode: "Товар с таким кодом уже существует",
     duplicateSku: "Товар с таким SKU уже существует",
     duplicateBarcode: "Товар с таким штрихкодом уже существует",
@@ -88,6 +90,8 @@ const UI = {
     invalidProductType: "Noto'g'ri tovar turi tanlandi",
     invalidSupplier: "Noto'g'ri ta'minotchi tanlandi",
     invalidLookup: "Ma'lumotnomadan noto'g'ri qiymat tanlandi",
+    invalidSimCount: "SIM soni butun son bo'lishi kerak (0, 1, 2...)",
+    invalidLeadTime: "Yetkazish muddati kunlarda butun son bo'lishi kerak",
     duplicateCode: "Bunday kodli tovar allaqachon mavjud",
     duplicateSku: "Bunday SKUli tovar allaqachon mavjud",
     duplicateBarcode: "Bunday shtrixkodli tovar allaqachon mavjud",
@@ -128,6 +132,8 @@ const UI = {
     invalidProductType: "Invalid product type selected",
     invalidSupplier: "Invalid supplier selected",
     invalidLookup: "Invalid dictionary value selected",
+    invalidSimCount: "SIM count must be an integer (0, 1, 2...)",
+    invalidLeadTime: "Lead time must be an integer number of days",
     duplicateCode: "Product code already exists",
     duplicateSku: "Product SKU already exists",
     duplicateBarcode: "Product barcode already exists",
@@ -735,6 +741,8 @@ function mapSaveError(lang, error) {
   if (/(brand|device_type|manufacturer|country_manufacture|country_brand|product_status|product_condition)_(not_found|wrong_business|wrong_kind)$/.test(msg)) {
     return text(lang, "invalidLookup");
   }
+  if (msg === "sim_count must be integer" || msg === "sim_count must be >= 0") return text(lang, "invalidSimCount");
+  if (msg === "lead_time_days must be integer" || msg === "lead_time_days must be >= 0") return text(lang, "invalidLeadTime");
   if (msg === "Code already exists") return text(lang, "duplicateCode");
   if (msg === "SKU already exists") return text(lang, "duplicateSku");
   if (msg === "Barcode already exists") return text(lang, "duplicateBarcode");
