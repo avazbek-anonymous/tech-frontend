@@ -436,25 +436,20 @@ function openPriceTypeModal(ctx) {
     saveText: text(lang, "save"),
     bodyHtml: `
       <div class="row g-3">
-        <div class="col-md-8">
+        <div class="col-12">
           <label class="form-label">${esc(text(lang, "priceType"))}</label>
           <input class="form-control" name="name">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Code</label>
-          <input class="form-control" name="code">
         </div>
       </div>
     `,
     onSave: async (modalEl) => {
       const name = String(modalEl.querySelector("[name='name']")?.value || "").trim();
-      const code = String(modalEl.querySelector("[name='code']")?.value || "").trim();
       if (!name) throw new Error(text(lang, "requiredPriceType"));
 
       await api("/price-types", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, code: code || null, is_active: 1 })
+        body: JSON.stringify({ name, is_active: 1 })
       });
 
       await render(ctx);
