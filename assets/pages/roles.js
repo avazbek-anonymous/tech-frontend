@@ -1,4 +1,4 @@
-import {
+﻿import {
   isEmptyFieldValue,
   langOf,
   loadEntityFieldAccess,
@@ -6,36 +6,37 @@ import {
 } from "./settings-utils.js";
 
 const ROLE_ACTIONS = [
-  { code: "read", label: { ru: "Смотреть", uz: "Ko'rish", en: "View" } },
-  { code: "add", label: { ru: "Создать", uz: "Yaratish", en: "Create" } },
-  { code: "change", label: { ru: "Редактировать", uz: "Tahrirlash", en: "Edit" } },
-  { code: "disable", label: { ru: "Деактивировать", uz: "Faolsizlantirish", en: "Deactivate" } }
+  { code: "read", label: { ru: "РЎРјРѕС‚СЂРµС‚СЊ", uz: "Ko'rish", en: "View" } },
+  { code: "add", label: { ru: "РЎРѕР·РґР°С‚СЊ", uz: "Yaratish", en: "Create" } },
+  { code: "change", label: { ru: "Р РµРґР°РєС‚РёСЂРѕРІР°С‚СЊ", uz: "Tahrirlash", en: "Edit" } },
+  { code: "disable", label: { ru: "Р”РµР°РєС‚РёРІРёСЂРѕРІР°С‚СЊ", uz: "Faolsizlantirish", en: "Deactivate" } },
+  { code: "post", label: { ru: "РџРѕРґС‚РІРµСЂРґРёС‚СЊ", uz: "Tasdiqlash", en: "Post" } }
 ];
 
 const UI = {
   ru: {
-    title: "Роли",
-    subtitle: "Роли сотрудников и доступы по разделам",
-    search: "Поиск",
-    status: "Статус",
-    allStatuses: "Все",
-    active: "Актив",
-    inactive: "Неактив",
-    createRole: "Создать роль",
-    editRole: "Редактировать роль",
-    roleName: "Название роли",
-    groupName: "Группа",
-    positionName: "Должность",
-    roleStatus: "Статус роли",
-    permissions: "Права по разделам",
-    section: "Раздел",
-    actions: "Действия",
-    noRoles: "Роли не найдены",
-    noAccess: "Нет доступа к разделу ролей",
-    requiredName: "Укажите название роли",
-    save: "Сохранить",
-    cancel: "Отмена",
-    update: "Изменить"
+    title: "Р РѕР»Рё",
+    subtitle: "Р РѕР»Рё СЃРѕС‚СЂСѓРґРЅРёРєРѕРІ Рё РґРѕСЃС‚СѓРїС‹ РїРѕ СЂР°Р·РґРµР»Р°Рј",
+    search: "РџРѕРёСЃРє",
+    status: "РЎС‚Р°С‚СѓСЃ",
+    allStatuses: "Р’СЃРµ",
+    active: "РђРєС‚РёРІ",
+    inactive: "РќРµР°РєС‚РёРІ",
+    createRole: "РЎРѕР·РґР°С‚СЊ СЂРѕР»СЊ",
+    editRole: "Р РµРґР°РєС‚РёСЂРѕРІР°С‚СЊ СЂРѕР»СЊ",
+    roleName: "РќР°Р·РІР°РЅРёРµ СЂРѕР»Рё",
+    groupName: "Р“СЂСѓРїРїР°",
+    positionName: "Р”РѕР»Р¶РЅРѕСЃС‚СЊ",
+    roleStatus: "РЎС‚Р°С‚СѓСЃ СЂРѕР»Рё",
+    permissions: "РџСЂР°РІР° РїРѕ СЂР°Р·РґРµР»Р°Рј",
+    section: "Р Р°Р·РґРµР»",
+    actions: "Р”РµР№СЃС‚РІРёСЏ",
+    noRoles: "Р РѕР»Рё РЅРµ РЅР°Р№РґРµРЅС‹",
+    noAccess: "РќРµС‚ РґРѕСЃС‚СѓРїР° Рє СЂР°Р·РґРµР»Сѓ СЂРѕР»РµР№",
+    requiredName: "РЈРєР°Р¶РёС‚Рµ РЅР°Р·РІР°РЅРёРµ СЂРѕР»Рё",
+    save: "РЎРѕС…СЂР°РЅРёС‚СЊ",
+    cancel: "РћС‚РјРµРЅР°",
+    update: "РР·РјРµРЅРёС‚СЊ"
   },
   uz: {
     title: "Rollar",
@@ -457,3 +458,4 @@ export async function render(ctx) {
     });
   });
 }
+

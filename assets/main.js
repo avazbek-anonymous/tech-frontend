@@ -87,7 +87,7 @@ function hasReadPermission(sectionId) {
   const readKey = `${sectionId}.read`;
   if (state.rolePermissions.has(readKey)) return true;
 
-  const writeKeys = ["add", "change", "disable", "delete", "export"];
+  const writeKeys = ["add", "change", "disable", "delete", "export", "post"];
   return writeKeys.some(action => state.rolePermissions.has(`${sectionId}.${action}`));
 }
 
