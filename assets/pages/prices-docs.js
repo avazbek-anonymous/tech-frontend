@@ -224,11 +224,30 @@ function normalizeSimple(row) {
   };
 }
 
+function normalizeCurrency(row) {
+  return {
+    id: Number(row?.id || 0),
+    code: String(row?.code || "").toUpperCase(),
+    name: String(row?.name || row?.code || "").trim(),
+    is_default: Number(row?.is_default || 0) === 1,
+    is_active: Number(row?.is_active || 0) === 1
+  };
+}
+
 function optionHtml(rows, selected, emptyText) {
   return `
     <option value="">${esc(emptyText)}</option>
     ${rows.map((row) => `<option value="${row.id}" ${Number(selected || 0) === row.id ? "selected" : ""}>${esc(row.name || row.id)}</option>`).join("")}
   `;
+}
+
+function currencyOptionHtml(rows, selectedCode) {
+  const selected = String(selectedCode || "").toUpperCase();
+  return rows.map((row) => {
+    const code = String(row.code || "").toUpperCase();
+    const label = row.name && row.name !== code ? `${code} - ${row.name}` : code;
+    return `<option value="${esc(code)}" ${selected === code ? "selected" : ""}>${esc(label)}</option>`;
+  }).join("");
 }
 
 function parseFlexibleNumber(value) {
@@ -314,7 +333,7 @@ function rowHtml(products, item = {}, idx = 0, lang = "ru") {
 }
 
 function modalHtml(lang, draft, refs, isCreate) {
-  const { filials, priceTypes, products } = refs;
+  const { filials, priceTypes, products, currencies } = refs;
   const items = Array.isArray(draft.items) ? draft.items : [];
   const basisLabel = draft.basis_doc_no || text(lang, "emptyBasis");
   return `
@@ -348,7 +367,9 @@ function modalHtml(lang, draft, refs, isCreate) {
       </div>
       <div class="col-md-4">
         <label class="form-label">${esc(text(lang, "currency"))}</label>
-        <input class="form-control" name="currency_code" value="${esc(draft.currency_code || "UZS")}">
+        <select class="form-select" name="currency_code">
+          ${currencyOptionHtml(currencies, draft.currency_code || "UZS")}
+        </select>
       </div>
 
       <div class="col-md-3">
@@ -692,21 +713,41 @@ async function openEntityModal(ctx, doc, fields) {
   let refs;
   let draft;
   try {
-    const [filialsResp, priceTypesResp, productsResp, detailsResp] = await Promise.all([
+    const [filialsResp, priceTypesResp, productsResp, currenciesResp, detailsResp] = await Promise.all([
       api("/filials"),
       api("/price-types"),
       api("/products"),
+      api("/currencies"),
       isCreate ? Promise.resolve({ item: null, items: [] }) : api(`/price-setup-docs/${doc.id}`)
     ]);
+
+    const currencies = (currenciesResp.items || [])
+      .map(normalizeCurrency)
+      .filter((row) => row.code && row.is_active);
+    const currentCurrencyCode = String((detailsResp.item || doc || {}).currency_code || "").toUpperCase();
+    if (currentCurrencyCode && !currencies.some((row) => row.code === currentCurrencyCode)) {
+      currencies.unshift({
+        id: 0,
+        code: currentCurrencyCode,
+        name: currentCurrencyCode,
+        is_default: false,
+        is_active: true
+      });
+    }
+    const defaultCurrency = currencies.find((row) => row.is_default)
+      || currencies.find((row) => row.code === "UZS")
+      || currencies[0]
+      || { code: "UZS", name: "UZS", is_default: true, is_active: true };
 
     refs = {
       docId: isCreate ? null : Number(doc.id),
       filials: (filialsResp.items || []).map(normalizeSimple),
       priceTypes: (priceTypesResp.items || []).map(normalizeSimple).filter((row) => row.id > 0),
-      products: (productsResp.items || []).map(normalizeSimple).filter((row) => row.id > 0)
+      products: (productsResp.items || []).map(normalizeSimple).filter((row) => row.id > 0),
+      currencies: currencies.length ? currencies : [defaultCurrency]
     };
     draft = isCreate
-      ? { status: "draft", currency_code: "UZS", currency_rate: 1, items: [{}], applies_all_filials: false }
+      ? { status: "draft", currency_code: defaultCurrency.code, currency_rate: 1, items: [{}], applies_all_filials: false }
       : { ...(detailsResp.item || doc), items: detailsResp.items || [] };
   } catch {
     throw new Error(text(lang, "detailsLoadFail"));
