@@ -24,10 +24,10 @@ const state = {
 
 const SECTION_OVERRIDES = {
   sales_dbkd: { label: { ru: "Продажи: Дт, Кт", uz: "Savdo: Dt, Kt", en: "Sales: Dt, Kt" } },
-  stock_income: { label: { ru: "Приход", uz: "Kirim", en: "Receipt" } },
-  stock_list: { label: { ru: "Список", uz: "Ro'yxat", en: "List" } },
-  stock_dbkd: { label: { ru: "Дт, Кт", uz: "Dt, Kt", en: "Dt, Kt" } },
-  stock_inventory: { label: { ru: "Инвентаризация", uz: "Inventarizatsiya", en: "Inventory" } },
+  stock_income: { module: "/assets/pages/stock-docs.js" },
+  stock_list: { module: "/assets/pages/stock-docs.js" },
+  stock_dbkd: { module: "/assets/pages/stock-docs.js" },
+  stock_inventory: { module: "/assets/pages/stock-docs.js" },
   hr_advances: { label: { ru: "HR: Авансы и Дт, Кт", uz: "HR: Avans va Dt, Kt", en: "HR: Advances and Dt, Kt" } },
   counterparties_suppliers: { module: "/assets/pages/counterparties.js" },
   counterparties_clients: { module: "/assets/pages/counterparties.js" },
