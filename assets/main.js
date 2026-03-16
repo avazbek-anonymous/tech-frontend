@@ -178,6 +178,7 @@ function page(titleKey, sub = "", opts = {}) {
 }
 
 function openModal({ title, bodyHtml, saveText, onSave }) {
+  const hasSave = typeof onSave === "function";
   const host = document.createElement("div");
   host.innerHTML = `
     <div class="modal fade" tabindex="-1">
@@ -191,7 +192,7 @@ function openModal({ title, bodyHtml, saveText, onSave }) {
           <div class="modal-footer">
             <div class="text-danger me-auto small" data-err></div>
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-            <button type="button" class="btn btn-primary" data-save>${esc(saveText || t("save"))}</button>
+            ${hasSave ? `<button type="button" class="btn btn-primary" data-save>${esc(saveText || t("save"))}</button>` : ""}
           </div>
         </div>
       </div>
@@ -211,40 +212,44 @@ function openModal({ title, bodyHtml, saveText, onSave }) {
       backdrop.remove();
       document.body.classList.remove("modal-open");
     }));
+    if (hasSave) {
+      const errEl = modalEl.querySelector("[data-err]");
+      const saveBtn = modalEl.querySelector("[data-save]");
+      saveBtn.addEventListener("click", async () => {
+        errEl.textContent = "";
+        saveBtn.disabled = true;
+        try {
+          await onSave(modalEl);
+          modalEl.remove();
+          backdrop.remove();
+          document.body.classList.remove("modal-open");
+        } catch (e) {
+          errEl.textContent = String(e?.message || e);
+        } finally {
+          saveBtn.disabled = false;
+        }
+      });
+    }
+    return;
+  }
+  const modal = new ModalCtor(modalEl);
+  if (hasSave) {
     const errEl = modalEl.querySelector("[data-err]");
     const saveBtn = modalEl.querySelector("[data-save]");
+
     saveBtn.addEventListener("click", async () => {
       errEl.textContent = "";
       saveBtn.disabled = true;
       try {
         await onSave(modalEl);
-        modalEl.remove();
-        backdrop.remove();
-        document.body.classList.remove("modal-open");
+        modal.hide();
       } catch (e) {
         errEl.textContent = String(e?.message || e);
       } finally {
         saveBtn.disabled = false;
       }
     });
-    return;
   }
-  const modal = new ModalCtor(modalEl);
-  const errEl = modalEl.querySelector("[data-err]");
-  const saveBtn = modalEl.querySelector("[data-save]");
-
-  saveBtn.addEventListener("click", async () => {
-    errEl.textContent = "";
-    saveBtn.disabled = true;
-    try {
-      await onSave(modalEl);
-      modal.hide();
-    } catch (e) {
-      errEl.textContent = String(e?.message || e);
-    } finally {
-      saveBtn.disabled = false;
-    }
-  });
 
   modalEl.addEventListener("hidden.bs.modal", () => {
     modal.dispose();

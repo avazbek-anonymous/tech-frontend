@@ -171,8 +171,34 @@ const UI = {
   }
 };
 
+const EXTRA_UI = {
+  open: {
+    ru: "Открыть",
+    uz: "Ochish",
+    en: "Open"
+  },
+  view: {
+    ru: "Просмотр документа",
+    uz: "Hujjatni ko'rish",
+    en: "View document"
+  },
+  unpost: {
+    ru: "Вернуть в черновик",
+    uz: "Qoralamaga qaytarish",
+    en: "Return to draft"
+  },
+  restore: {
+    ru: "Восстановить",
+    uz: "Tiklash",
+    en: "Restore"
+  }
+};
+
 function text(lang, key) {
-  return pick(UI, lang, key);
+  const value = pick(UI, lang, key);
+  if (value !== key) return value;
+  const extra = EXTRA_UI[key];
+  return (extra && (extra[lang] || extra.ru || extra.en)) || key;
 }
 
 function localeFor(lang) {
@@ -305,11 +331,13 @@ function bindMoneyInput(input) {
   });
 }
 
-function rowHtml(products, item = {}, idx = 0, lang = "ru") {
+function rowHtml(products, item = {}, idx = 0, lang = "ru", isEditable = true) {
+  const disabled = isEditable ? "" : "disabled";
+  const readonly = isEditable ? "" : "readonly";
   return `
     <tr data-price-item-row>
       <td style="min-width:220px">
-        <select class="form-select form-select-sm" data-item="product_id">
+        <select class="form-select form-select-sm" data-item="product_id" ${disabled}>
           ${optionHtml(products, item.product_id, text(lang, "product"))}
         </select>
       </td>
@@ -317,25 +345,28 @@ function rowHtml(products, item = {}, idx = 0, lang = "ru") {
         <input class="form-control form-control-sm" type="text" data-item="old_price" value="${esc(formatMoneyNumber(lang, item.old_price))}" placeholder="${esc(text(lang, "oldPrice"))}" readonly>
       </td>
       <td style="width:150px">
-        <input class="form-control form-control-sm" type="text" inputmode="decimal" data-item="new_price" value="${esc(formatMoneyNumber(lang, item.new_price))}">
+        <input class="form-control form-control-sm" type="text" inputmode="decimal" data-item="new_price" value="${esc(formatMoneyNumber(lang, item.new_price))}" ${readonly}>
       </td>
       <td style="width:150px">
-        <input class="form-control form-control-sm" type="text" inputmode="decimal" data-item="min_price" value="${esc(formatMoneyNumber(lang, item.min_price ?? 0))}">
+        <input class="form-control form-control-sm" type="text" inputmode="decimal" data-item="min_price" value="${esc(formatMoneyNumber(lang, item.min_price ?? 0))}" ${readonly}>
       </td>
       <td>
-        <input class="form-control form-control-sm" data-item="comment" value="${esc(item.comment || "")}">
+        <input class="form-control form-control-sm" data-item="comment" value="${esc(item.comment || "")}" ${readonly}>
       </td>
       <td style="width:90px" class="text-end">
-        <button type="button" class="btn btn-sm btn-outline-danger" data-remove-row="${idx}">${esc(text(lang, "remove"))}</button>
+        ${isEditable ? `<button type="button" class="btn btn-sm btn-outline-danger" data-remove-row="${idx}">${esc(text(lang, "remove"))}</button>` : ""}
       </td>
     </tr>
   `;
 }
 
-function modalHtml(lang, draft, refs, isCreate) {
+function modalHtml(lang, draft, refs, isCreate, isEditable) {
   const { filials, priceTypes, products, currencies } = refs;
   const items = Array.isArray(draft.items) ? draft.items : [];
+  const viewItems = items.length ? items : (isEditable ? [{}] : []);
   const basisLabel = draft.basis_doc_no || text(lang, "emptyBasis");
+  const disabled = isEditable ? "" : "disabled";
+  const readonly = isEditable ? "" : "readonly";
   return `
     <div class="row g-3 mb-3">
       <div class="col-md-3">
@@ -352,44 +383,44 @@ function modalHtml(lang, draft, refs, isCreate) {
       </div>
       <div class="col-md-3">
         <label class="form-label">${esc(text(lang, "priceType"))}</label>
-        <select class="form-select" name="price_type_id">${optionHtml(priceTypes, draft.price_type_id, text(lang, "priceType"))}</select>
+        <select class="form-select" name="price_type_id" ${disabled}>${optionHtml(priceTypes, draft.price_type_id, text(lang, "priceType"))}</select>
       </div>
 
       <div class="col-md-4">
         <label class="form-label">${esc(text(lang, "filial"))}</label>
-        <select class="form-select" name="filial_id" ${draft.applies_all_filials ? "disabled" : ""}>${optionHtml(filials, draft.filial_id, text(lang, "filial"))}</select>
+        <select class="form-select" name="filial_id" ${draft.applies_all_filials || !isEditable ? "disabled" : ""}>${optionHtml(filials, draft.filial_id, text(lang, "filial"))}</select>
       </div>
       <div class="col-md-4 d-flex align-items-end">
         <div class="form-check form-switch mb-2">
-          <input class="form-check-input" type="checkbox" role="switch" name="applies_all_filials" ${draft.applies_all_filials ? "checked" : ""}>
+          <input class="form-check-input" type="checkbox" role="switch" name="applies_all_filials" ${draft.applies_all_filials ? "checked" : ""} ${disabled}>
           <label class="form-check-label">${esc(text(lang, "allFilials"))}</label>
         </div>
       </div>
       <div class="col-md-4">
         <label class="form-label">${esc(text(lang, "currency"))}</label>
-        <select class="form-select" name="currency_code">
+        <select class="form-select" name="currency_code" ${disabled}>
           ${currencyOptionHtml(currencies, draft.currency_code || "UZS")}
         </select>
       </div>
 
       <div class="col-md-3">
         <label class="form-label">${esc(text(lang, "startDate"))}</label>
-        <input class="form-control" type="date" name="start_date" value="${esc(toDateInput(draft.start_date))}">
+        <input class="form-control" type="date" name="start_date" value="${esc(toDateInput(draft.start_date))}" ${readonly}>
       </div>
       <div class="col-md-3">
         <label class="form-label">${esc(text(lang, "endDate"))}</label>
-        <input class="form-control" type="date" name="end_date" value="${esc(toDateInput(draft.end_date))}">
+        <input class="form-control" type="date" name="end_date" value="${esc(toDateInput(draft.end_date))}" ${readonly}>
       </div>
       <div class="col-md-3">
         <label class="form-label">${esc(text(lang, "rate"))}</label>
-        <input class="form-control" name="currency_rate" value="${esc(draft.currency_rate ?? 1)}">
+        <input class="form-control" name="currency_rate" value="${esc(draft.currency_rate ?? 1)}" ${readonly}>
       </div>
       <div class="col-md-3">
         <label class="form-label">${esc(text(lang, "basis"))}</label>
         <div class="input-group">
           <input class="form-control" name="basis_doc_label" value="${esc(basisLabel)}" readonly>
-          <button type="button" class="btn btn-outline-secondary" data-basis-select>${esc(text(lang, "selectBasis"))}</button>
-          <button type="button" class="btn btn-outline-secondary" data-basis-clear>${esc(text(lang, "clearBasis"))}</button>
+          ${isEditable ? `<button type="button" class="btn btn-outline-secondary" data-basis-select>${esc(text(lang, "selectBasis"))}</button>` : ""}
+          ${isEditable ? `<button type="button" class="btn btn-outline-secondary" data-basis-clear>${esc(text(lang, "clearBasis"))}</button>` : ""}
         </div>
         <input type="hidden" name="basis_doc_type" value="${esc(draft.basis_doc_type || "")}">
         <input type="hidden" name="basis_doc_id" value="${esc(draft.basis_doc_id || "")}">
@@ -397,14 +428,14 @@ function modalHtml(lang, draft, refs, isCreate) {
 
       <div class="col-12">
         <label class="form-label">${esc(text(lang, "comment"))}</label>
-        <textarea class="form-control" rows="2" name="comment">${esc(draft.comment || "")}</textarea>
+        <textarea class="form-control" rows="2" name="comment" ${readonly}>${esc(draft.comment || "")}</textarea>
       </div>
     </div>
 
     <div class="small text-muted mb-2">${esc(text(lang, "oldPriceHint"))}</div>
     <div class="d-flex align-items-center justify-content-between mb-2">
       <h6 class="m-0">${esc(text(lang, "items"))}</h6>
-      <button type="button" class="btn btn-sm btn-outline-primary" data-add-row>${esc(text(lang, "addRow"))}</button>
+      ${isEditable ? `<button type="button" class="btn btn-sm btn-outline-primary" data-add-row>${esc(text(lang, "addRow"))}</button>` : ""}
     </div>
     <div class="table-responsive">
       <table class="table table-sm align-middle">
@@ -419,7 +450,7 @@ function modalHtml(lang, draft, refs, isCreate) {
           </tr>
         </thead>
         <tbody data-items-body>
-          ${(items.length ? items : [{}]).map((item, idx) => rowHtml(products, item, idx, lang)).join("")}
+          ${viewItems.map((item, idx) => rowHtml(products, item, idx, lang, isEditable)).join("")}
         </tbody>
       </table>
     </div>
@@ -618,13 +649,15 @@ async function chooseBasisDoc(ctx, basisType, currentDocId) {
   });
 }
 
-async function bindModalRows(ctx, modalEl, refs) {
+async function bindModalRows(ctx, modalEl, refs, isEditable) {
   const lang = langOf();
   const body = modalEl.querySelector("[data-items-body]");
   const addBtn = modalEl.querySelector("[data-add-row]");
   const filialSelect = modalEl.querySelector("[name='filial_id']");
   const allFilialsSwitch = modalEl.querySelector("[name='applies_all_filials']");
   const priceTypeSelect = modalEl.querySelector("[name='price_type_id']");
+
+  if (!isEditable) return;
 
   const bindRowInputs = (scope) => {
     scope.querySelectorAll("[data-item='new_price'], [data-item='min_price']").forEach((input) => bindMoneyInput(input));
@@ -705,10 +738,12 @@ async function bindModalRows(ctx, modalEl, refs) {
   }
 }
 
-async function openEntityModal(ctx, doc, fields) {
+async function openEntityModal(ctx, doc, fields, options = {}) {
   const { api, openModal } = ctx;
   const lang = langOf();
   const isCreate = !doc?.id;
+  const mode = options.mode || (isCreate ? "edit" : "edit");
+  const isEditable = isCreate || mode === "edit";
 
   let refs;
   let draft;
@@ -754,10 +789,10 @@ async function openEntityModal(ctx, doc, fields) {
   }
 
   openModal({
-    title: isCreate ? text(lang, "create") : text(lang, "edit"),
+    title: isCreate ? text(lang, "create") : (isEditable ? text(lang, "edit") : text(lang, "view")),
     saveText: text(lang, "save"),
-    bodyHtml: modalHtml(lang, draft, refs, isCreate),
-    onSave: async (modalEl) => {
+    bodyHtml: modalHtml(lang, draft, refs, isCreate, isEditable),
+    onSave: isEditable ? async (modalEl) => {
       const payload = readModalForm(modalEl);
       validateDraft(lang, payload, fields);
 
@@ -776,13 +811,13 @@ async function openEntityModal(ctx, doc, fields) {
       }
 
       await render(ctx);
-    }
+    } : undefined
   });
 
   setTimeout(() => {
     const modals = document.querySelectorAll(".modal");
     const modalEl = modals[modals.length - 1];
-    if (modalEl) bindModalRows(ctx, modalEl, refs);
+    if (modalEl) bindModalRows(ctx, modalEl, refs, isEditable);
   }, 0);
 }
 
@@ -823,6 +858,7 @@ export async function render(ctx) {
   const canAdd = hasActionPermission(state, section.id, "add");
   const canChange = hasActionPermission(state, section.id, "change");
   const canPost = hasActionPermission(state, section.id, "post");
+  const canOpen = true;
   const hasToolbarActions = canAdd;
   const q = viewEl.getAttribute("data-q") || "";
 
@@ -875,7 +911,7 @@ export async function render(ctx) {
                 <th>${esc(text(lang, "status"))}</th>
                 <th>${esc(text(lang, "items"))}</th>
                 <th>${esc(text(lang, "comment"))}</th>
-                ${(canChange || canPost) ? `<th>${esc(text(lang, "actions"))}</th>` : ""}
+                ${canOpen || canChange || canPost ? `<th>${esc(text(lang, "actions"))}</th>` : ""}
               </tr>
             </thead>
             <tbody>
@@ -888,12 +924,15 @@ export async function render(ctx) {
                   <td>${statusBadge(lang, doc.status)}</td>
                   <td>${doc.items_count}</td>
                   <td>${esc(doc.comment || "-")}</td>
-                  ${(canChange || canPost) ? `
+                  ${(canOpen || canChange || canPost) ? `
                     <td>
                       <div class="d-flex gap-2 flex-wrap">
+                        ${canOpen ? `<button class="btn btn-sm btn-outline-secondary" data-open-doc="${doc.id}">${esc(text(lang, "open"))}</button>` : ""}
                         ${canChange && doc.status === "draft" ? `<button class="btn btn-sm btn-outline-primary" data-edit-doc="${doc.id}">${esc(text(lang, "edit"))}</button>` : ""}
                         ${canPost && doc.status === "draft" ? `<button class="btn btn-sm btn-outline-success" data-set-status="${doc.id}" data-status="posted">${esc(text(lang, "post"))}</button>` : ""}
+                        ${canPost && doc.status === "posted" ? `<button class="btn btn-sm btn-outline-warning" data-set-status="${doc.id}" data-status="draft">${esc(text(lang, "unpost"))}</button>` : ""}
                         ${canPost && doc.status === "posted" ? `<button class="btn btn-sm btn-outline-secondary" data-set-status="${doc.id}" data-status="cancelled">${esc(text(lang, "cancel"))}</button>` : ""}
+                        ${canPost && doc.status === "cancelled" ? `<button class="btn btn-sm btn-outline-success" data-set-status="${doc.id}" data-status="draft">${esc(text(lang, "restore"))}</button>` : ""}
                       </div>
                     </td>
                   ` : ""}
@@ -922,12 +961,20 @@ export async function render(ctx) {
     if (createTypeBtn) createTypeBtn.addEventListener("click", () => openPriceTypeModal(ctx));
   }
 
+  document.querySelectorAll("[data-open-doc]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = Number(btn.dataset.openDoc || 0);
+      const doc = docs.find((entry) => entry.id === id);
+      if (doc) openEntityModal(ctx, doc, fields, { mode: "view" });
+    });
+  });
+
   if (canChange) {
     document.querySelectorAll("[data-edit-doc]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = Number(btn.dataset.editDoc || 0);
         const doc = docs.find((entry) => entry.id === id);
-        if (doc) openEntityModal(ctx, doc, fields);
+        if (doc) openEntityModal(ctx, doc, fields, { mode: "edit" });
       });
     });
   }
