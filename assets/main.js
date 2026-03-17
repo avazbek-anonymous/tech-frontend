@@ -1,4 +1,4 @@
-import { API_BASE, I18N } from "./config.js";
+﻿import { API_BASE, I18N } from "./config.js";
 import { BUSINESS_ROLES, GEKTO_ROLES, LEVEL1_SECTIONS, LEVEL2_SECTIONS } from "./sections.js";
 
 const token = localStorage.getItem("tech_token") || "";
@@ -22,32 +22,7 @@ const state = {
   skipAutoCollapse: false
 };
 
-const SECTION_OVERRIDES = {
-  sales_dbkd: { label: { ru: "Продажи: Дт, Кт", uz: "Savdo: Dt, Kt", en: "Sales: Dt, Kt" } },
-  stock_income: { module: "/assets/pages/stock-docs.js" },
-  stock_list: { module: "/assets/pages/stock-docs.js" },
-  stock_dbkd: { module: "/assets/pages/stock-docs.js" },
-  stock_inventory: { module: "/assets/pages/stock-docs.js" },
-  hr_advances: { label: { ru: "HR: Авансы и Дт, Кт", uz: "HR: Avans va Dt, Kt", en: "HR: Advances and Dt, Kt" } },
-  counterparties_suppliers: { module: "/assets/pages/counterparties.js" },
-  counterparties_clients: { module: "/assets/pages/counterparties.js" },
-  counterparties_inspections: { module: "/assets/pages/counterparties.js" },
-  counterparties_employees: { module: "/assets/pages/counterparties.js" },
-  counterparties_other: { module: "/assets/pages/counterparties.js" },
-  nomenclature_categories: { module: "/assets/pages/nomenclature-categories.js" },
-  nomenclature_products: { module: "/assets/pages/nomenclature-products.js" },
-  prices_docs: { module: "/assets/pages/prices-docs.js" },
-  business_settings: { module: "/assets/pages/settings-business.js" },
-  settings_users: { module: "/assets/pages/settings-users.js" },
-  settings_roles: { module: "/assets/pages/roles.js" },
-  settings_filials: { module: "/assets/pages/settings-filials.js" },
-  settings_cash_accounts: { module: "/assets/pages/settings-cash-accounts.js" },
-  settings_warehouses: { module: "/assets/pages/settings-warehouses.js" },
-  settings_units: { module: "/assets/pages/settings-units.js" },
-  settings_product_types: { module: "/assets/pages/settings-product-types.js" },
-  settings_product_lookups: { module: "/assets/pages/settings-product-lookups.js" },
-  settings_currency: { module: "/assets/pages/settings-currency.js" }
-};
+const SECTION_OVERRIDES = {};
 
 function applySectionOverrides(sections) {
   return sections.map(section => {
@@ -588,17 +563,10 @@ async function bootstrap() {
     }
   }
 
-  if (state.roleScope === "business") {
-    try {
-      const settingsResp = await api("/business-settings/enabled-sections");
-      const allowed = new Set(settingsResp.section_ids || []);
-      state.sections = state.sections.filter(section => allowed.has(section.id));
-    } catch {}
-  }
-
   if (!state.sections.length) {
-    localStorage.removeItem("tech_token");
-    location.href = "/auth/login.html";
+    renderMenu();
+    paintControls();
+    document.getElementById("view").innerHTML = `<div class="alert alert-warning">${t("noAccess")}</div>`;
     return;
   }
 
