@@ -1,8 +1,8 @@
-export const API_BASE = "https://api.tech.gekto.uz";
+﻿export const API_BASE = "https://api.tech.gekto.uz";
 
 export const I18N = {
   ru: {
-    dashboard: "Главное",
+    dashboard: "Главная",
     businesses: "Бизнесы",
     reportsAccess: "Отчеты бизнесов",
     payments: "Оплаты",
@@ -14,8 +14,8 @@ export const I18N = {
     edit: "Редактировать",
     month: "Месяц",
     status: "Статус",
-    active: "Актив",
-    blocked: "Блок",
+    active: "Активный",
+    blocked: "Заблокирован",
     draft: "Черновик",
     posted: "Проведен",
     amount: "Сумма",

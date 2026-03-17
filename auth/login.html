@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ru" data-bs-theme="light">
 <head>
   <meta charset="utf-8" />
@@ -62,9 +62,9 @@
   <script>
     const API_BASE = "https://api.tech.gekto.uz";
     const I18N = {
-      ru: { subtitle: "Войдите, чтобы продолжить", submit: "Войти", err: "Ошибка", invalid: "Неверный логин или пароль" },
-      uz: { subtitle: "Davom etish uchun tizimga kiring", submit: "Kirish", err: "Xato", invalid: "Login yoki parol noto'g'ri" },
-      en: { subtitle: "Sign in to continue", submit: "Sign in", err: "Error", invalid: "Invalid login or password" }
+      ru: { subtitle: "Войдите, чтобы продолжить", submit: "Войти", err: "Ошибка", invalid: "Неверный логин или пароль", loading: "Вход..." },
+      uz: { subtitle: "Davom etish uchun tizimga kiring", submit: "Kirish", err: "Xato", invalid: "Login yoki parol noto'g'ri", loading: "Kirilmoqda..." },
+      en: { subtitle: "Sign in to continue", submit: "Sign in", err: "Error", invalid: "Invalid login or password", loading: "Signing in..." }
     };
 
     const html = document.documentElement;
@@ -112,7 +112,11 @@
     document.getElementById("loginForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const msgEl = document.getElementById("msg");
+      const submitBtn = document.getElementById("submitBtn");
       msgEl.textContent = "";
+      submitBtn.disabled = true;
+      const oldText = submitBtn.textContent;
+      submitBtn.textContent = t("loading");
       try {
         const r = await fetch(API_BASE + "/auth/login", {
           method: "POST",
@@ -128,9 +132,12 @@
           return;
         }
         localStorage.setItem("tech_token", data.token);
-        location.href = "/main.html";
+        location.href = "/dashboard";
       } catch (err) {
         msgEl.textContent = `${t("err")}: ${err?.message || err}`;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = oldText;
       }
     });
   </script>

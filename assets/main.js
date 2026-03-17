@@ -24,6 +24,22 @@ const state = {
 
 const SECTION_OVERRIDES = {};
 
+function normalizePathname(pathname = "/") {
+  const clean = String(pathname || "/").trim();
+  if (!clean || clean === "/") return "/";
+  return clean.endsWith("/") ? clean.slice(0, -1) || "/" : clean;
+}
+
+function sectionPath(sectionId) {
+  const section = state.sections.find((item) => item.id === sectionId);
+  return section?.path || `/${sectionId}`;
+}
+
+function findSectionByPath(pathname) {
+  const clean = normalizePathname(pathname);
+  return state.sections.find((section) => normalizePathname(section.path || `/${section.id}`) === clean) || null;
+}
+
 function applySectionOverrides(sections) {
   return sections.map(section => {
     const override = SECTION_OVERRIDES[section.id];
@@ -190,9 +206,11 @@ function openModal({ title, bodyHtml, saveText, onSave }) {
     if (hasSave) {
       const errEl = modalEl.querySelector("[data-err]");
       const saveBtn = modalEl.querySelector("[data-save]");
+      const baseHtml = saveBtn.innerHTML;
       saveBtn.addEventListener("click", async () => {
         errEl.textContent = "";
         saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
         try {
           await onSave(modalEl);
           modalEl.remove();
@@ -202,6 +220,7 @@ function openModal({ title, bodyHtml, saveText, onSave }) {
           errEl.textContent = String(e?.message || e);
         } finally {
           saveBtn.disabled = false;
+          saveBtn.innerHTML = baseHtml;
         }
       });
     }
@@ -211,10 +230,12 @@ function openModal({ title, bodyHtml, saveText, onSave }) {
   if (hasSave) {
     const errEl = modalEl.querySelector("[data-err]");
     const saveBtn = modalEl.querySelector("[data-save]");
+    const baseHtml = saveBtn.innerHTML;
 
     saveBtn.addEventListener("click", async () => {
       errEl.textContent = "";
       saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
       try {
         await onSave(modalEl);
         modal.hide();
@@ -222,6 +243,7 @@ function openModal({ title, bodyHtml, saveText, onSave }) {
         errEl.textContent = String(e?.message || e);
       } finally {
         saveBtn.disabled = false;
+        saveBtn.innerHTML = baseHtml;
       }
     });
   }
@@ -398,7 +420,7 @@ function renderFlatMenu(ul, perms) {
 
     const li = document.createElement("li");
     li.className = "nav-item";
-    li.innerHTML = `<a href="#${s.id}" class="nav-link ${state.activeSection === s.id ? "active" : ""}" data-menu-title="${esc(sectionLabel(s))}" aria-label="${esc(sectionLabel(s))}">
+    li.innerHTML = `<a href="${sectionPath(s.id)}" class="nav-link ${state.activeSection === s.id ? "active" : ""}" data-section-id="${s.id}" data-menu-title="${esc(sectionLabel(s))}" aria-label="${esc(sectionLabel(s))}">
       <i class="nav-icon bi ${s.icon}"></i><p>${esc(sectionLabel(s))}</p></a>`;
     ul.appendChild(li);
   }
@@ -427,7 +449,7 @@ function renderBusinessTreeMenu(ul, perms) {
       const single = root || children[0];
       const li = document.createElement("li");
       li.className = "nav-item";
-      li.innerHTML = `<a href="#${single.id}" class="nav-link ${state.activeSection === single.id ? "active" : ""}" data-menu-title="${esc(sectionLabel(single))}" aria-label="${esc(sectionLabel(single))}">
+      li.innerHTML = `<a href="${sectionPath(single.id)}" class="nav-link ${state.activeSection === single.id ? "active" : ""}" data-section-id="${single.id}" data-menu-title="${esc(sectionLabel(single))}" aria-label="${esc(sectionLabel(single))}">
         <i class="nav-icon bi ${single.icon}"></i><p>${esc(sectionLabel(single))}</p></a>`;
       ul.appendChild(li);
       continue;
@@ -445,7 +467,7 @@ function renderBusinessTreeMenu(ul, perms) {
 
     const li = document.createElement("li");
     li.className = `nav-item ${open ? "menu-open" : ""}`;
-    li.innerHTML = `<a href="${root ? `#${root.id}` : "#"}" class="nav-link ${parentActive ? "active" : ""}" data-menu-title="${esc(parentLabel)}" aria-label="${esc(parentLabel)}" data-parent-id="${esc(groupId)}"${root ? ` data-parent-section="${esc(root.id)}"` : ""}>
+    li.innerHTML = `<a href="${root ? sectionPath(root.id) : "#"}" class="nav-link ${parentActive ? "active" : ""}" data-menu-title="${esc(parentLabel)}" aria-label="${esc(parentLabel)}" data-parent-id="${esc(groupId)}"${root ? ` data-parent-section="${esc(root.id)}"` : ""}${root ? ` data-section-id="${esc(root.id)}"` : ""}>
       <i class="nav-icon bi ${parentIcon}"></i>
       <p><span class="menu-label">${esc(parentLabel)}</span><i class="nav-arrow bi bi-chevron-right"></i></p>
     </a>`;
@@ -458,7 +480,7 @@ function renderBusinessTreeMenu(ul, perms) {
       const childLi = document.createElement("li");
       childLi.className = "nav-item";
       const childText = childLabel(child, parentLabel, parentGroupLabel);
-      childLi.innerHTML = `<a href="#${child.id}" class="nav-link ${state.activeSection === child.id ? "active" : ""}" aria-label="${esc(childText)}">
+      childLi.innerHTML = `<a href="${sectionPath(child.id)}" class="nav-link ${state.activeSection === child.id ? "active" : ""}" data-section-id="${child.id}" aria-label="${esc(childText)}">
         <i class="nav-icon bi ${child.icon}"></i><p>${esc(childText)}</p></a>`;
       tree.appendChild(childLi);
     }
@@ -534,11 +556,29 @@ function getDefaultSectionId() {
   return firstAllowed ? firstAllowed.id : "";
 }
 
-function resolveSectionByHash() {
-  const hash = (location.hash || "").replace("#", "");
+function resolveSectionByPath() {
+  const matched = findSectionByPath(location.pathname);
   const perms = state.me ? accessFor(state.me.role) : {};
   const fallback = getDefaultSectionId();
-  return state.sections.find(s => s.id === hash) && perms[hash]?.read ? hash : fallback;
+  return matched && perms[matched.id]?.read ? matched.id : fallback;
+}
+
+function navigateToSection(sectionId, { replace = false, skipCollapse = false } = {}) {
+  if (!sectionId) return;
+  const nextPath = sectionPath(sectionId);
+  if (!nextPath) return;
+
+  state.skipAutoCollapse = skipCollapse;
+  if (normalizePathname(location.pathname) !== normalizePathname(nextPath)) {
+    const method = replace ? "replaceState" : "pushState";
+    window.history[method]({}, "", nextPath);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    return;
+  }
+
+  state.activeSection = sectionId;
+  renderMenu();
+  renderCurrent();
 }
 
 async function bootstrap() {
@@ -574,12 +614,15 @@ async function bootstrap() {
   document.querySelectorAll("[data-who-badge]").forEach(badge => {
     badge.textContent = whoText;
   });
-  state.activeSection = resolveSectionByHash();
+  state.activeSection = resolveSectionByPath();
   if (!state.activeSection) {
     renderMenu();
     paintControls();
     document.getElementById("view").innerHTML = `<div class="alert alert-danger">${t("noAccess")}</div>`;
     return;
+  }
+  if (normalizePathname(location.pathname) !== normalizePathname(sectionPath(state.activeSection))) {
+    window.history.replaceState({}, "", sectionPath(state.activeSection));
   }
 
   collapseAllParents();
@@ -590,13 +633,13 @@ async function bootstrap() {
   await renderCurrent();
 }
 
-window.addEventListener("hashchange", () => {
+window.addEventListener("popstate", () => {
   if (!state.sections.length) return;
   const skipAutoCollapse = state.skipAutoCollapse;
   const doCollapse = state.roleScope === "business" && !skipAutoCollapse;
   state.skipAutoCollapse = false;
   if (doCollapse) collapseAllParents();
-  state.activeSection = resolveSectionByHash();
+  state.activeSection = resolveSectionByPath();
   if (!state.activeSection) {
     renderMenu();
     document.getElementById("view").innerHTML = `<div class="alert alert-danger">${t("noAccess")}</div>`;
@@ -614,10 +657,16 @@ window.addEventListener("hashchange", () => {
 document.getElementById("menu").addEventListener("click", ev => {
   if (isCollapsedMiniDesktop()) destroyMenuTooltips();
 
-  const childLink = ev.target.closest(".nav-treeview .nav-link[href^='#']");
+  const childLink = ev.target.closest(".nav-treeview .nav-link[data-section-id]");
   if (childLink && isCollapsedMiniDesktop()) {
     state.skipAutoCollapse = true;
     ev.stopPropagation();
+  }
+
+  const sectionLink = ev.target.closest("a[data-section-id]");
+  if (sectionLink && !sectionLink.hasAttribute("data-parent-id")) {
+    ev.preventDefault();
+    navigateToSection(sectionLink.dataset.sectionId, { skipCollapse: !!childLink });
     return;
   }
 
@@ -641,14 +690,7 @@ document.getElementById("menu").addEventListener("click", ev => {
   }
 
   if (sectionId) {
-    state.skipAutoCollapse = true;
-    const nextHash = `#${sectionId}`;
-    if (location.hash !== nextHash) {
-      location.hash = sectionId;
-    } else {
-      state.activeSection = sectionId;
-      syncMenuAfterAnimation(true);
-    }
+    navigateToSection(sectionId, { skipCollapse: true });
   } else {
     syncMenuAfterAnimation(false);
   }
