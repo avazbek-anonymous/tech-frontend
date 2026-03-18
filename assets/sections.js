@@ -58,6 +58,7 @@ export const LEVEL2_SECTIONS = [
 
   { id: "dictionaries_units", path: "/dictionaries/units", icon: "bi-rulers", label: tr("Справочники: Ед. изм.", "Ma'lumotnomalar: O'lchov birligi", "Dictionaries: Units"), module: "/assets/pages/dictionaries-units.js", groupId: "dictionaries", group: GROUPS.DICTIONARIES },
   { id: "dictionaries_currencies", path: "/dictionaries/currencies", icon: "bi-currency-exchange", label: tr("Справочники: Валюты", "Ma'lumotnomalar: Valyutalar", "Dictionaries: Currencies"), module: "/assets/pages/dictionaries-currencies.js", groupId: "dictionaries", group: GROUPS.DICTIONARIES },
+  { id: "dictionaries_price_types", path: "/dictionaries/price-types", icon: "bi-tag", label: tr("Справочники: Виды цен", "Ma'lumotnomalar: Narx turlari", "Dictionaries: Price types"), module: "/assets/pages/dictionaries-price-types.js", groupId: "dictionaries", group: GROUPS.DICTIONARIES },
   { id: "dictionaries_counterparty_roles", path: "/dictionaries/counterparty-roles", icon: "bi-diagram-2", label: tr("Справочники: Прочие роли контрагентов", "Ma'lumotnomalar: Kontragent rollari", "Dictionaries: Counterparty extra roles"), module: "/assets/pages/dictionaries-extra-roles.js", groupId: "dictionaries", group: GROUPS.DICTIONARIES },
   { id: "dictionaries_static", path: "/dictionaries/static", icon: "bi-geo-alt", label: tr("Справочники: Статичные", "Ma'lumotnomalar: Statik", "Dictionaries: Static"), module: "/assets/pages/dictionaries-static.js", groupId: "dictionaries", group: GROUPS.DICTIONARIES },
 

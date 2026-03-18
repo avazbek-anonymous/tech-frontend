@@ -168,7 +168,7 @@ function page(titleKey, sub = "", opts = {}) {
   document.title = `GEKTO Tech - ${title}`;
 }
 
-function openModal({ title, bodyHtml, saveText, onSave }) {
+function openModal({ title, bodyHtml, saveText, onSave, onMount }) {
   const hasSave = typeof onSave === "function";
   const host = document.createElement("div");
   host.innerHTML = `
@@ -190,6 +190,7 @@ function openModal({ title, bodyHtml, saveText, onSave }) {
     </div>`;
   const modalEl = host.firstElementChild;
   document.body.appendChild(modalEl);
+  if (typeof onMount === "function") onMount(modalEl);
   const ModalCtor = window.bootstrap && window.bootstrap.Modal ? window.bootstrap.Modal : null;
   if (!ModalCtor) {
     modalEl.classList.add("show");

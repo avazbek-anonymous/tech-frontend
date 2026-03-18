@@ -82,12 +82,14 @@ export async function render(ctx) {
 
   viewEl.innerHTML = `
     <div class="card entity-toolbar-card mb-3"><div class="card-body">
-      <div class="row g-2 align-items-end">
-        <div class="col-12 col-md-5">
-          <label class="form-label">Поиск</label>
-          <input id="users_q" class="form-control" value="${esc(filters.q)}">
+      <div class="entity-toolbar-shell">
+        <div class="entity-toolbar-main">
+          <div class="entity-toolbar-item entity-toolbar-search">
+            <label class="form-label">Поиск</label>
+            <input id="users_q" class="form-control" value="${esc(filters.q)}">
+          </div>
         </div>
-        ${canWrite ? `<div class="col-12 col-md-3 d-grid"><button id="users_create" class="btn btn-primary">Создать</button></div>` : `<div class="col-12 col-md-3"></div>`}
+        ${canWrite ? `<div class="entity-toolbar-actions"><button id="users_create" class="btn btn-primary entity-toolbar-btn">Создать</button></div>` : ``}
       </div>
     </div></div>
 

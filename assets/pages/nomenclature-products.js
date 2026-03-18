@@ -95,10 +95,12 @@ export async function render(ctx) {
 
   viewEl.innerHTML = `
     <div class="card entity-toolbar-card mb-3"><div class="card-body">
-      <div class="row g-2 align-items-end">
-        <div class="col-12 col-md-4"><label class="form-label">Поиск</label><input id="prod_q" class="form-control" value="${esc(filters.q)}"></div>
-        <div class="col-12 col-md-3"><label class="form-label">Филиал</label><select id="prod_filial" class="form-select">${selectOptions(filials, filters.filial_id, "Выбрать")}</select></div>
-        ${canWrite ? `<div class="col-12 col-md-3 d-grid"><button id="prod_create" class="btn btn-primary">Создать</button></div>` : `<div class="col-12 col-md-3"></div>`}
+      <div class="entity-toolbar-shell">
+        <div class="entity-toolbar-main">
+          <div class="entity-toolbar-item entity-toolbar-search"><label class="form-label">Поиск</label><input id="prod_q" class="form-control" value="${esc(filters.q)}"></div>
+          <div class="entity-toolbar-item"><label class="form-label">Филиал</label><select id="prod_filial" class="form-select">${selectOptions(filials, filters.filial_id, "Выбрать")}</select></div>
+        </div>
+        ${canWrite ? `<div class="entity-toolbar-actions"><button id="prod_create" class="btn btn-primary entity-toolbar-btn">Создать</button></div>` : ``}
       </div>
     </div></div>
 

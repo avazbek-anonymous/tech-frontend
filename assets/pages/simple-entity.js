@@ -1,4 +1,4 @@
-﻿import { activeBadge, bindPager, boolSelect, fg, pagerHtml, queueRender, safeNumber, sectionTitle, tr } from "./mvp-utils.js";
+import { activeBadge, bindPager, boolSelect, fg, pagerHtml, queueRender, safeNumber, sectionTitle, tr } from "./mvp-utils.js";
 
 function esc(v) {
   return String(v ?? "")
@@ -10,6 +10,19 @@ function esc(v) {
 
 function renderField(field, item = {}) {
   const value = item[field.name];
+  if (field.type === "select") {
+    const options = Array.isArray(field.options) ? field.options : [];
+    return fg(field.label, `
+      <select name="${field.name}" class="form-select">
+        ${options.map((option) => {
+          const optionValue = String(option?.value ?? "");
+          const optionLabel = String(option?.label ?? optionValue);
+          const selectedValue = String(value ?? field.defaultValue ?? "");
+          return `<option value="${esc(optionValue)}" ${selectedValue === optionValue ? "selected" : ""}>${esc(optionLabel)}</option>`;
+        }).join("")}
+      </select>
+    `);
+  }
   if (field.type === "bool") {
     return fg(field.label, boolSelect(field.name, Number(value ?? field.defaultValue ?? 1)));
   }
@@ -22,8 +35,52 @@ function renderField(field, item = {}) {
 function readField(root, field) {
   const el = root.querySelector(`[name="${field.name}"]`);
   if (!el) return field.defaultValue ?? null;
+  if (field.type === "select") {
+    if (field.valueType === "number") return Number(el.value || field.defaultValue || 0);
+    return el.value;
+  }
   if (field.type === "bool" || field.type === "number") return Number(el.value || field.defaultValue || 0);
   return el.value.trim();
+}
+
+function filterInputId(name) {
+  return `simple_filter_${name}`;
+}
+
+function filterQueryParam(filter) {
+  return filter.queryParam || filter.name;
+}
+
+function renderToolbarFilter(filter, value) {
+  const inputId = filterInputId(filter.name);
+  const label = filter.label || filter.name;
+  if (filter.type === "select") {
+    const options = Array.isArray(filter.options) ? filter.options : [];
+    const optionHtml = options.map((option) => {
+      const optValue = String(option?.value ?? "");
+      const optLabel = String(option?.label ?? optValue);
+      return `<option value="${esc(optValue)}" ${String(value ?? "") === optValue ? "selected" : ""}>${esc(optLabel)}</option>`;
+    }).join("");
+    return `
+      <div class="entity-toolbar-item entity-toolbar-filter">
+        <label class="form-label" for="${inputId}">${esc(label)}</label>
+        <select class="form-select" id="${inputId}">${optionHtml}</select>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="entity-toolbar-item entity-toolbar-filter">
+      <label class="form-label" for="${inputId}">${esc(label)}</label>
+      <input class="form-control" id="${inputId}" value="${esc(value ?? "")}">
+    </div>
+  `;
+}
+
+function readToolbarFilter(viewEl, filter) {
+  const el = viewEl.querySelector(`#${filterInputId(filter.name)}`);
+  if (!el) return filter.defaultValue ?? "";
+  return String(el.value ?? "").trim();
 }
 
 export async function renderSimpleEntity(ctx, cfg) {
@@ -32,16 +89,26 @@ export async function renderSimpleEntity(ctx, cfg) {
   page(title, "", { raw: true });
 
   const canWrite = cfg.canWrite ? cfg.canWrite(ctx) : true;
+  const filtersCfg = Array.isArray(cfg.filters) ? cfg.filters : [];
   const state = {
     q: viewEl.dataset.q || "",
     page: Number(viewEl.dataset.page || 1),
     page_size: Number(viewEl.dataset.page_size || 50),
   };
+  for (const filter of filtersCfg) {
+    state[filter.name] = viewEl.dataset[filter.name] ?? filter.defaultValue ?? "";
+  }
 
   const qs = new URLSearchParams();
   if (state.q) qs.set("q", state.q);
   qs.set("page", String(state.page));
   qs.set("page_size", String(state.page_size));
+  for (const filter of filtersCfg) {
+    const value = state[filter.name];
+    if (value !== undefined && value !== null && String(value) !== "") {
+      qs.set(filterQueryParam(filter), String(value));
+    }
+  }
 
   const data = await api(`${cfg.endpoint}?${qs.toString()}`);
   const items = data.items || [];
@@ -49,12 +116,19 @@ export async function renderSimpleEntity(ctx, cfg) {
 
   viewEl.innerHTML = `
     <div class="card entity-toolbar-card mb-3"><div class="card-body">
-      <div class="row g-2 align-items-end">
-        <div class="col-12 col-md-5">
-          <label class="form-label">${tr({ ru: "Поиск", uz: "Qidiruv", en: "Search" })}</label>
-          <input class="form-control" id="simple_q" value="${esc(state.q)}">
+      <div class="entity-toolbar-shell">
+        <div class="entity-toolbar-main">
+          <div class="entity-toolbar-item entity-toolbar-search">
+            <label class="form-label" for="simple_q">${tr({ ru: "Поиск", uz: "Qidiruv", en: "Search" })}</label>
+            <input class="form-control" id="simple_q" value="${esc(state.q)}">
+          </div>
+          ${filtersCfg.map((filter) => renderToolbarFilter(filter, state[filter.name])).join("")}
         </div>
-        ${canWrite ? `<div class="col-12 col-md-3 d-grid"><button class="btn btn-primary" id="simple_create">${tr({ ru: "Создать", uz: "Yaratish", en: "Create" })}</button></div>` : `<div class="col-12 col-md-3"></div>`}
+        ${canWrite ? `
+          <div class="entity-toolbar-actions">
+            <button class="btn btn-primary entity-toolbar-btn" id="simple_create">${tr({ ru: "Создать", uz: "Yaratish", en: "Create" })}</button>
+          </div>
+        ` : ""}
       </div>
     </div></div>
 
@@ -98,6 +172,24 @@ export async function renderSimpleEntity(ctx, cfg) {
       renderSimpleEntity(ctx, cfg);
     });
   });
+
+  for (const filter of filtersCfg) {
+    const el = viewEl.querySelector(`#${filterInputId(filter.name)}`);
+    if (!el) continue;
+    const eventName = filter.type === "select" ? "change" : "input";
+    el.addEventListener(eventName, () => {
+      viewEl.dataset[filter.name] = readToolbarFilter(viewEl, filter);
+      const rerender = () => {
+        viewEl.dataset.page = "1";
+        renderSimpleEntity(ctx, cfg);
+      };
+      if (eventName === "input") {
+        queueRender(viewEl, `__simpleFilterTimer_${filter.name}`, rerender);
+      } else {
+        rerender();
+      }
+    });
+  }
 
   bindPager(viewEl, pagination, ({ page, page_size }) => {
     viewEl.dataset.page = String(page);
