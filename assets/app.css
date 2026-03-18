@@ -487,8 +487,7 @@ body {
 }
 
 .price-doc-lines-body {
-  display: grid;
-  gap: 0.75rem;
+  overflow: auto;
 }
 
 .price-doc-lines-empty {
@@ -499,18 +498,63 @@ body {
   background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--gekto-brand) 8%);
 }
 
-.price-doc-line-row {
-  border: 1px solid rgba(var(--bs-body-color-rgb), 0.14);
+.price-doc-matrix-wrap {
+  overflow: auto;
+  border: 1px solid rgba(var(--bs-body-color-rgb), 0.12);
   border-radius: 0.7rem;
-  padding: 0.8rem;
-  background: color-mix(in srgb, var(--bs-body-bg) 96%, var(--gekto-brand) 4%);
 }
 
-.price-doc-line-grid {
+.price-doc-matrix-table {
+  min-width: 980px;
+}
+
+.price-doc-matrix-table thead th {
+  vertical-align: middle;
+  text-align: center;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--gekto-brand) 8%);
+}
+
+.price-doc-target-col,
+.price-doc-target-cell {
+  min-width: 220px;
+  width: 220px;
+}
+
+.price-doc-price-col,
+.price-doc-price-cell {
+  min-width: 210px;
+}
+
+.price-doc-remove-col,
+.price-doc-remove-cell {
+  width: 64px;
+  min-width: 64px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.price-doc-cell-stack {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.1fr) minmax(120px, 0.72fr) minmax(120px, 0.72fr) minmax(110px, 0.62fr) auto;
-  gap: 0.75rem;
-  align-items: end;
+  gap: 0.45rem;
+}
+
+.price-doc-cell-block {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.price-doc-cell-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(var(--bs-body-color-rgb), 0.72);
+}
+
+.price-doc-remove-btn {
+  min-width: 2.5rem;
+  padding-left: 0.55rem;
+  padding-right: 0.55rem;
 }
 
 .price-doc-delta {
@@ -633,17 +677,8 @@ body {
     flex: 1 1 calc(50% - 0.25rem);
   }
 
-  .price-doc-line-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .price-doc-line-remove-wrap {
-    grid-column: 1 / -1;
-    justify-content: stretch;
-  }
-
-  .price-doc-line-remove-wrap .btn {
-    width: 100%;
+  .price-doc-lines-card {
+    padding: 0.72rem;
   }
 }
 
@@ -663,8 +698,12 @@ body {
     max-width: 100%;
   }
 
-  .price-doc-line-grid {
-    grid-template-columns: minmax(0, 1fr);
+  .price-doc-lines-head {
+    align-items: stretch;
+  }
+
+  .price-doc-lines-head .btn {
+    width: 100%;
   }
 }
 

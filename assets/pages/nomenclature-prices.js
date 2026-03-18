@@ -24,6 +24,10 @@ function scopeLabel(scope) {
   return String(scope || "products") === "categories" ? "Категории" : "Товары";
 }
 
+function targetLabel(scope) {
+  return String(scope || "products") === "categories" ? "Категория" : "Товар";
+}
+
 function buildCategoryPathMap(items) {
   const byId = new Map((items || []).map((item) => [Number(item.id), item]));
   const memo = new Map();
@@ -40,6 +44,24 @@ function buildCategoryPathMap(items) {
   return { pathOf };
 }
 
+function buildCurrentProductPriceMap(items) {
+  const map = new Map();
+  for (const row of items || []) {
+    map.set(`${Number(row.product_id)}:${Number(row.price_type_id)}`, Number(row.price || 0));
+  }
+  return map;
+}
+
+function buildCellState(oldPrice = 0, newPrice = oldPrice) {
+  const oldValue = Number(oldPrice || 0);
+  const newValue = Number(newPrice ?? oldValue);
+  return {
+    old_price: oldValue,
+    new_price: newValue,
+    delta: newValue - oldValue,
+  };
+}
+
 function targetOptionsHtml(refs, scope, selectedId) {
   if (scope === "categories") {
     return [`<option value="">Выбрать категорию</option>`]
@@ -51,48 +73,101 @@ function targetOptionsHtml(refs, scope, selectedId) {
     .join("");
 }
 
-function priceTypeOptionsHtml(refs, selectedId) {
-  return [`<option value="">Выбрать вид цены</option>`]
-    .concat((refs.priceTypes || []).map((item) => `<option value="${item.id}" ${Number(item.id) === Number(selectedId || 0) ? "selected" : ""}>${esc(item.currency_symbol ? `${item.name} (${item.currency_symbol})` : item.name)}</option>`))
-    .join("");
+function buildMatrixRow(refs, scope, targetId = 0, overlay = null) {
+  const safeTargetId = Number(targetId || 0);
+  const row = {
+    target_id: safeTargetId,
+    prices: {},
+  };
+
+  for (const priceType of refs.priceTypes || []) {
+    let oldPrice = 0;
+    if (scope === "products" && safeTargetId > 0) {
+      oldPrice = refs.currentProductPriceMap.get(`${safeTargetId}:${Number(priceType.id)}`) ?? 0;
+    }
+    row.prices[String(priceType.id)] = buildCellState(oldPrice, oldPrice);
+  }
+
+  if (overlay && typeof overlay === "object") {
+    for (const [priceTypeId, cell] of Object.entries(overlay)) {
+      row.prices[String(priceTypeId)] = buildCellState(cell.old_price, cell.new_price);
+    }
+  }
+
+  return row;
 }
 
-function docLineRowHtml(refs, scope, line = {}, index = 0, fmt = (n) => String(n)) {
-  const oldPrice = Number(line.old_price || 0);
-  const newPrice = Number(line.new_price || 0);
-  const delta = Number(line.delta ?? (newPrice - oldPrice));
-  const deltaClass = delta > 0 ? "text-success" : (delta < 0 ? "text-danger" : "text-muted");
-  const deltaText = delta > 0 ? `+${fmt(delta)}` : fmt(delta);
-  const currencyLabel = line.currency_symbol || line.currency_name || "";
+function buildRowsFromDoc(refs, doc = {}, scope = "products") {
+  const grouped = new Map();
+  for (const line of doc.lines || []) {
+    const key = Number(line.target_id || 0);
+    if (!key) continue;
+    if (!grouped.has(key)) grouped.set(key, {});
+    grouped.get(key)[String(line.price_type_id)] = {
+      old_price: Number(line.old_price || 0),
+      new_price: Number(line.new_price || 0),
+    };
+  }
+  return Array.from(grouped.entries()).map(([targetId, overlay]) => buildMatrixRow(refs, scope, targetId, overlay));
+}
+
+function deltaClass(delta) {
+  return delta > 0 ? "text-success" : (delta < 0 ? "text-danger" : "text-muted");
+}
+
+function deltaText(delta, fmt) {
+  return delta > 0 ? `+${fmt(delta)}` : fmt(delta);
+}
+
+function renderMatrixTable(refs, state, fmt = (n) => String(n)) {
+  if (!state.rows.length) {
+    return '<div class="price-doc-lines-empty">Строк пока нет. Добавь товар или категорию, а потом заполни новые цены по нужным видам цен.</div>';
+  }
 
   return `
-    <div class="price-doc-line-row" data-line-row data-line-index="${index}">
-      <div class="price-doc-line-grid">
-        <div>
-          <label class="form-label">${scope === "categories" ? "Категория" : "Товар"}</label>
-          <select class="form-select" data-line-field="target_id">${targetOptionsHtml(refs, scope, line.target_id)}</select>
-        </div>
-        <div>
-          <label class="form-label">Вид цены</label>
-          <select class="form-select" data-line-field="price_type_id">${priceTypeOptionsHtml(refs, line.price_type_id)}</select>
-        </div>
-        <div>
-          <label class="form-label">Старая цена</label>
-          <input class="form-control" value="${esc(fmt(oldPrice))}" readonly>
-        </div>
-        <div>
-          <label class="form-label">Новая цена</label>
-          <input class="form-control" type="number" min="0" step="0.01" data-line-field="new_price" value="${Number.isFinite(newPrice) ? newPrice : 0}">
-        </div>
-        <div>
-          <label class="form-label">Разница</label>
-          <div class="price-doc-delta ${deltaClass}">${esc(deltaText)}</div>
-          ${currencyLabel ? `<div class="small text-muted mt-1">${esc(currencyLabel)}</div>` : ""}
-        </div>
-        <div class="price-doc-line-remove-wrap">
-          <button type="button" class="btn btn-outline-danger" data-line-remove>Убрать</button>
-        </div>
-      </div>
+    <div class="price-doc-matrix-wrap">
+      <table class="table table-bordered align-middle price-doc-matrix-table mb-0">
+        <thead>
+          <tr>
+            <th class="price-doc-target-col">${targetLabel(state.scope)}</th>
+            ${(refs.priceTypes || []).map((priceType) => `<th class="price-doc-price-col">${esc(priceType.name)}</th>`).join("")}
+            <th class="price-doc-remove-col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${state.rows.map((row, rowIndex) => `
+            <tr data-matrix-row data-row-index="${rowIndex}">
+              <td class="price-doc-target-cell">
+                <select class="form-select" data-target-select>${targetOptionsHtml(refs, state.scope, row.target_id)}</select>
+              </td>
+              ${(refs.priceTypes || []).map((priceType) => {
+                const cell = row.prices[String(priceType.id)] || buildCellState(0, 0);
+                return `
+                  <td class="price-doc-price-cell" data-price-cell="${priceType.id}">
+                    <div class="price-doc-cell-stack">
+                      <div class="price-doc-cell-block">
+                        <div class="price-doc-cell-label">Старая</div>
+                        <input class="form-control" value="${esc(fmt(cell.old_price || 0))}" readonly>
+                      </div>
+                      <div class="price-doc-cell-block">
+                        <div class="price-doc-cell-label">Новая</div>
+                        <input class="form-control" type="number" min="0" step="0.01" data-new-price="${priceType.id}" value="${Number.isFinite(cell.new_price) ? cell.new_price : 0}">
+                      </div>
+                      <div class="price-doc-cell-block">
+                        <div class="price-doc-cell-label">Разница</div>
+                        <div class="price-doc-delta ${deltaClass(Number(cell.delta || 0))}" data-delta>${esc(deltaText(Number(cell.delta || 0), fmt))}</div>
+                      </div>
+                    </div>
+                  </td>
+                `;
+              }).join("")}
+              <td class="price-doc-remove-cell">
+                <button type="button" class="btn btn-outline-danger price-doc-remove-btn" data-row-remove>x</button>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
     </div>
   `;
 }
@@ -124,9 +199,9 @@ function docModalHtml(doc = {}) {
       <div class="price-doc-lines-head">
         <div>
           <div class="fw-semibold">Табличная часть</div>
-          <div class="small text-muted">Для первого релиза <code>v4.2</code> каждая строка хранится как связка объект + вид цены.</div>
+          <div class="small text-muted">Строка = товар или категория. Виды цен идут отдельными колонками, чтобы можно было сразу заполнить несколько цен по одному объекту.</div>
         </div>
-        <button type="button" class="btn btn-outline-primary" data-add-line>Добавить строку</button>
+        <button type="button" class="btn btn-outline-primary" data-add-row>Добавить строку</button>
       </div>
       <div class="price-doc-lines-body" data-lines-host></div>
     </div>
@@ -135,24 +210,25 @@ function docModalHtml(doc = {}) {
 
 function collectDocPayload(modalEl) {
   const get = (selector) => modalEl.querySelector(selector);
-  const state = modalEl.__priceDocState || { scope: "products", lines: [] };
-  const seen = new Set();
-  const lines = state.lines
-    .map((line) => ({
-      target_kind: state.scope === "categories" ? "category" : "product",
-      target_id: Number(line.target_id || 0),
-      price_type_id: Number(line.price_type_id || 0),
-      new_price: Number(line.new_price || 0),
-      old_price: Number(line.old_price || 0),
-      sort_order: Number(line.sort_order || 0),
-    }))
-    .filter((line) => line.target_id > 0 && line.price_type_id > 0)
-    .map((line, idx) => ({ ...line, sort_order: idx + 1 }));
+  const state = modalEl.__priceDocState || { scope: "products", rows: [] };
+  const lines = [];
 
-  for (const line of lines) {
-    const key = `${line.target_kind}:${line.target_id}:${line.price_type_id}`;
-    if (seen.has(key)) throw new Error("Повторяющиеся строки по объекту и виду цены не допускаются");
-    seen.add(key);
+  for (const row of state.rows || []) {
+    const targetId = Number(row.target_id || 0);
+    if (!targetId) continue;
+    for (const [priceTypeId, cell] of Object.entries(row.prices || {})) {
+      const oldPrice = Number(cell.old_price || 0);
+      const newPrice = Number(cell.new_price || 0);
+      if (Math.abs(newPrice - oldPrice) < 0.0000001) continue;
+      lines.push({
+        target_kind: state.scope === "categories" ? "category" : "product",
+        target_id: targetId,
+        price_type_id: Number(priceTypeId),
+        old_price: oldPrice,
+        new_price: newPrice,
+        sort_order: lines.length + 1,
+      });
+    }
   }
 
   return {
@@ -164,74 +240,51 @@ function collectDocPayload(modalEl) {
 }
 
 function mountDocEditor(modalEl, refs, doc = {}, fmt = (n) => String(n)) {
+  const initialScope = String(doc.target_scope || "products") === "categories" ? "categories" : "products";
+  const initialRows = buildRowsFromDoc(refs, doc, initialScope);
   const state = {
-    scope: String(doc.target_scope || "products"),
-    lines: Array.isArray(doc.lines) && doc.lines.length
-      ? doc.lines.map((line, idx) => ({
-          target_id: Number(line.target_id || 0),
-          price_type_id: Number(line.price_type_id || 0),
-          old_price: Number(line.old_price || 0),
-          new_price: Number(line.new_price || 0),
-          delta: Number(line.delta || 0),
-          currency_symbol: line.currency_symbol || "",
-          currency_name: line.currency_name || "",
-          sort_order: idx + 1,
-        }))
-      : [],
+    scope: initialScope,
+    rows: initialRows,
   };
   modalEl.__priceDocState = state;
 
   const scopeEl = modalEl.querySelector("[name='target_scope']");
   const linesHost = modalEl.querySelector("[data-lines-host]");
-  const addBtn = modalEl.querySelector("[data-add-line]");
+  const addRowBtn = modalEl.querySelector("[data-add-row]");
 
-  const syncLineMeta = (line) => {
-    const priceType = (refs.priceTypes || []).find((item) => Number(item.id) === Number(line.price_type_id));
-    line.currency_symbol = priceType?.currency_symbol || "";
-    line.currency_name = priceType?.currency_name || "";
-    line.delta = Number(line.new_price || 0) - Number(line.old_price || 0);
+  const paintDeltaCell = (inputEl, cell) => {
+    const deltaEl = inputEl.closest("[data-price-cell]")?.querySelector("[data-delta]");
+    if (!deltaEl) return;
+    const delta = Number(cell.delta || 0);
+    deltaEl.classList.remove("text-success", "text-danger", "text-muted");
+    deltaEl.classList.add(deltaClass(delta));
+    deltaEl.textContent = deltaText(delta, fmt);
   };
 
-  const paintDelta = (rowEl, line) => {
-    syncLineMeta(line);
-    const deltaEl = rowEl.querySelector(".price-doc-delta");
-    if (deltaEl) {
-      const delta = Number(line.delta || 0);
-      deltaEl.classList.remove("text-success", "text-danger", "text-muted");
-      deltaEl.classList.add(delta > 0 ? "text-success" : (delta < 0 ? "text-danger" : "text-muted"));
-      deltaEl.textContent = delta > 0 ? `+${fmt(delta)}` : fmt(delta);
-    }
-  };
+  const renderRows = () => {
+    linesHost.innerHTML = renderMatrixTable(refs, state, fmt);
 
-  const renderLines = () => {
-    if (!state.lines.length) {
-      linesHost.innerHTML = '<div class="price-doc-lines-empty">Строк пока нет. Добавь товары или категории и нужные виды цен.</div>';
-      return;
-    }
-    linesHost.innerHTML = state.lines.map((line, index) => {
-      syncLineMeta(line);
-      return docLineRowHtml(refs, state.scope, { ...line, sort_order: index + 1 }, index, fmt);
-    }).join("");
+    linesHost.querySelectorAll("[data-matrix-row]").forEach((rowEl) => {
+      const rowIndex = Number(rowEl.getAttribute("data-row-index") || 0);
+      rowEl.querySelector("[data-target-select]")?.addEventListener("change", (ev) => {
+        state.rows[rowIndex] = buildMatrixRow(refs, state.scope, Number(ev.target.value || 0));
+        renderRows();
+      });
 
-    linesHost.querySelectorAll("[data-line-row]").forEach((rowEl) => {
-      const rowIndex = Number(rowEl.getAttribute("data-line-index") || 0);
-      rowEl.querySelectorAll("[data-line-field]").forEach((fieldEl) => {
-        const fieldName = fieldEl.getAttribute("data-line-field");
-        if (fieldName === "new_price") {
-          fieldEl.addEventListener("input", () => {
-            state.lines[rowIndex].new_price = Number(fieldEl.value || 0);
-            paintDelta(rowEl, state.lines[rowIndex]);
-          });
-          return;
-        }
-        fieldEl.addEventListener("change", () => {
-          state.lines[rowIndex][fieldName] = Number(fieldEl.value || 0);
-          renderLines();
+      rowEl.querySelectorAll("[data-new-price]").forEach((inputEl) => {
+        inputEl.addEventListener("input", () => {
+          const priceTypeId = String(inputEl.getAttribute("data-new-price") || "");
+          const cell = state.rows[rowIndex].prices[priceTypeId] || buildCellState(0, 0);
+          cell.new_price = Number(inputEl.value || 0);
+          cell.delta = Number(cell.new_price || 0) - Number(cell.old_price || 0);
+          state.rows[rowIndex].prices[priceTypeId] = cell;
+          paintDeltaCell(inputEl, cell);
         });
       });
-      rowEl.querySelector("[data-line-remove]")?.addEventListener("click", () => {
-        state.lines.splice(rowIndex, 1);
-        renderLines();
+
+      rowEl.querySelector("[data-row-remove]")?.addEventListener("click", () => {
+        state.rows.splice(rowIndex, 1);
+        renderRows();
       });
     });
   };
@@ -239,16 +292,16 @@ function mountDocEditor(modalEl, refs, doc = {}, fmt = (n) => String(n)) {
   scopeEl?.addEventListener("change", () => {
     state.scope = scopeEl.value === "categories" ? "categories" : "products";
     modalEl.__priceDocState.scope = state.scope;
-    state.lines = state.lines.map((line) => ({ ...line, target_id: 0 }));
-    renderLines();
+    state.rows = state.rows.map(() => buildMatrixRow(refs, state.scope, 0));
+    renderRows();
   });
 
-  addBtn?.addEventListener("click", () => {
-    state.lines.push({ target_id: 0, price_type_id: 0, old_price: 0, new_price: 0, delta: 0, sort_order: state.lines.length + 1 });
-    renderLines();
+  addRowBtn?.addEventListener("click", () => {
+    state.rows.push(buildMatrixRow(refs, state.scope, 0));
+    renderRows();
   });
 
-  renderLines();
+  renderRows();
 }
 
 function actionButtonHtml(item, canWrite) {
@@ -283,20 +336,24 @@ export async function render(ctx) {
   if (filters.q) qs.set("q", filters.q);
   if (filters.status) qs.set("status", filters.status);
 
-  const [listResp, priceTypesResp, productsResp, categoriesResp] = await Promise.all([
+  const [listResp, priceTypesResp, productsResp, categoriesResp, metaResp] = await Promise.all([
     api(`/prices?${qs.toString()}`),
     api("/price-types?page=1&page_size=100"),
     api("/products?page=1&page_size=1000"),
     api("/categories?all=1"),
+    api("/prices/meta"),
   ]);
 
   const items = listResp.items || [];
   const pagination = listResp.pagination || { page: 1, pages: 1, total: items.length, page_size: filters.page_size };
   const categoryPath = buildCategoryPathMap(categoriesResp.items || []);
   const refs = {
-    priceTypes: priceTypesResp.items || [],
+    priceTypes: (priceTypesResp.items || [])
+      .filter((item) => Number(item.is_active) === 1)
+      .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || Number(a.id || 0) - Number(b.id || 0)),
     products: (productsResp.items || []).map((item) => ({ id: item.id, name: item.name })),
     categories: (categoriesResp.items || []).map((item) => ({ ...item, path: categoryPath.pathOf(item.id) || item.name })),
+    currentProductPriceMap: buildCurrentProductPriceMap(metaResp.current_product_prices || []),
   };
 
   viewEl.innerHTML = `
@@ -318,7 +375,7 @@ export async function render(ctx) {
         </div>
         ${canWrite ? `<div class="entity-toolbar-actions"><button id="prices_create" class="btn btn-primary entity-toolbar-btn" ${refs.priceTypes.length ? "" : "disabled"}>Создать</button></div>` : ""}
       </div>
-      ${refs.priceTypes.length ? "" : '<div class="alert alert-warning mt-3 mb-0">Сначала создай хотя бы один вид цены в справочнике, потом можно оформлять документ установки цен.</div>'}
+      ${refs.priceTypes.length ? "" : '<div class="alert alert-warning mt-3 mb-0">Сначала создай хотя бы один активный вид цены в справочнике, потом можно оформлять документ установки цен.</div>'}
     </div></div>
 
     <div class="card d-none d-lg-block"><div class="card-body table-wrap">
@@ -392,7 +449,7 @@ export async function render(ctx) {
       onMount: (modalEl) => mountDocEditor(modalEl, refs, doc, ctx.fmt),
       onSave: async (modalEl) => {
         const payload = collectDocPayload(modalEl);
-        if (!payload.lines.length) throw new Error("Добавь хотя бы одну строку");
+        if (!payload.lines.length) throw new Error("Заполни хотя бы одну новую цену");
         if (doc.id) {
           await api(`/prices/${doc.id}`, {
             method: "PATCH",
