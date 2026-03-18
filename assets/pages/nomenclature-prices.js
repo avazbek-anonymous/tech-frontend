@@ -124,7 +124,7 @@ function docModalHtml(doc = {}) {
       <div class="price-doc-lines-head">
         <div>
           <div class="fw-semibold">Табличная часть</div>
-          <div class="small text-muted">Для первого релиза `v4.2` каждая строка хранится как связка объект + вид цены.</div>
+          <div class="small text-muted">Для первого релиза <code>v4.2</code> каждая строка хранится как связка объект + вид цены.</div>
         </div>
         <button type="button" class="btn btn-outline-primary" data-add-line>Добавить строку</button>
       </div>
