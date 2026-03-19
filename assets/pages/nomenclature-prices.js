@@ -93,6 +93,27 @@ function buildCellState(oldPrice = 0, newPrice = oldPrice) {
   };
 }
 
+function currencyRateValue(currencyCode, rateValue) {
+  const code = String(currencyCode || "").toUpperCase();
+  if (code === "UZS") return 1;
+  const rate = Number(rateValue || 0);
+  return rate > 0 ? rate : null;
+}
+
+function roundAutoFill(value) {
+  const n = Number(value || 0);
+  if (!Number.isFinite(n)) return 0;
+  return Number(n.toFixed(2));
+}
+
+function convertByCurrencyRates(amount, sourceRate, targetRate) {
+  const source = Number(sourceRate || 0);
+  const target = Number(targetRate || 0);
+  const value = Number(amount || 0);
+  if (!(source > 0) || !(target > 0) || !Number.isFinite(value)) return null;
+  return (value * source) / target;
+}
+
 function deltaClass(delta) {
   return delta > 0 ? "text-success" : (delta < 0 ? "text-danger" : "text-muted");
 }
@@ -130,6 +151,7 @@ function buildMatrixRow(refs, scope, targetId = 0, overlay = null) {
     target_id: safeTargetId,
     target_name: targetNameFromRefs(refs, scope, safeTargetId),
     prices: {},
+    auto_fill_locked: !!(overlay && Object.keys(overlay).length),
   };
 
   for (const priceType of refs.priceTypes || []) {
@@ -183,10 +205,41 @@ function mergeRefsWithDoc(refs, doc = {}) {
     const id = Number(line.price_type_id || 0);
     if (!id || seen.has(id)) continue;
     seen.add(id);
-    merged.priceTypes.push({ id, name: line.price_type_name || `#${id}`, sort_order: 999999 });
+    merged.priceTypes.push({ id, name: line.price_type_name || `#${id}`, sort_order: 999999, currency_code: "", currency_rate_value: 0 });
   }
   merged.priceTypes.sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || Number(a.id || 0) - Number(b.id || 0));
+  merged.priceTypesById = new Map(merged.priceTypes.map((item) => [Number(item.id), item]));
   return merged;
+}
+
+function autoFillRowPrices(refs, row, sourcePriceTypeId) {
+  const priceTypeId = Number(sourcePriceTypeId || 0);
+  const sourceType = refs.priceTypesById.get(priceTypeId);
+  if (!sourceType) return;
+  const sourceCell = row.prices[String(priceTypeId)];
+  if (!sourceCell) return;
+
+  const sourceRate = currencyRateValue(sourceType.currency_code, sourceType.currency_rate_value);
+  if (!(sourceRate > 0)) return;
+
+  for (const priceType of refs.priceTypes || []) {
+    const key = String(priceType.id);
+    const targetCell = row.prices[key] || buildCellState(0, 0);
+    if (Number(priceType.id) === priceTypeId) {
+      targetCell.delta = Number(targetCell.new_price || 0) - Number(targetCell.old_price || 0);
+      row.prices[key] = targetCell;
+      continue;
+    }
+
+    const targetRate = currencyRateValue(priceType.currency_code, priceType.currency_rate_value);
+    const converted = convertByCurrencyRates(sourceCell.new_price, sourceRate, targetRate);
+    if (converted === null) continue;
+    targetCell.new_price = roundAutoFill(converted);
+    targetCell.delta = Number(targetCell.new_price || 0) - Number(targetCell.old_price || 0);
+    row.prices[key] = targetCell;
+  }
+
+  row.auto_fill_locked = true;
 }
 
 function renderMatrixTable(refs, state, fmt, { readOnly = false } = {}) {
@@ -290,22 +343,34 @@ function docPageShell(title, subtitle, actionsHtml, bodyHtml) {
 }
 
 async function loadRefs(api) {
-  const [priceTypesResp, productsResp, categoriesResp, metaResp] = await Promise.all([
+  const [priceTypesResp, productsResp, categoriesResp, metaResp, currenciesResp] = await Promise.all([
     api("/price-types?page=1&page_size=200"),
     api("/products?page=1&page_size=5000"),
     api("/categories?all=1"),
     api("/prices/meta"),
+    api("/currencies?page=1&page_size=200"),
   ]);
 
   const categoryPath = buildCategoryPathMap(categoriesResp.items || []);
-  return {
-    priceTypes: (priceTypesResp.items || [])
+  const currenciesById = new Map((currenciesResp.items || []).map((item) => [Number(item.id), item]));
+  const priceTypes = (priceTypesResp.items || [])
       .filter((item) => Number(item.is_active) === 1)
-      .map((item) => ({ ...item }))
-      .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || Number(a.id || 0) - Number(b.id || 0)),
+      .map((item) => {
+        const currency = currenciesById.get(Number(item.currency_id)) || null;
+        return {
+          ...item,
+          currency_code: currency?.code || item.currency_code || "",
+          currency_rate_value: Number(currency?.rate_value ?? item.currency_rate_value ?? 0),
+        };
+      })
+      .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || Number(a.id || 0) - Number(b.id || 0));
+  return {
+    priceTypes,
+    priceTypesById: new Map(priceTypes.map((item) => [Number(item.id), item])),
     products: (productsResp.items || []).map((item) => ({ id: item.id, name: item.name })),
     categories: (categoriesResp.items || []).map((item) => ({ ...item, path: categoryPath.pathOf(item.id) || item.name })),
     currentProductPriceMap: buildCurrentProductPriceMap(metaResp.current_product_prices || []),
+    currenciesById,
   };
 }
 
@@ -334,10 +399,16 @@ function bindDocEditor(hostEl, refs, initialDoc, ctx, { isNew = false } = {}) {
       rowEl.querySelectorAll("[data-new-price]").forEach((inputEl) => {
         inputEl.addEventListener("input", () => {
           const priceTypeId = String(inputEl.getAttribute("data-new-price") || "");
-          const cell = state.rows[rowIndex].prices[priceTypeId] || buildCellState(0, 0);
+          const row = state.rows[rowIndex];
+          const cell = row.prices[priceTypeId] || buildCellState(0, 0);
           cell.new_price = Number(inputEl.value || 0);
           cell.delta = Number(cell.new_price || 0) - Number(cell.old_price || 0);
-          state.rows[rowIndex].prices[priceTypeId] = cell;
+          row.prices[priceTypeId] = cell;
+          if (!row.auto_fill_locked) {
+            autoFillRowPrices(refs, row, priceTypeId);
+            paintRows();
+            return;
+          }
           const deltaEl = rowEl.querySelector(`[data-delta="${priceTypeId}"]`);
           if (deltaEl) {
             deltaEl.className = `price-doc-delta ${deltaClass(cell.delta)}`;
@@ -601,7 +672,8 @@ async function renderDocPage(ctx, route) {
   const readOnly = mode === "view";
   if (readOnly && Array.isArray(doc.lines) && doc.lines.length) {
     const usedIds = new Set(doc.lines.map((line) => Number(line.price_type_id || 0)).filter((id) => id > 0));
-    refs = { ...refs, priceTypes: refs.priceTypes.filter((item) => usedIds.has(Number(item.id || 0))) };
+    const priceTypes = refs.priceTypes.filter((item) => usedIds.has(Number(item.id || 0)));
+    refs = { ...refs, priceTypes, priceTypesById: new Map(priceTypes.map((item) => [Number(item.id), item])) };
   }
   const stateScope = String(doc.target_scope || "products") === "categories" ? "categories" : "products";
   const rows = buildRowsFromDoc(refs, doc, stateScope);

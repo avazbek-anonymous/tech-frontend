@@ -2,9 +2,11 @@ import { renderSimpleEntity, activeBadge, esc } from "./simple-entity.js";
 
 export async function render(ctx) {
   const currenciesResp = await ctx.api("/currencies?page=1&page_size=100");
-  const currencies = (currenciesResp.items || []).map((item) => ({
+  const currencies = (currenciesResp.items || [])
+    .filter((item) => Number(item.is_active) === 1)
+    .map((item) => ({
     value: item.id,
-    label: item.symbol ? `${item.name} (${item.symbol})` : item.name,
+    label: item.symbol ? `${item.code || item.name} (${item.symbol})` : (item.code || item.name),
   }));
 
   return renderSimpleEntity(ctx, {
