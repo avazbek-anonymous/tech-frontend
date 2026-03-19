@@ -59,6 +59,26 @@ function readForm(root) {
   };
 }
 
+function productPriceCellsHtml(item, priceTypes, fmt) {
+  if (!priceTypes.length) {
+    return `<td>${fmt(item.current_price || 0)}</td>`;
+  }
+  return priceTypes.map((priceType) => {
+    const price = Number(item.price_values?.[priceType.id] || 0);
+    return `<td>${fmt(price)}</td>`;
+  }).join("");
+}
+
+function productPriceMobileHtml(item, priceTypes, fmt) {
+  if (!priceTypes.length) {
+    return `<div class="small text-muted">Цена: ${fmt(item.current_price || 0)}</div>`;
+  }
+  return priceTypes.map((priceType) => {
+    const price = Number(item.price_values?.[priceType.id] || 0);
+    return `<div class="small text-muted">${esc(priceType.name)}: ${fmt(price)}</div>`;
+  }).join("");
+}
+
 export async function render(ctx) {
   const { page, section, viewEl, api, accessFor, state, openModal, fmt } = ctx;
   const title = sectionTitle(section);
@@ -90,6 +110,7 @@ export async function render(ctx) {
   const listResp = await api(`/products?${qs.toString()}`);
   const items = listResp.items || [];
   const pagination = listResp.pagination || { page: 1, pages: 1, total: items.length, page_size: filters.page_size };
+  const visiblePriceTypes = listResp.meta?.visible_price_types || [];
   const categories = categoriesResp.items || [];
   const { pathOf } = buildPathMap(categories);
 
@@ -106,7 +127,7 @@ export async function render(ctx) {
 
     <div class="card d-none d-lg-block"><div class="card-body table-wrap">
       <table class="table table-sm table-bordered align-middle">
-        <thead><tr><th>Название</th><th>Ед. изм.</th><th>Категория</th><th>Остаток</th><th>Цена</th><th>Статус</th>${canWrite ? "<th>Действия</th>" : ""}</tr></thead>
+        <thead><tr><th>Название</th><th>Ед. изм.</th><th>Категория</th><th>Остаток</th>${visiblePriceTypes.length ? visiblePriceTypes.map((priceType) => `<th>${esc(priceType.name)}</th>`).join("") : "<th>Цена</th>"}<th>Статус</th>${canWrite ? "<th>Действия</th>" : ""}</tr></thead>
         <tbody>
           ${items.map((item) => `
             <tr>
@@ -114,7 +135,7 @@ export async function render(ctx) {
               <td>${esc(item.unit_name || "")}</td>
               <td>${esc(pathOf(item.category_id) || item.category_name || "")}</td>
               <td>${fmt(item.stock_qty || 0)}</td>
-              <td>${fmt(item.current_price || 0)}</td>
+              ${productPriceCellsHtml(item, visiblePriceTypes, fmt)}
               <td>${activeBadge(item.is_active)}</td>
               ${canWrite ? `<td><button class="btn btn-sm btn-outline-primary" data-edit="${item.id}">Изменить</button></td>` : ""}
             </tr>
@@ -132,7 +153,7 @@ export async function render(ctx) {
             <div class="small text-muted mt-2">Ед. изм.: ${esc(item.unit_name || "-")}</div>
             <div class="small text-muted">Категория: ${esc(pathOf(item.category_id) || item.category_name || "-")}</div>
             <div class="small text-muted">Остаток: ${fmt(item.stock_qty || 0)}</div>
-            <div class="small text-muted">Цена: ${fmt(item.current_price || 0)}</div>
+            ${productPriceMobileHtml(item, visiblePriceTypes, fmt)}
             <div class="small text-muted">${activeBadge(item.is_active)}</div>
             ${canWrite ? `<div class="entity-mobile-actions d-flex gap-2 flex-wrap mt-3"><button class="btn btn-sm btn-outline-primary" data-edit="${item.id}">Изменить</button></div>` : ""}
           </div>

@@ -30,6 +30,14 @@ function normalizePathname(pathname = "/") {
   return clean.endsWith("/") ? clean.slice(0, -1) || "/" : clean;
 }
 
+function pathMatchesSection(sectionPathValue, pathname) {
+  const base = normalizePathname(sectionPathValue || "/");
+  const current = normalizePathname(pathname || "/");
+  if (base === "/") return current === "/";
+  if (current === base) return true;
+  return current.startsWith(`${base}/`);
+}
+
 function sectionPath(sectionId) {
   const section = state.sections.find((item) => item.id === sectionId);
   return section?.path || `/${sectionId}`;
@@ -37,7 +45,10 @@ function sectionPath(sectionId) {
 
 function findSectionByPath(pathname) {
   const clean = normalizePathname(pathname);
-  return state.sections.find((section) => normalizePathname(section.path || `/${section.id}`) === clean) || null;
+  const matches = state.sections
+    .filter((section) => pathMatchesSection(section.path || `/${section.id}`, clean))
+    .sort((a, b) => normalizePathname(b.path || `/${b.id}`).length - normalizePathname(a.path || `/${a.id}`).length);
+  return matches[0] || null;
 }
 
 function applySectionOverrides(sections) {

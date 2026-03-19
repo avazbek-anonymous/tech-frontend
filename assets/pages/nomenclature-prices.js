@@ -1,4 +1,4 @@
-import { bindPager, pagerHtml, queueRender, sectionTitle } from "./mvp-utils.js";
+﻿import { bindPager, pagerHtml, queueRender, sectionTitle } from "./mvp-utils.js";
 
 function esc(v) {
   return String(v ?? "")
@@ -6,6 +6,35 @@ function esc(v) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function navigate(path, { replace = false, force = false } = {}) {
+  const next = String(path || "/prices");
+  if (!force && next === window.location.pathname) return;
+  const method = replace ? "replaceState" : "pushState";
+  window.history[method]({}, "", next);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+function todayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function parsePricesRoute(pathname) {
+  const clean = String(pathname || "").replace(/\/+$/, "") || "/prices";
+  if (clean === "/prices") return { mode: "list", id: 0 };
+  if (clean === "/prices/new") return { mode: "new", id: 0 };
+
+  let m = clean.match(/^\/prices\/(\d+)\/edit$/);
+  if (m) return { mode: "edit", id: Number(m[1]) };
+
+  m = clean.match(/^\/prices\/(\d+)\/view$/);
+  if (m) return { mode: "view", id: Number(m[1]) };
+
+  m = clean.match(/^\/prices\/(\d+)$/);
+  if (m) return { mode: "view", id: Number(m[1]) };
+
+  return { mode: "list", id: 0 };
 }
 
 function docStatusBadge(status) {
@@ -31,16 +60,18 @@ function targetLabel(scope) {
 function buildCategoryPathMap(items) {
   const byId = new Map((items || []).map((item) => [Number(item.id), item]));
   const memo = new Map();
+
   function pathOf(id) {
     const key = Number(id || 0);
     if (!key || !byId.has(key)) return "";
     if (memo.has(key)) return memo.get(key);
     const item = byId.get(key);
     const parentPath = item.parent_id ? pathOf(item.parent_id) : "";
-    const out = parentPath ? `${parentPath} / ${item.name}` : item.name;
+    const out = parentPath ? `${parentPath} / ${item.name}` : String(item.name || "");
     memo.set(key, out);
     return out;
   }
+
   return { pathOf };
 }
 
@@ -62,21 +93,42 @@ function buildCellState(oldPrice = 0, newPrice = oldPrice) {
   };
 }
 
+function deltaClass(delta) {
+  return delta > 0 ? "text-success" : (delta < 0 ? "text-danger" : "text-muted");
+}
+
+function deltaText(delta, fmt) {
+  return delta > 0 ? `+${fmt(delta)}` : fmt(delta);
+}
+
 function targetOptionsHtml(refs, scope, selectedId) {
   if (scope === "categories") {
     return [`<option value="">Выбрать категорию</option>`]
       .concat((refs.categories || []).map((item) => `<option value="${item.id}" ${Number(item.id) === Number(selectedId || 0) ? "selected" : ""}>${esc(item.path || item.name)}</option>`))
       .join("");
   }
+
   return [`<option value="">Выбрать товар</option>`]
     .concat((refs.products || []).map((item) => `<option value="${item.id}" ${Number(item.id) === Number(selectedId || 0) ? "selected" : ""}>${esc(item.name)}</option>`))
     .join("");
+}
+
+function targetNameFromRefs(refs, scope, targetId) {
+  const safeTargetId = Number(targetId || 0);
+  if (!safeTargetId) return "-";
+  if (scope === "categories") {
+    const item = (refs.categories || []).find((row) => Number(row.id) === safeTargetId);
+    return item?.path || item?.name || `#${safeTargetId}`;
+  }
+  const item = (refs.products || []).find((row) => Number(row.id) === safeTargetId);
+  return item?.name || `#${safeTargetId}`;
 }
 
 function buildMatrixRow(refs, scope, targetId = 0, overlay = null) {
   const safeTargetId = Number(targetId || 0);
   const row = {
     target_id: safeTargetId,
+    target_name: targetNameFromRefs(refs, scope, safeTargetId),
     prices: {},
   };
 
@@ -102,26 +154,46 @@ function buildRowsFromDoc(refs, doc = {}, scope = "products") {
   for (const line of doc.lines || []) {
     const key = Number(line.target_id || 0);
     if (!key) continue;
-    if (!grouped.has(key)) grouped.set(key, {});
-    grouped.get(key)[String(line.price_type_id)] = {
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        target_name: String(line.target_name || targetNameFromRefs(refs, scope, key) || ""),
+        prices: {},
+      });
+    }
+    grouped.get(key).prices[String(line.price_type_id)] = {
       old_price: Number(line.old_price || 0),
       new_price: Number(line.new_price || 0),
     };
   }
-  return Array.from(grouped.entries()).map(([targetId, overlay]) => buildMatrixRow(refs, scope, targetId, overlay));
+
+  return Array.from(grouped.entries()).map(([targetId, data]) => {
+    const row = buildMatrixRow(refs, scope, targetId, data.prices);
+    row.target_name = data.target_name || row.target_name;
+    return row;
+  });
 }
 
-function deltaClass(delta) {
-  return delta > 0 ? "text-success" : (delta < 0 ? "text-danger" : "text-muted");
+function mergeRefsWithDoc(refs, doc = {}) {
+  const merged = {
+    ...refs,
+    priceTypes: [...(refs.priceTypes || [])],
+  };
+  const seen = new Set(merged.priceTypes.map((item) => Number(item.id)));
+  for (const line of doc.lines || []) {
+    const id = Number(line.price_type_id || 0);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    merged.priceTypes.push({ id, name: line.price_type_name || `#${id}`, sort_order: 999999 });
+  }
+  merged.priceTypes.sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || Number(a.id || 0) - Number(b.id || 0));
+  return merged;
 }
 
-function deltaText(delta, fmt) {
-  return delta > 0 ? `+${fmt(delta)}` : fmt(delta);
-}
+function renderMatrixTable(refs, state, fmt, { readOnly = false } = {}) {
+  const removeHead = readOnly ? "" : '<th class="price-doc-remove-col" rowspan="2"></th>';
 
-function renderMatrixTable(refs, state, fmt = (n) => String(n)) {
   if (!state.rows.length) {
-    return '<div class="price-doc-lines-empty">Строк пока нет. Добавь товар или категорию, а потом заполни новые цены по нужным видам цен.</div>';
+    return '<div class="price-doc-lines-empty">Строк пока нет.</div>';
   }
 
   return `
@@ -129,41 +201,35 @@ function renderMatrixTable(refs, state, fmt = (n) => String(n)) {
       <table class="table table-bordered align-middle price-doc-matrix-table mb-0">
         <thead>
           <tr>
-            <th class="price-doc-target-col">${targetLabel(state.scope)}</th>
-            ${(refs.priceTypes || []).map((priceType) => `<th class="price-doc-price-col">${esc(priceType.name)}</th>`).join("")}
-            <th class="price-doc-remove-col"></th>
+            <th class="price-doc-target-col" rowspan="2">${targetLabel(state.scope)}</th>
+            ${(refs.priceTypes || []).map((priceType) => `<th class="price-doc-group-head" colspan="3">${esc(priceType.name)}</th>`).join("")}
+            ${removeHead}
+          </tr>
+          <tr>
+            ${(refs.priceTypes || []).map(() => '<th class="price-doc-sub-col">Старая</th><th class="price-doc-sub-col">Новая</th><th class="price-doc-sub-col">Разница</th>').join("")}
           </tr>
         </thead>
         <tbody>
           ${state.rows.map((row, rowIndex) => `
             <tr data-matrix-row data-row-index="${rowIndex}">
               <td class="price-doc-target-cell">
-                <select class="form-select" data-target-select>${targetOptionsHtml(refs, state.scope, row.target_id)}</select>
+                ${readOnly
+                  ? `<div class="price-doc-target-static">${esc(row.target_name || targetNameFromRefs(refs, state.scope, row.target_id) || "-")}</div>`
+                  : `<select class="form-select" data-target-select>${targetOptionsHtml(refs, state.scope, row.target_id)}</select>`}
               </td>
               ${(refs.priceTypes || []).map((priceType) => {
                 const cell = row.prices[String(priceType.id)] || buildCellState(0, 0);
                 return `
-                  <td class="price-doc-price-cell" data-price-cell="${priceType.id}">
-                    <div class="price-doc-cell-stack">
-                      <div class="price-doc-cell-block">
-                        <div class="price-doc-cell-label">Старая</div>
-                        <input class="form-control" value="${esc(fmt(cell.old_price || 0))}" readonly>
-                      </div>
-                      <div class="price-doc-cell-block">
-                        <div class="price-doc-cell-label">Новая</div>
-                        <input class="form-control" type="number" min="0" step="0.01" data-new-price="${priceType.id}" value="${Number.isFinite(cell.new_price) ? cell.new_price : 0}">
-                      </div>
-                      <div class="price-doc-cell-block">
-                        <div class="price-doc-cell-label">Разница</div>
-                        <div class="price-doc-delta ${deltaClass(Number(cell.delta || 0))}" data-delta>${esc(deltaText(Number(cell.delta || 0), fmt))}</div>
-                      </div>
-                    </div>
+                  <td class="price-doc-value-cell"><input class="form-control" value="${esc(fmt(cell.old_price || 0))}" readonly></td>
+                  <td class="price-doc-value-cell">
+                    ${readOnly
+                      ? `<div class="price-doc-value-static">${esc(fmt(cell.new_price || 0))}</div>`
+                      : `<input class="form-control" type="number" min="0" step="0.01" data-new-price="${priceType.id}" value="${Number.isFinite(cell.new_price) ? cell.new_price : 0}">`}
                   </td>
+                  <td class="price-doc-delta-cell"><div class="price-doc-delta ${deltaClass(Number(cell.delta || 0))}" data-delta="${priceType.id}">${esc(deltaText(Number(cell.delta || 0), fmt))}</div></td>
                 `;
               }).join("")}
-              <td class="price-doc-remove-cell">
-                <button type="button" class="btn btn-outline-danger price-doc-remove-btn" data-row-remove>x</button>
-              </td>
+              ${readOnly ? "" : '<td class="price-doc-remove-cell"><button type="button" class="btn btn-outline-danger price-doc-remove-btn" data-row-remove>x</button></td>'}
             </tr>
           `).join("")}
         </tbody>
@@ -172,45 +238,8 @@ function renderMatrixTable(refs, state, fmt = (n) => String(n)) {
   `;
 }
 
-function docModalHtml(doc = {}) {
-  return `
-    <div class="row g-3">
-      <div class="col-md-4">
-        <label class="form-label">Номер</label>
-        <input class="form-control" value="${esc(doc.doc_no || "После сохранения")}" readonly>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">Дата документа</label>
-        <input name="doc_date" type="date" class="form-control" value="${esc(doc.doc_date || new Date().toISOString().slice(0, 10))}">
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">Объект строк</label>
-        <select name="target_scope" class="form-select">
-          <option value="products" ${String(doc.target_scope || "products") === "products" ? "selected" : ""}>Товары</option>
-          <option value="categories" ${String(doc.target_scope || "") === "categories" ? "selected" : ""}>Категории</option>
-        </select>
-      </div>
-      <div class="col-12">
-        <label class="form-label">Комментарий</label>
-        <textarea name="comment" class="form-control" rows="2">${esc(doc.comment || "")}</textarea>
-      </div>
-    </div>
-    <div class="price-doc-lines-card mt-3">
-      <div class="price-doc-lines-head">
-        <div>
-          <div class="fw-semibold">Табличная часть</div>
-          <div class="small text-muted">Строка = товар или категория. Виды цен идут отдельными колонками, чтобы можно было сразу заполнить несколько цен по одному объекту.</div>
-        </div>
-        <button type="button" class="btn btn-outline-primary" data-add-row>Добавить строку</button>
-      </div>
-      <div class="price-doc-lines-body" data-lines-host></div>
-    </div>
-  `;
-}
-
-function collectDocPayload(modalEl) {
-  const get = (selector) => modalEl.querySelector(selector);
-  const state = modalEl.__priceDocState || { scope: "products", rows: [] };
+function collectDocPayload(hostEl) {
+  const state = hostEl.__priceDocState || { scope: "products", rows: [] };
   const lines = [];
 
   for (const row of state.rows || []) {
@@ -232,43 +261,74 @@ function collectDocPayload(modalEl) {
   }
 
   return {
-    doc_date: get("[name='doc_date']")?.value || new Date().toISOString().slice(0, 10),
-    target_scope: get("[name='target_scope']")?.value || "products",
-    comment: get("[name='comment']")?.value.trim() || "",
+    doc_date: hostEl.querySelector("[name='doc_date']")?.value || todayIsoDate(),
+    target_scope: hostEl.querySelector("[name='target_scope']")?.value || "products",
+    comment: hostEl.querySelector("[name='comment']")?.value.trim() || "",
     lines,
   };
 }
 
-function mountDocEditor(modalEl, refs, doc = {}, fmt = (n) => String(n)) {
-  const initialScope = String(doc.target_scope || "products") === "categories" ? "categories" : "products";
-  const initialRows = buildRowsFromDoc(refs, doc, initialScope);
+function docFieldHtml(label, controlHtml, className = "col-xl-3 col-md-6") {
+  return `<div class="${className}"><label class="form-label">${label}</label>${controlHtml}</div>`;
+}
+
+function docPageShell(title, subtitle, actionsHtml, bodyHtml) {
+  return `
+    <div class="price-doc-page d-grid gap-3">
+      <div class="card price-doc-hero">
+        <div class="card-body d-flex flex-wrap justify-content-between align-items-start gap-3">
+          <div>
+            <h3 class="mb-1">${esc(title)}</h3>
+            ${subtitle ? `<div class="text-muted">${subtitle}</div>` : ""}
+          </div>
+          <div class="price-doc-page-actions d-flex flex-wrap gap-2">${actionsHtml}</div>
+        </div>
+      </div>
+      ${bodyHtml}
+    </div>
+  `;
+}
+
+async function loadRefs(api) {
+  const [priceTypesResp, productsResp, categoriesResp, metaResp] = await Promise.all([
+    api("/price-types?page=1&page_size=200"),
+    api("/products?page=1&page_size=5000"),
+    api("/categories?all=1"),
+    api("/prices/meta"),
+  ]);
+
+  const categoryPath = buildCategoryPathMap(categoriesResp.items || []);
+  return {
+    priceTypes: (priceTypesResp.items || [])
+      .filter((item) => Number(item.is_active) === 1)
+      .map((item) => ({ ...item }))
+      .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || Number(a.id || 0) - Number(b.id || 0)),
+    products: (productsResp.items || []).map((item) => ({ id: item.id, name: item.name })),
+    categories: (categoriesResp.items || []).map((item) => ({ ...item, path: categoryPath.pathOf(item.id) || item.name })),
+    currentProductPriceMap: buildCurrentProductPriceMap(metaResp.current_product_prices || []),
+  };
+}
+
+function bindDocEditor(hostEl, refs, initialDoc, ctx, { isNew = false } = {}) {
   const state = {
-    scope: initialScope,
-    rows: initialRows,
+    scope: String(initialDoc.target_scope || "products") === "categories" ? "categories" : "products",
+    rows: buildRowsFromDoc(refs, initialDoc, String(initialDoc.target_scope || "products") === "categories" ? "categories" : "products"),
   };
-  modalEl.__priceDocState = state;
+  hostEl.__priceDocState = state;
 
-  const scopeEl = modalEl.querySelector("[name='target_scope']");
-  const linesHost = modalEl.querySelector("[data-lines-host]");
-  const addRowBtn = modalEl.querySelector("[data-add-row]");
+  const scopeEl = hostEl.querySelector("[name='target_scope']");
+  const linesHost = hostEl.querySelector("[data-lines-host]");
+  const addRowBtn = hostEl.querySelector("[data-add-row]");
 
-  const paintDeltaCell = (inputEl, cell) => {
-    const deltaEl = inputEl.closest("[data-price-cell]")?.querySelector("[data-delta]");
-    if (!deltaEl) return;
-    const delta = Number(cell.delta || 0);
-    deltaEl.classList.remove("text-success", "text-danger", "text-muted");
-    deltaEl.classList.add(deltaClass(delta));
-    deltaEl.textContent = deltaText(delta, fmt);
-  };
-
-  const renderRows = () => {
-    linesHost.innerHTML = renderMatrixTable(refs, state, fmt);
+  const paintRows = () => {
+    linesHost.innerHTML = renderMatrixTable(refs, state, ctx.fmt);
 
     linesHost.querySelectorAll("[data-matrix-row]").forEach((rowEl) => {
       const rowIndex = Number(rowEl.getAttribute("data-row-index") || 0);
       rowEl.querySelector("[data-target-select]")?.addEventListener("change", (ev) => {
-        state.rows[rowIndex] = buildMatrixRow(refs, state.scope, Number(ev.target.value || 0));
-        renderRows();
+        const nextTargetId = Number(ev.target.value || 0);
+        state.rows[rowIndex] = buildMatrixRow(refs, state.scope, nextTargetId);
+        paintRows();
       });
 
       rowEl.querySelectorAll("[data-new-price]").forEach((inputEl) => {
@@ -278,46 +338,109 @@ function mountDocEditor(modalEl, refs, doc = {}, fmt = (n) => String(n)) {
           cell.new_price = Number(inputEl.value || 0);
           cell.delta = Number(cell.new_price || 0) - Number(cell.old_price || 0);
           state.rows[rowIndex].prices[priceTypeId] = cell;
-          paintDeltaCell(inputEl, cell);
+          const deltaEl = rowEl.querySelector(`[data-delta="${priceTypeId}"]`);
+          if (deltaEl) {
+            deltaEl.className = `price-doc-delta ${deltaClass(cell.delta)}`;
+            deltaEl.textContent = deltaText(cell.delta, ctx.fmt);
+          }
         });
       });
 
       rowEl.querySelector("[data-row-remove]")?.addEventListener("click", () => {
         state.rows.splice(rowIndex, 1);
-        renderRows();
+        paintRows();
       });
     });
   };
 
   scopeEl?.addEventListener("change", () => {
     state.scope = scopeEl.value === "categories" ? "categories" : "products";
-    modalEl.__priceDocState.scope = state.scope;
+    hostEl.__priceDocState.scope = state.scope;
     state.rows = state.rows.map(() => buildMatrixRow(refs, state.scope, 0));
-    renderRows();
+    paintRows();
   });
 
   addRowBtn?.addEventListener("click", () => {
     state.rows.push(buildMatrixRow(refs, state.scope, 0));
-    renderRows();
+    paintRows();
   });
 
-  renderRows();
+  const saveErrorEl = hostEl.querySelector("[data-save-error]");
+  const bindAsyncButton = (selector, handler) => {
+    hostEl.querySelectorAll(selector).forEach((btn) => {
+      const baseHtml = btn.innerHTML;
+      btn.addEventListener("click", async () => {
+        saveErrorEl.textContent = "";
+        hostEl.querySelectorAll("[data-save-doc], [data-save-post-doc]").forEach((peer) => { peer.disabled = true; });
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Сохранение...';
+        try {
+          await handler();
+        } catch (e) {
+          saveErrorEl.textContent = String(e?.message || e || "Ошибка сохранения");
+        } finally {
+          hostEl.querySelectorAll("[data-save-doc], [data-save-post-doc]").forEach((peer) => { peer.disabled = false; });
+          btn.innerHTML = baseHtml;
+        }
+      });
+    });
+  };
+
+  const saveDoc = async ({ post = false } = {}) => {
+    const payload = collectDocPayload(hostEl);
+    let docId = Number(initialDoc.id || 0);
+    if (isNew) {
+      const resp = await ctx.api("/prices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      docId = Number(resp.item?.id || 0);
+      if (!docId) throw new Error("Не удалось сохранить документ");
+    } else {
+      await ctx.api(`/prices/${initialDoc.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      docId = Number(initialDoc.id || 0);
+    }
+
+    if (post) {
+      await ctx.api(`/prices/${docId}/post`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      navigate(`/prices/${docId}/view`, { replace: true, force: true });
+      return;
+    }
+
+    navigate(`/prices/${docId}/edit`, { replace: true, force: true });
+  };
+
+  bindAsyncButton("[data-save-doc]", () => saveDoc({ post: false }));
+  bindAsyncButton("[data-save-post-doc]", () => saveDoc({ post: true }));
+
+  paintRows();
 }
 
-function actionButtonHtml(item, canWrite) {
-  if (!canWrite) return "";
-  const actions = [`<button class="btn btn-sm btn-outline-primary" data-edit="${item.id}">Открыть</button>`];
-  if (String(item.status) === "posted") {
-    actions.push(`<button class="btn btn-sm btn-outline-warning" data-unpost="${item.id}">Снять проведение</button>`);
-  } else {
-    actions.push(`<button class="btn btn-sm btn-outline-success" data-post="${item.id}">Провести</button>`);
+function listActionButtons(item, canWrite) {
+  const buttons = [`<button class="btn btn-sm btn-outline-primary" data-open="${item.id}">Открыть</button>`];
+  if (canWrite && String(item.status || "draft") !== "posted") {
+    buttons.push(`<button class="btn btn-sm btn-outline-secondary" data-edit="${item.id}">Изменить</button>`);
+    buttons.push(`<button class="btn btn-sm btn-outline-success" data-post="${item.id}">Провести</button>`);
   }
-  actions.push(`<button class="btn btn-sm ${Number(item.marked_for_delete) === 1 ? "btn-outline-secondary" : "btn-outline-danger"}" data-mark-delete="${item.id}">${Number(item.marked_for_delete) === 1 ? "Снять пометку" : "Пометить"}</button>`);
-  return `<div class="d-flex gap-2 flex-wrap">${actions.join("")}</div>`;
+  if (canWrite && String(item.status || "draft") === "posted") {
+    buttons.push(`<button class="btn btn-sm btn-outline-warning" data-unpost="${item.id}">Снять проведение</button>`);
+  }
+  if (canWrite) {
+    buttons.push(`<button class="btn btn-sm ${Number(item.marked_for_delete) === 1 ? "btn-outline-secondary" : "btn-outline-danger"}" data-mark-delete="${item.id}">${Number(item.marked_for_delete) === 1 ? "Снять пометку" : "Пометить"}</button>`);
+  }
+  return `<div class="d-flex gap-2 flex-wrap">${buttons.join("")}</div>`;
 }
 
-export async function render(ctx) {
-  const { page, section, viewEl, api, accessFor, state, openModal } = ctx;
+async function renderList(ctx) {
+  const { page, section, viewEl, api, accessFor, state } = ctx;
   const title = sectionTitle(section);
   page(title, "", { raw: true });
 
@@ -336,25 +459,11 @@ export async function render(ctx) {
   if (filters.q) qs.set("q", filters.q);
   if (filters.status) qs.set("status", filters.status);
 
-  const [listResp, priceTypesResp, productsResp, categoriesResp, metaResp] = await Promise.all([
-    api(`/prices?${qs.toString()}`),
-    api("/price-types?page=1&page_size=100"),
-    api("/products?page=1&page_size=1000"),
-    api("/categories?all=1"),
-    api("/prices/meta"),
-  ]);
-
+  const listResp = await api(`/prices?${qs.toString()}`);
+  const priceTypesResp = await api("/price-types?page=1&page_size=200");
   const items = listResp.items || [];
   const pagination = listResp.pagination || { page: 1, pages: 1, total: items.length, page_size: filters.page_size };
-  const categoryPath = buildCategoryPathMap(categoriesResp.items || []);
-  const refs = {
-    priceTypes: (priceTypesResp.items || [])
-      .filter((item) => Number(item.is_active) === 1)
-      .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || Number(a.id || 0) - Number(b.id || 0)),
-    products: (productsResp.items || []).map((item) => ({ id: item.id, name: item.name })),
-    categories: (categoriesResp.items || []).map((item) => ({ ...item, path: categoryPath.pathOf(item.id) || item.name })),
-    currentProductPriceMap: buildCurrentProductPriceMap(metaResp.current_product_prices || []),
-  };
+  const hasPriceTypes = (priceTypesResp.items || []).some((item) => Number(item.is_active) === 1);
 
   viewEl.innerHTML = `
     <div class="card entity-toolbar-card mb-3"><div class="card-body">
@@ -373,14 +482,14 @@ export async function render(ctx) {
             </select>
           </div>
         </div>
-        ${canWrite ? `<div class="entity-toolbar-actions"><button id="prices_create" class="btn btn-primary entity-toolbar-btn" ${refs.priceTypes.length ? "" : "disabled"}>Создать</button></div>` : ""}
+        ${canWrite ? `<div class="entity-toolbar-actions"><button id="prices_create" class="btn btn-primary entity-toolbar-btn" ${hasPriceTypes ? "" : "disabled"}>Создать</button></div>` : ""}
       </div>
-      ${refs.priceTypes.length ? "" : '<div class="alert alert-warning mt-3 mb-0">Сначала создай хотя бы один активный вид цены в справочнике, потом можно оформлять документ установки цен.</div>'}
+      ${hasPriceTypes ? "" : '<div class="alert alert-warning mt-3 mb-0">Сначала создай хотя бы один активный вид цены, потом можно оформлять документы установки цен.</div>'}
     </div></div>
 
     <div class="card d-none d-lg-block"><div class="card-body table-wrap">
       <table class="table table-sm table-bordered align-middle">
-        <thead><tr><th>Номер</th><th>Дата</th><th>Объект</th><th>Строк</th><th>Статус</th><th>Удаление</th><th>Комментарий</th>${canWrite ? "<th>Действия</th>" : ""}</tr></thead>
+        <thead><tr><th>Номер</th><th>Дата</th><th>Объект</th><th>Строк</th><th>Статус</th><th>Удаление</th><th>Комментарий</th><th>Действия</th></tr></thead>
         <tbody>
           ${items.map((item) => `
             <tr>
@@ -391,7 +500,7 @@ export async function render(ctx) {
               <td>${docStatusBadge(item.status)}</td>
               <td>${deleteMarkBadge(item.marked_for_delete)}</td>
               <td>${esc(item.comment || "")}</td>
-              ${canWrite ? `<td>${actionButtonHtml(item, canWrite)}</td>` : ""}
+              <td>${listActionButtons(item, canWrite)}</td>
             </tr>
           `).join("")}
         </tbody>
@@ -410,7 +519,7 @@ export async function render(ctx) {
             <div class="small text-muted mt-1">${docStatusBadge(item.status)}</div>
             <div class="small text-muted mt-1">${deleteMarkBadge(item.marked_for_delete)}</div>
             <div class="small text-muted mt-1">Комментарий: ${esc(item.comment || "-")}</div>
-            ${canWrite ? `<div class="entity-mobile-actions d-flex gap-2 flex-wrap mt-3">${actionButtonHtml(item, canWrite)}</div>` : ""}
+            <div class="entity-mobile-actions d-flex gap-2 flex-wrap mt-3">${listActionButtons(item, canWrite)}</div>
           </div>
         </div>
       `).join("")}
@@ -418,91 +527,199 @@ export async function render(ctx) {
     </div>
   `;
 
-  const rerender = () => render(ctx);
-
   viewEl.querySelector("#prices_q")?.addEventListener("input", (ev) => {
     viewEl.dataset.q = ev.target.value.trim();
     queueRender(viewEl, "__pricesTimer", () => {
       viewEl.dataset.page = "1";
-      rerender();
+      renderList(ctx);
     });
   });
 
   viewEl.querySelector("#prices_status")?.addEventListener("change", (ev) => {
     viewEl.dataset.status = ev.target.value;
     viewEl.dataset.page = "1";
-    rerender();
+    renderList(ctx);
   });
 
   bindPager(viewEl, pagination, ({ page, page_size }) => {
     viewEl.dataset.page = String(page);
     viewEl.dataset.page_size = String(page_size);
-    rerender();
+    renderList(ctx);
   });
 
-  if (!canWrite) return;
+  viewEl.querySelector("#prices_create")?.addEventListener("click", () => navigate("/prices/new"));
+  viewEl.querySelectorAll("[data-open]").forEach((btn) => btn.addEventListener("click", () => navigate(`/prices/${btn.getAttribute("data-open")}/view`)));
+  viewEl.querySelectorAll("[data-edit]").forEach((btn) => btn.addEventListener("click", () => navigate(`/prices/${btn.getAttribute("data-edit")}/edit`)));
 
-  const openDocModal = (doc = {}) => {
-    openModal({
-      title: doc.id ? `Документ ${doc.doc_no || ""}` : "Создать документ установки цен",
-      bodyHtml: docModalHtml(doc),
-      onMount: (modalEl) => mountDocEditor(modalEl, refs, doc, ctx.fmt),
-      onSave: async (modalEl) => {
-        const payload = collectDocPayload(modalEl);
-        if (!payload.lines.length) throw new Error("Заполни хотя бы одну новую цену");
-        if (doc.id) {
-          await api(`/prices/${doc.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-          });
-        } else {
-          await api("/prices", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-          });
-        }
-        await rerender();
-      }
-    });
+  viewEl.querySelectorAll("[data-post]").forEach((btn) => btn.addEventListener("click", async () => {
+    await api(`/prices/${btn.getAttribute("data-post")}/post`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    await renderList(ctx);
+  }));
+
+  viewEl.querySelectorAll("[data-unpost]").forEach((btn) => btn.addEventListener("click", async () => {
+    await api(`/prices/${btn.getAttribute("data-unpost")}/unpost`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    await renderList(ctx);
+  }));
+
+  viewEl.querySelectorAll("[data-mark-delete]").forEach((btn) => btn.addEventListener("click", async () => {
+    await api(`/prices/${btn.getAttribute("data-mark-delete")}/mark-delete`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    await renderList(ctx);
+  }));
+}
+
+async function renderDocPage(ctx, route) {
+  const { page, section, viewEl, api, accessFor, state, fmt } = ctx;
+  const canWrite = accessFor(state.me.role).prices.write;
+  const baseTitle = sectionTitle(section);
+
+  if ((route.mode === "new" || route.mode === "edit") && !canWrite) {
+    page(baseTitle, "", { raw: true });
+    viewEl.innerHTML = '<div class="alert alert-danger">Нет доступа к редактированию документов установки цен.</div>';
+    return;
+  }
+
+  let refs = await loadRefs(api);
+  let doc = {
+    id: 0,
+    doc_no: "После сохранения",
+    doc_date: todayIsoDate(),
+    target_scope: "products",
+    comment: "",
+    status: "draft",
+    marked_for_delete: 0,
+    lines: [],
   };
 
-  viewEl.querySelector("#prices_create")?.addEventListener("click", () => openDocModal({ doc_date: new Date().toISOString().slice(0, 10), target_scope: "products", lines: [] }));
+  if (route.mode !== "new") {
+    const resp = await api(`/prices/${route.id}`);
+    doc = resp.item || doc;
+    refs = mergeRefsWithDoc(refs, doc);
+  }
 
-  viewEl.querySelectorAll("[data-edit]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const id = Number(btn.getAttribute("data-edit") || 0);
-      if (!id) return;
-      const resp = await api(`/prices/${id}`);
-      openDocModal(resp.item || {});
-    });
-  });
+  let mode = route.mode;
+  if (mode === "edit" && String(doc.status || "draft") === "posted") mode = "view";
+  const readOnly = mode === "view";
+  if (readOnly && Array.isArray(doc.lines) && doc.lines.length) {
+    const usedIds = new Set(doc.lines.map((line) => Number(line.price_type_id || 0)).filter((id) => id > 0));
+    refs = { ...refs, priceTypes: refs.priceTypes.filter((item) => usedIds.has(Number(item.id || 0))) };
+  }
+  const stateScope = String(doc.target_scope || "products") === "categories" ? "categories" : "products";
+  const rows = buildRowsFromDoc(refs, doc, stateScope);
 
-  viewEl.querySelectorAll("[data-post]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const id = Number(btn.getAttribute("data-post") || 0);
-      if (!id) return;
-      await api(`/prices/${id}/post`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-      await rerender();
-    });
-  });
+  const titleMap = {
+    new: `${baseTitle} / Создание`,
+    edit: `${baseTitle} / Редактирование`,
+    view: `${baseTitle} / Просмотр`,
+  };
+  page(titleMap[mode] || baseTitle, "", { raw: true });
 
-  viewEl.querySelectorAll("[data-unpost]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const id = Number(btn.getAttribute("data-unpost") || 0);
-      if (!id) return;
-      await api(`/prices/${id}/unpost`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-      await rerender();
-    });
-  });
+  const infoSubtitle = [
+    doc.id ? `Документ ${doc.doc_no || ""}` : "Новый документ",
+    doc.id ? `Статус: ${String(doc.status || "draft") === "posted" ? "Проведен" : "Черновик"}` : "После первого сохранения номер присвоится автоматически",
+  ].join(" • ");
 
-  viewEl.querySelectorAll("[data-mark-delete]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const id = Number(btn.getAttribute("data-mark-delete") || 0);
-      if (!id) return;
-      await api(`/prices/${id}/mark-delete`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-      await rerender();
-    });
-  });
+  const actionButtons = [];
+  actionButtons.push('<button type="button" class="btn btn-outline-secondary" data-back-list>К списку</button>');
+
+  if (mode === "new") {
+    actionButtons.push('<button type="button" class="btn btn-primary" data-save-doc>Сохранить</button>');
+    actionButtons.push('<button type="button" class="btn btn-success" data-save-post-doc>Сохранить и провести</button>');
+  }
+
+  if (mode === "edit") {
+    actionButtons.push(`<button type="button" class="btn btn-outline-primary" data-open-view="${doc.id}">Просмотр</button>`);
+    actionButtons.push('<button type="button" class="btn btn-primary" data-save-doc>Сохранить</button>');
+    actionButtons.push('<button type="button" class="btn btn-success" data-save-post-doc>Сохранить и провести</button>');
+  }
+
+  if (mode === "view" && canWrite) {
+    if (String(doc.status || "draft") !== "posted") {
+      actionButtons.push(`<button type="button" class="btn btn-outline-primary" data-open-edit="${doc.id}">Изменить</button>`);
+      actionButtons.push(`<button type="button" class="btn btn-success" data-post-doc="${doc.id}">Провести</button>`);
+    } else {
+      actionButtons.push(`<button type="button" class="btn btn-warning" data-unpost-doc="${doc.id}">Снять проведение</button>`);
+    }
+    actionButtons.push(`<button type="button" class="btn ${Number(doc.marked_for_delete) === 1 ? "btn-outline-secondary" : "btn-outline-danger"}" data-toggle-delete="${doc.id}">${Number(doc.marked_for_delete) === 1 ? "Снять пометку" : "Пометить на удаление"}</button>`);
+  }
+
+  const bodyHtml = `
+    ${route.mode === "edit" && mode === "view" ? '<div class="alert alert-warning mb-0">Документ уже проведен, поэтому открылся в режиме просмотра. Чтобы редактировать его, сначала сними проведение.</div>' : ""}
+    <div class="card">
+      <div class="card-body">
+        <div class="row g-3 align-items-start">
+          ${docFieldHtml("Номер", `<input class="form-control" value="${esc(doc.doc_no || "После сохранения")}" readonly>`)}
+          ${docFieldHtml("Дата создания", `<input class="form-control" value="${esc(doc.created_at ? new Date(Number(doc.created_at) * 1000).toLocaleString() : "Сейчас")}" readonly>`)}
+          ${docFieldHtml("Дата документа", `<input name="doc_date" type="date" class="form-control" value="${esc(doc.doc_date || todayIsoDate())}" ${readOnly ? "disabled" : ""}>`)}
+          ${docFieldHtml("Объект строк", readOnly
+            ? `<input class="form-control" value="${esc(scopeLabel(doc.target_scope))}" readonly>`
+            : `<select name="target_scope" class="form-select"><option value="products" ${String(doc.target_scope || "products") === "products" ? "selected" : ""}>Товары</option><option value="categories" ${String(doc.target_scope || "") === "categories" ? "selected" : ""}>Категории</option></select>`)}
+          <div class="col-12">
+            <label class="form-label">Комментарий</label>
+            <textarea name="comment" class="form-control" rows="3" ${readOnly ? "readonly" : ""}>${esc(doc.comment || "")}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card price-doc-lines-card">
+      <div class="card-body">
+        <div class="price-doc-lines-head">
+          <div>
+            <div class="fw-semibold">Табличная часть</div>
+            <div class="small text-muted">Строка = ${targetLabel(doc.target_scope).toLowerCase()}. Под каждым видом цены идут горизонтальные колонки: Старая, Новая, Разница.</div>
+          </div>
+          ${readOnly ? "" : '<button type="button" class="btn btn-outline-primary" data-add-row>Добавить строку</button>'}
+        </div>
+        <div class="price-doc-lines-body" data-lines-host>${renderMatrixTable(refs, { scope: stateScope, rows }, fmt, { readOnly })}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          ${docStatusBadge(doc.status)}
+          ${deleteMarkBadge(doc.marked_for_delete)}
+          ${doc.id ? `<span class="text-muted small">Строк в документе: ${Number(doc.lines_count || (doc.lines || []).length || 0)}</span>` : '<span class="text-muted small">Номер документа появится после первого сохранения</span>'}
+        </div>
+        <div class="price-doc-page-actions d-flex flex-wrap gap-2">${actionButtons.join("")}</div>
+      </div>
+      ${readOnly ? "" : '<div class="card-footer"><div class="text-danger small" data-save-error></div></div>'}
+    </div>
+  `;
+
+  viewEl.innerHTML = docPageShell(mode === "new" ? "Создать документ установки цен" : `${readOnly ? "Просмотр" : "Редактирование"} документа ${esc(doc.doc_no || "")}`, infoSubtitle, actionButtons.join(""), bodyHtml);
+
+  viewEl.querySelectorAll("[data-back-list]").forEach((btn) => btn.addEventListener("click", () => navigate("/prices")));
+  viewEl.querySelectorAll("[data-open-view]").forEach((btn) => btn.addEventListener("click", () => navigate(`/prices/${btn.getAttribute("data-open-view")}/view`)));
+  viewEl.querySelectorAll("[data-open-edit]").forEach((btn) => btn.addEventListener("click", () => navigate(`/prices/${btn.getAttribute("data-open-edit")}/edit`)));
+
+  if (readOnly) {
+    viewEl.querySelectorAll("[data-post-doc]").forEach((btn) => btn.addEventListener("click", async () => {
+      await api(`/prices/${btn.getAttribute("data-post-doc")}/post`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      navigate(`/prices/${btn.getAttribute("data-post-doc")}/view`, { replace: true, force: true });
+    }));
+
+    viewEl.querySelectorAll("[data-unpost-doc]").forEach((btn) => btn.addEventListener("click", async () => {
+      await api(`/prices/${btn.getAttribute("data-unpost-doc")}/unpost`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      navigate(`/prices/${btn.getAttribute("data-unpost-doc")}/view`, { replace: true, force: true });
+    }));
+
+    viewEl.querySelectorAll("[data-toggle-delete]").forEach((btn) => btn.addEventListener("click", async () => {
+      await api(`/prices/${btn.getAttribute("data-toggle-delete")}/mark-delete`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      navigate(`/prices/${btn.getAttribute("data-toggle-delete")}/view`, { replace: true, force: true });
+    }));
+
+    return;
+  }
+
+  bindDocEditor(viewEl, refs, doc, ctx, { isNew: mode === "new" });
+}
+
+export async function render(ctx) {
+  const route = parsePricesRoute(window.location.pathname);
+  if (route.mode === "list") {
+    await renderList(ctx);
+    return;
+  }
+  await renderDocPage(ctx, route);
 }
